@@ -9,10 +9,12 @@
   function cacheElements() {
     elements.ageValue = document.getElementById("age-value");
     elements.stageValue = document.getElementById("stage-value");
+    elements.genderValue = document.getElementById("gender-value");
     elements.eventTitle = document.getElementById("event-title");
     elements.storyText = document.getElementById("story-text");
     elements.optionsContainer = document.getElementById("options-container");
     elements.statsContainer = document.getElementById("stats-container");
+    elements.familyBackgroundContainer = document.getElementById("family-background-container");
     elements.relationshipsContainer = document.getElementById("relationships-container");
     elements.historyContainer = document.getElementById("history-container");
     elements.storySection = document.getElementById("story-section");
@@ -31,6 +33,18 @@
       node.textContent = paragraph;
       container.appendChild(node);
     });
+  }
+
+  function getGenderLabel(gender) {
+    if (gender === "male") {
+      return "男";
+    }
+
+    if (gender === "female") {
+      return "女";
+    }
+
+    return "";
   }
 
   function renderStats(state) {
@@ -62,6 +76,62 @@
       row.appendChild(number);
       elements.statsContainer.appendChild(row);
     });
+  }
+
+  function renderFamilyBackground(state) {
+    elements.familyBackgroundContainer.innerHTML = "";
+
+    if (!state.familyBackground) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "正式开始前，这里会显示你抽到的家庭背景。";
+      elements.familyBackgroundContainer.appendChild(empty);
+      return;
+    }
+
+    const card = document.createElement("article");
+    card.className = "background-card";
+
+    const title = document.createElement("strong");
+    title.className = "background-title";
+    title.textContent = state.familyBackground.name;
+
+    const summary = document.createElement("p");
+    summary.className = "background-summary";
+    summary.textContent = state.familyBackground.summary || "这段家庭背景会持续影响你的人生前期。";
+
+    card.appendChild(title);
+    card.appendChild(summary);
+
+    const dimensions = state.familyBackground.dimensions || {};
+    if (Object.keys(dimensions).length) {
+      const list = document.createElement("div");
+      list.className = "background-dimensions";
+
+      Object.entries(dimensions).forEach(([key, value]) => {
+        const item = document.createElement("span");
+        item.className = "background-dimension";
+        item.textContent = key + "：" + value;
+        list.appendChild(item);
+      });
+
+      card.appendChild(list);
+    }
+
+    if (Array.isArray(state.familyBackground.details) && state.familyBackground.details.length) {
+      const detailList = document.createElement("ul");
+      detailList.className = "background-details";
+
+      state.familyBackground.details.forEach((detail) => {
+        const item = document.createElement("li");
+        item.textContent = detail;
+        detailList.appendChild(item);
+      });
+
+      card.appendChild(detailList);
+    }
+
+    elements.familyBackgroundContainer.appendChild(card);
   }
 
   function renderHistory(state) {
@@ -115,20 +185,34 @@
       const header = document.createElement("div");
       header.className = "relationship-header";
 
+      const nameRow = document.createElement("div");
+      nameRow.className = "relationship-name-row";
+
       const name = document.createElement("strong");
       name.textContent = relationship.name;
+
+      nameRow.appendChild(name);
+
+      if (relationship.gender) {
+        const gender = document.createElement("span");
+        gender.className = "relationship-gender";
+        gender.textContent = getGenderLabel(relationship.gender);
+        nameRow.appendChild(gender);
+      }
 
       const status = document.createElement("span");
       status.className = "relationship-status";
       status.textContent =
         stateApi.RELATIONSHIP_STATUS_LABELS[relationship.status] || relationship.status || "关系未定义";
 
-      header.appendChild(name);
+      header.appendChild(nameRow);
       header.appendChild(status);
 
       const identity = document.createElement("p");
       identity.className = "relationship-identity";
-      identity.textContent = relationship.identity || "你们的关系还在慢慢形成。";
+      identity.textContent =
+        (relationship.gender ? getGenderLabel(relationship.gender) + "生 · " : "") +
+        (relationship.identity || "你们的关系还在慢慢形成。");
 
       const traits = document.createElement("div");
       traits.className = "relationship-traits";
@@ -196,7 +280,7 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "option-button";
-      button.textContent = engine.formatText(option.text);
+      button.textContent = engine.formatOptionText(option.text);
       button.addEventListener("click", function () {
         engine.chooseOption(option.index);
         render();
@@ -217,7 +301,10 @@
     elements.storySection.classList.remove("ending-card");
     elements.stageValue.textContent = "未开始";
     elements.eventTitle.textContent = "从名字开始";
-    createParagraphs(elements.storyText, "你刚刚出生，这一生还没有真正展开。\n\n先为自己取一个名字，然后从 0 岁开始经历属于你的人生。");
+    createParagraphs(
+      elements.storyText,
+      "你刚刚出生，这一生还没有真正展开。\n\n先为自己取一个名字，并选择这一局的性别。后续恋爱对象会根据这里的选择提供不同组合，然后再抽取家庭背景，从 0 岁开始经历属于你的人生。"
+    );
 
     elements.optionsContainer.innerHTML = "";
 
@@ -230,6 +317,46 @@
     input.maxLength = 12;
     input.placeholder = "请输入名字";
     input.autocomplete = "off";
+    input.required = true;
+
+    const genderFieldset = document.createElement("fieldset");
+    genderFieldset.className = "setup-fieldset";
+
+    const genderLegend = document.createElement("legend");
+    genderLegend.className = "setup-legend";
+    genderLegend.textContent = "选择这一局的性别";
+
+    const genderGroup = document.createElement("div");
+    genderGroup.className = "setup-radio-group";
+
+    [
+      { value: "male", label: "男孩" },
+      { value: "female", label: "女孩" }
+    ].forEach(function (item, index) {
+      const optionLabel = document.createElement("label");
+      optionLabel.className = "setup-radio-option";
+
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "player-gender";
+      radio.value = item.value;
+      radio.required = index === 0;
+
+      const text = document.createElement("span");
+      text.textContent = item.label;
+
+      optionLabel.appendChild(radio);
+      optionLabel.appendChild(text);
+      genderGroup.appendChild(optionLabel);
+    });
+
+    const helper = document.createElement("p");
+    helper.className = "setup-helper";
+    helper.textContent = "男孩开局会看到 4 个女孩 + 1 个男孩；女孩开局会看到 4 个男孩 + 1 个女孩。";
+
+    genderFieldset.appendChild(genderLegend);
+    genderFieldset.appendChild(genderGroup);
+    genderFieldset.appendChild(helper);
 
     const button = document.createElement("button");
     button.type = "submit";
@@ -238,11 +365,17 @@
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
-      engine.startGame(input.value);
+      const selectedGender = form.querySelector('input[name="player-gender"]:checked');
+      if (!selectedGender) {
+        return;
+      }
+
+      engine.startGame(input.value, selectedGender.value);
       render();
     });
 
     form.appendChild(input);
+    form.appendChild(genderFieldset);
     form.appendChild(button);
     elements.optionsContainer.appendChild(form);
 
@@ -293,11 +426,13 @@
   }
 
   function render() {
-    const state = engine.getState();
     const event = engine.getCurrentEvent();
+    const state = engine.getState();
 
     elements.ageValue.textContent = String(state.age);
+    elements.genderValue.textContent = state.playerGender === "male" ? "男孩" : state.playerGender === "female" ? "女孩" : "未选择";
     renderStats(state);
+    renderFamilyBackground(state);
     renderRelationships(state);
     renderStory(state, event);
     renderHistory(state);

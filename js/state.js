@@ -2,7 +2,18 @@
   "use strict";
 
   const relationshipDefinitions = Array.isArray(window.LIFE_RELATIONSHIPS) ? window.LIFE_RELATIONSHIPS : [];
-  const STAT_KEYS = ["money", "health", "happiness", "intelligence", "social", "career"];
+  const STAT_KEYS = [
+    "money",
+    "health",
+    "mental",
+    "happiness",
+    "intelligence",
+    "social",
+    "career",
+    "familySupport",
+    "stress",
+    "discipline"
+  ];
   const STAGE_LABELS = {
     childhood: "幼年期",
     school: "小学阶段",
@@ -21,26 +32,37 @@
   const STAT_LABELS = {
     money: "金钱",
     health: "健康",
+    mental: "心理状态",
     happiness: "幸福感",
-    intelligence: "智力",
+    intelligence: "学业能力",
     social: "社交",
-    career: "事业"
+    career: "事业",
+    familySupport: "家庭支持",
+    stress: "压力值",
+    discipline: "自律习惯"
   };
 
   const DEFAULT_STATS = {
     money: 20,
     health: 70,
+    mental: 62,
     happiness: 60,
     intelligence: 50,
     social: 50,
-    career: 0
+    career: 0,
+    familySupport: 50,
+    stress: 20,
+    discipline: 45
   };
 
   const RELATIONSHIP_STATUS_LABELS = {
     unknown: "尚未相识",
     noticed: "有点在意",
+    crush: "暗暗喜欢",
     familiar: "逐渐熟悉",
     close: "关系升温",
+    ambiguous: "暧昧试探",
+    short_dating: "短暂交往",
     dating: "恋爱中",
     steady: "稳定交往",
     married: "共同生活",
@@ -71,6 +93,7 @@
       relationships[id] = {
         id,
         name: typeof definition.name === "string" ? definition.name : id,
+        gender: typeof definition.gender === "string" ? definition.gender : "",
         identity: typeof definition.identity === "string" ? definition.identity : "",
         traitTags: normalizeStringArray(definition.traitTags),
         contactStyle: typeof definition.contactStyle === "string" ? definition.contactStyle : "",
@@ -89,6 +112,7 @@
   function createInitialState() {
     return {
       playerName: "",
+      playerGender: "",
       age: 0,
       choiceCount: 0,
       stats: { ...DEFAULT_STATS },
@@ -101,6 +125,9 @@
       currentEventId: null,
       currentEventPendingEnter: false,
       activeRelationshipId: null,
+      familyBackground: null,
+      pendingFamilyBackgroundId: null,
+      setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,
       ending: null,

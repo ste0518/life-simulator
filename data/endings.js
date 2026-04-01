@@ -89,7 +89,7 @@
 
   const LATE_GAME_REQUIREMENT = {
     minAge: 58,
-    minChoices: 88,
+    minChoices: 108,
   };
 
   window.LIFE_ENDINGS = [
@@ -100,7 +100,8 @@
       instant: true,
       baseWeight: 1000,
       require: requirement({
-        minChoices: 24,
+        minAge: 30,
+        minChoices: 80,
         maxStats: {
           health: 0,
         },
@@ -113,7 +114,8 @@
       instant: true,
       baseWeight: 900,
       require: requirement({
-        minChoices: 24,
+        minAge: 30,
+        minChoices: 80,
         maxStats: {
           happiness: 0,
         },
@@ -136,6 +138,8 @@
         modifier({ weight: 12, when: { someFlags: ["mentor_support", "mentor_legacy", "advanced_degree", "city_seen_early"] } }),
         modifier({ weight: 10, when: { minStats: { money: 65 } } }),
         modifier({ weight: 8, when: { someFlags: ["study_system_built", "goal_planner", "adolescent_self_discipline"] } }),
+        modifier({ weight: 8, when: { minStats: { discipline: 70 } } }),
+        modifier({ weight: 6, when: { someFlags: ["family_expectation_high", "resource_rich_home"] } }),
       ],
     }),
     ending({
@@ -155,6 +159,7 @@
         modifier({ weight: 8, when: { minStats: { social: 60 } } }),
         modifier({ weight: 8, when: { someFlags: ["stable_job", "stable_system_job", "homeowner", "small_world_comfort"] } }),
         modifier({ weight: 8, when: { someFlags: ["health_managed", "flexible_routine", "early_self_discipline"] } }),
+        modifier({ weight: 8, when: { minStats: { mental: 62, familySupport: 58 } } }),
       ],
     }),
     ending({
@@ -192,6 +197,8 @@
         modifier({ weight: 8, when: { requiredRomanceFlags: ["kept_promise", "relationship_rebuilt"] } }),
         modifier({ weight: 12, when: { requiredRomanceFlags: ["relationship_committed", "relationship_maintained"] } }),
         modifier({ weight: 8, when: { activeRelationshipMinAffection: 72 } }),
+        modifier({ weight: 8, when: { minStats: { mental: 60 } } }),
+        modifier({ weight: 6, when: { someFlags: ["family_repair", "showed_up_consistently", "rules_reworked"] } }),
       ],
     }),
     ending({
@@ -208,6 +215,7 @@
         modifier({ weight: 10, when: { noCurrentPartner: true } }),
         modifier({ weight: 8, when: { someFlags: ["career_first", "solo_thirties"] } }),
         modifier({ weight: 10, when: { requiredRomanceFlags: ["relationship_neglected", "value_misaligned"] } }),
+        modifier({ weight: 8, when: { maxStats: { mental: 44 } } }),
       ],
     }),
     ending({
@@ -228,6 +236,7 @@
         modifier({ weight: 10, when: { someFlags: ["family_repair", "gentle_retirement"] } }),
         modifier({ weight: 8, when: { anyRelationshipStatuses: ["married", "steady"] } }),
         modifier({ weight: 8, when: { someFlags: ["family_dialogue", "warm_home"] } }),
+        modifier({ weight: 8, when: { minStats: { familySupport: 68 } } }),
       ],
     }),
     ending({
@@ -245,6 +254,8 @@
       weightModifiers: [
         modifier({ weight: 20, when: { requiredTags: ["ambition"] } }),
         modifier({ weight: 14, when: { maxStats: { happiness: 52 } } }),
+        modifier({ weight: 12, when: { minStats: { stress: 70 } } }),
+        modifier({ weight: 8, when: { maxStats: { mental: 42 } } }),
       ],
     }),
     ending({
@@ -276,6 +287,8 @@
         modifier({ weight: 12, when: { minStats: { happiness: 60 } } }),
         modifier({ weight: 10, when: { someFlags: ["emotional_honesty", "boundary_awareness"] } }),
         modifier({ weight: 10, when: { someFlags: ["self_acceptance_seed", "second_growth", "relationship_rebuilt"] } }),
+        modifier({ weight: 8, when: { minStats: { mental: 60 } } }),
+        modifier({ weight: 6, when: { someFlags: ["recovery_turn", "therapy_started"] } }),
       ],
     }),
     ending({
@@ -290,6 +303,7 @@
       weightModifiers: [
         modifier({ weight: 20, when: { someFlags: ["signature_work", "long_term_hobby", "portfolio_path", "memoir_written"] } }),
         modifier({ weight: 10, when: { minStats: { happiness: 62, intelligence: 58 } } }),
+        modifier({ weight: 8, when: { minStats: { discipline: 58 } } }),
       ],
     }),
     ending({

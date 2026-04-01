@@ -11,6 +11,25 @@
   const allEvents = normalizeEventList(rawEvents);
   const eventMap = new Map(allEvents.map((event) => [event.id, event]));
   const allEndings = normalizeEndingList(window.LIFE_ENDINGS || []);
+  const allFamilyBackgrounds = normalizeFamilyBackgroundList(window.LIFE_FAMILY_BACKGROUNDS || []);
+  const familyBackgroundMap = new Map(allFamilyBackgrounds.map((background) => [background.id, background]));
+  const OPTION_TEXT_REWRITES = new Map([
+    ["你决定慢慢接纳自己，不再总和别人比较。", "慢慢接纳自己，不再总和别人比较。"],
+    ["你去了寄宿学校，很多事开始只能自己消化。", "把自己放进寄宿生活，很多事开始只能自己消化。"],
+    ["你决定按父母的期待冲一个更体面的专业或学校。", "顺着父母的期待，去冲一个更体面的专业或学校。"],
+    ["你去和老师谈了一次，把真实状态摊开讲。", "和老师认真谈一次，把真实状态摊开讲。"],
+    ["你去更大的城市，想换一个更高的平台看看自己能走多远。", "去更大的城市，把自己放到更高的平台上试一试。"],
+    ["你决定继续深造，想把学术和专业能力推到更高处。", "把时间继续押在深造上，想把专业能力再往上推一层。"],
+    ["你去挣钱，先把眼前的生活和家里那口气顶住。", "先把力气放在挣钱上，把眼前的生活和家里那口气顶住。"],
+    ["你去做最见人的销售或服务岗，很快练出了和人打交道的本事。", "把自己放进最见人的销售或服务岗，很快练出了和人打交道的本事。"],
+    ["你去了小团队或创业公司，赌的是成长速度和可能性。", "把自己放进小团队或创业公司，赌的是成长速度和可能性。"],
+    ["你决定一起把生活搭起来，不求轰烈，但求踏实。", "一起把生活搭起来，不求轰烈，但求踏实。"],
+    ["你选择继续轻装，不被房子过早固定住。", "继续轻装往前走，不被房子过早固定住。"],
+    ["你决定迎接孩子，接受日常从此被重新排序。", "迎接孩子，接受日常从此被重新排序。"],
+    ["你决定把该谈的都谈清楚，认真修这段关系。", "把该谈的都谈清楚，认真修这段关系。"],
+    ["你决定自己更多在场，事业节奏也因此明显变慢。", "把更多时间留给在场和陪伴，事业节奏也因此明显变慢。"],
+    ["你决定做稳而深的专业型角色，不盲目追头衔。", "把位置放在稳而深的专业角色上，不盲目追头衔。"]
+  ]);
 
   let gameState = stateApi.createInitialState();
 
@@ -21,6 +40,22 @@
   function normalizeName(name) {
     const trimmed = String(name || "").trim();
     return trimmed || "无名氏";
+  }
+
+  function normalizePlayerGender(gender) {
+    return gender === "female" ? "female" : gender === "male" ? "male" : "";
+  }
+
+  function getPlayerGenderLabel(gender) {
+    if (gender === "male") {
+      return "男孩";
+    }
+
+    if (gender === "female") {
+      return "女孩";
+    }
+
+    return "未选择";
   }
 
   function normalizeStringArray(value) {
@@ -70,6 +105,19 @@
     return result;
   }
 
+  function normalizeStringMap(value) {
+    const source = value && typeof value === "object" ? value : {};
+    const result = {};
+
+    Object.entries(source).forEach(([key, item]) => {
+      if (typeof item === "string" && item.trim()) {
+        result[String(key)] = item.trim();
+      }
+    });
+
+    return result;
+  }
+
   function normalizeEffectsObject(value) {
     const source = value && typeof value === "object" ? value : {};
     const result = {
@@ -95,6 +143,7 @@
         return {
           id,
           name: typeof source.name === "string" ? source.name : id,
+          gender: typeof source.gender === "string" ? source.gender : "",
           identity: typeof source.identity === "string" ? source.identity : "",
           traitTags: normalizeStringArray(source.traitTags),
           contactStyle: typeof source.contactStyle === "string" ? source.contactStyle : "",
@@ -205,6 +254,28 @@
     };
   }
 
+  function normalizeFamilyBackgroundObject(background, index) {
+    const source = background && typeof background === "object" ? background : {};
+    const fallbackId = "family_background_" + String(index + 1);
+
+    return {
+      id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : fallbackId,
+      name: typeof source.name === "string" && source.name.trim() ? source.name.trim() : "普通家庭",
+      summary: typeof source.summary === "string" ? source.summary : "",
+      description: typeof source.description === "string" ? source.description : "",
+      details: normalizeStringArray(source.details),
+      dimensions: normalizeStringMap(source.dimensions),
+      weight: typeof source.weight === "number" ? source.weight : 1,
+      apply: normalizeMutationBlock(source.apply)
+    };
+  }
+
+  function normalizeFamilyBackgroundList(backgrounds) {
+    return backgrounds
+      .map((background, index) => normalizeFamilyBackgroundObject(background, index))
+      .filter((background) => background.id);
+  }
+
   function normalizeChoiceObject(choice, event) {
     const source = choice && typeof choice === "object" ? choice : {};
     const normalizedChoice = normalizeMutationBlock(source);
@@ -242,7 +313,8 @@
       minAge: typeof source.minAge === "number" ? source.minAge : null,
       maxAge: typeof source.maxAge === "number" ? source.maxAge : null,
       weight: typeof source.weight === "number" ? source.weight : 1,
-      tags: normalizeStringArray(source.tags)
+      tags: normalizeStringArray(source.tags),
+      repeatable: Boolean(source.repeatable)
     };
 
     normalizedEvent.conditions = normalizeConditionObject(source.conditions, normalizedEvent);
@@ -315,6 +387,90 @@
     return Math.max(0, Math.min(100, value));
   }
 
+  function adjustStat(key, delta) {
+    if (!delta) {
+      return;
+    }
+
+    const currentValue = gameState.stats[key] || 0;
+    gameState.stats[key] = clampStat(key, currentValue + delta);
+  }
+
+  function getRelationshipSnapshot(state, relationshipId) {
+    const id = String(relationshipId || "").trim();
+    if (!id || !state || !state.relationships) {
+      return null;
+    }
+
+    return state.relationships[id] || null;
+  }
+
+  function applyDerivedStatLinks() {
+    const derivedChanges = {};
+    const currentPartner = getCurrentPartner(gameState);
+
+    function addChange(key, delta) {
+      if (!delta) {
+        return;
+      }
+
+      derivedChanges[key] = (derivedChanges[key] || 0) + delta;
+    }
+
+    if (gameState.stats.stress >= 75) {
+      addChange("mental", -3);
+      addChange("health", -2);
+      addChange("happiness", -2);
+    } else if (gameState.stats.stress >= 60) {
+      addChange("mental", -2);
+      addChange("health", -1);
+      addChange("happiness", -1);
+    } else if (gameState.stats.stress >= 45) {
+      addChange("mental", -1);
+    }
+
+    if (gameState.stats.money <= 12) {
+      addChange("stress", 2);
+      addChange("happiness", -1);
+    }
+
+    if (gameState.stats.health <= 30) {
+      addChange("mental", -2);
+      addChange("happiness", -2);
+    }
+
+    if (gameState.stats.mental <= 30) {
+      addChange("happiness", -2);
+      addChange("social", -1);
+    }
+
+    if (gameState.stats.familySupport >= 72) {
+      addChange("mental", 1);
+      addChange("happiness", 1);
+    } else if (gameState.stats.familySupport <= 28) {
+      addChange("stress", 1);
+      addChange("mental", -1);
+    }
+
+    if (gameState.stats.discipline >= 72 && gameState.stats.stress <= 55) {
+      addChange("intelligence", 1);
+    }
+
+    if (
+      currentPartner &&
+      currentPartner.affection >= 55 &&
+      ["dating", "steady", "married", "reconnected"].includes(currentPartner.status)
+    ) {
+      addChange("happiness", 1);
+      addChange("mental", 1);
+      addChange("stress", -1);
+    }
+
+    Object.entries(derivedChanges).forEach(([key, delta]) => {
+      adjustStat(key, delta);
+    });
+  }
+
   function getRelationshipRecord(state, relationshipId) {
     const id = String(relationshipId || "").trim();
     if (!id) {
@@ -326,6 +482,7 @@
       state.relationships[id] = {
         id,
         name: definition ? definition.name : id,
+        gender: definition ? definition.gender : "",
         identity: definition ? definition.identity : "",
         traitTags: definition ? definition.traitTags.slice() : [],
         contactStyle: definition ? definition.contactStyle : "",
@@ -342,6 +499,14 @@
   }
 
   function getCurrentPartner(state) {
+    const activeRelationship = getRelationshipSnapshot(state, state.activeRelationshipId);
+    if (
+      activeRelationship &&
+      ["dating", "steady", "married", "reconnected"].includes(activeRelationship.status)
+    ) {
+      return activeRelationship;
+    }
+
     return Object.values(state.relationships || {}).find((relationship) =>
       ["dating", "steady", "married", "reconnected"].includes(relationship.status)
     ) || null;
@@ -361,18 +526,33 @@
     return getRelationshipRecord(gameState, gameState.activeRelationshipId);
   }
 
+  function getPendingFamilyBackground() {
+    if (!gameState.pendingFamilyBackgroundId) {
+      return null;
+    }
+
+    return familyBackgroundMap.get(gameState.pendingFamilyBackgroundId) || null;
+  }
+
   function formatText(text) {
     const activeRelationship = getActiveRelationship();
     const strongestRelationship = getStrongestRelationship(gameState);
     const replacements = {
       name: gameState.playerName || "你",
+      playerGender: getPlayerGenderLabel(gameState.playerGender),
       activeLoveName: activeRelationship ? activeRelationship.name : "那个人",
-      strongestLoveName: strongestRelationship ? strongestRelationship.name : "那个人"
+      strongestLoveName: strongestRelationship ? strongestRelationship.name : "那个人",
+      familyBackgroundName: gameState.familyBackground ? gameState.familyBackground.name : "普通家庭"
     };
 
     return String(text || "").replace(/\{(\w+)\}/g, function (_, key) {
       return Object.prototype.hasOwnProperty.call(replacements, key) ? replacements[key] : "";
     });
+  }
+
+  function formatOptionText(text) {
+    const formatted = formatText(text);
+    return OPTION_TEXT_REWRITES.get(formatted) || formatted;
   }
 
   function addHistory(text) {
@@ -487,7 +667,7 @@
 
     if (rule.activeRelationshipStatuses.length) {
       const activeRelationship = state.activeRelationshipId
-        ? getRelationshipRecord(state, state.activeRelationshipId)
+        ? getRelationshipSnapshot(state, state.activeRelationshipId)
         : null;
       if (!activeRelationship || !rule.activeRelationshipStatuses.includes(activeRelationship.status)) {
         return false;
@@ -501,7 +681,7 @@
       rule.excludedActiveRelationshipFlags.length
     ) {
       const activeRelationship = state.activeRelationshipId
-        ? getRelationshipRecord(state, state.activeRelationshipId)
+        ? getRelationshipSnapshot(state, state.activeRelationshipId)
         : null;
 
       if (!activeRelationship) {
@@ -557,7 +737,7 @@
 
     if (rule.knownRelationships.length) {
       const knownOk = rule.knownRelationships.every((id) => {
-        const relationship = getRelationshipRecord(state, id);
+        const relationship = getRelationshipSnapshot(state, id);
         return relationship && relationship.met;
       });
       if (!knownOk) {
@@ -567,7 +747,7 @@
 
     if (rule.unknownRelationships.length) {
       const unknownOk = rule.unknownRelationships.every((id) => {
-        const relationship = getRelationshipRecord(state, id);
+        const relationship = getRelationshipSnapshot(state, id);
         return !relationship || !relationship.met;
       });
       if (!unknownOk) {
@@ -576,42 +756,42 @@
     }
 
     for (const [relationshipId, statuses] of Object.entries(rule.relationshipStatuses)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || !statuses.includes(relationship.status)) {
         return false;
       }
     }
 
     for (const [relationshipId, statuses] of Object.entries(rule.excludedRelationshipStatuses)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (relationship && statuses.includes(relationship.status)) {
         return false;
       }
     }
 
     for (const [relationshipId, amount] of Object.entries(rule.minAffection)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || relationship.affection < amount) {
         return false;
       }
     }
 
     for (const [relationshipId, amount] of Object.entries(rule.maxAffection)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (relationship && relationship.affection > amount) {
         return false;
       }
     }
 
     for (const [relationshipId, flags] of Object.entries(rule.requiredRelationshipFlags)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || !flags.every((flag) => relationship.flags.includes(flag))) {
         return false;
       }
     }
 
     for (const [relationshipId, flags] of Object.entries(rule.excludedRelationshipFlags)) {
-      const relationship = getRelationshipRecord(state, relationshipId);
+      const relationship = getRelationshipSnapshot(state, relationshipId);
       if (relationship && flags.some((flag) => relationship.flags.includes(flag))) {
         return false;
       }
@@ -625,19 +805,101 @@
     gameState.currentEventPendingEnter = Boolean(eventId);
   }
 
+  function pickWeightedFamilyBackground() {
+    if (!allFamilyBackgrounds.length) {
+      return null;
+    }
+
+    const totalWeight = allFamilyBackgrounds.reduce((sum, background) => sum + Math.max(0, background.weight || 0), 0);
+    if (totalWeight <= 0) {
+      return allFamilyBackgrounds[0];
+    }
+
+    let cursor = Math.random() * totalWeight;
+    for (const background of allFamilyBackgrounds) {
+      cursor -= Math.max(0, background.weight || 0);
+      if (cursor <= 0) {
+        return background;
+      }
+    }
+
+    return allFamilyBackgrounds[allFamilyBackgrounds.length - 1];
+  }
+
+  function buildFamilyBackgroundText(background) {
+    if (!background) {
+      return "你的出生环境暂时还没有被写清。";
+    }
+
+    const detailLines = background.details.length ? background.details.map((line) => "• " + line).join("\n") : "";
+    return [background.summary, background.description, detailLines].filter(Boolean).join("\n\n");
+  }
+
+  function buildFamilyBackgroundEvent(background) {
+    return {
+      id: "__family_background__",
+      stage: "childhood",
+      title: "开局：你的家庭条件",
+      text: buildFamilyBackgroundText(background),
+      choices: [
+        {
+          index: 0,
+          text: "带着这份出身，开始长大。"
+        }
+      ]
+    };
+  }
+
+  function applyFamilyBackground(background) {
+    if (!background) {
+      gameState.setupStep = null;
+      gameState.pendingFamilyBackgroundId = null;
+      return;
+    }
+
+    gameState.familyBackground = {
+      id: background.id,
+      name: background.name,
+      summary: background.summary,
+      description: background.description,
+      details: background.details.slice(),
+      dimensions: { ...background.dimensions }
+    };
+    gameState.setupStep = null;
+    gameState.pendingFamilyBackgroundId = null;
+
+    applyMutationBlock(background.apply, { skipStatLinks: true });
+    addHistory("你的原生家庭抽到了“" + background.name + "”。");
+
+    if (background.summary) {
+      addHistory(background.summary);
+    }
+  }
+
   function restart() {
     gameState = stateApi.createInitialState();
     return getState();
   }
 
-  function startGame(name) {
+  function startGame(name, gender) {
+    const normalizedGender = normalizePlayerGender(gender);
+    if (!normalizedGender) {
+      return getState();
+    }
+
     gameState = stateApi.createInitialState();
     gameState.playerName = normalizeName(name);
+    gameState.playerGender = normalizedGender;
     gameState.gameStarted = true;
-    advanceTo();
+    gameState.setupStep = "family_background";
+    gameState.flags.push("player_gender_" + normalizedGender);
+
+    const familyBackground = pickWeightedFamilyBackground();
+    gameState.pendingFamilyBackgroundId = familyBackground ? familyBackground.id : null;
 
     addHistory("你出生了，名字被定为“" + gameState.playerName + "”。");
-    addHistory("一个普通家庭迎来了新生命。很多年后回头看，这个名字会和无数选择一起，组成你的一生。");
+    addHistory("这一局里，你会以" + getPlayerGenderLabel(normalizedGender) + "的身份长大。");
+    addHistory("很多年后回头看，这个名字会和原生家庭、无数选择一起，组成你的一生。");
 
     return getState();
   }
@@ -716,7 +978,7 @@
       }
 
       if (effect.setActive) {
-        nextActiveId = effect.targetId;
+        nextActiveId = resolvedTargetId;
       }
 
       if (["broken", "estranged"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
@@ -742,13 +1004,12 @@
     const effects = block.effects || {};
 
     if (!settings.skipAge && typeof effects.age === "number") {
-      gameState.age += effects.age;
+      gameState.age = Math.max(gameState.age, gameState.age + effects.age);
     }
 
     if (effects.stats) {
       for (const [key, delta] of Object.entries(effects.stats)) {
-        const currentValue = gameState.stats[key] || 0;
-        gameState.stats[key] = clampStat(key, currentValue + delta);
+        adjustStat(key, delta);
       }
     }
 
@@ -789,6 +1050,10 @@
 
     if (block.log) {
       addHistory(block.log);
+    }
+
+    if (!settings.skipStatLinks) {
+      applyDerivedStatLinks();
     }
   }
 
@@ -836,6 +1101,22 @@
   }
 
   function describeChildhood() {
+    if (gameState.familyBackground && gameState.familyBackground.name) {
+      const backgroundIntro = "你人生最初的起点，是“" + gameState.familyBackground.name + "”这样的家庭。";
+
+      if (hasFlags(["warm_home", "emotional_safety"])) {
+        return backgroundIntro + " 你小时候接到过比较稳的情感回应，这让你后来在很多关系里仍然保留了一点相信人的能力。";
+      }
+
+      if (hasFlags(["parents_conflict"]) || hasFlags(["tense_home"])) {
+        return backgroundIntro + " 你很早就见过家庭里的紧绷，所以成年后的很多选择都带着一种想把局面稳住的冲动。";
+      }
+
+      if (hasFlags(["migrant_home"])) {
+        return backgroundIntro + " 你从小对“缺席”就不陌生，这让你比不少人更会独自扛事，也更难轻易示弱。";
+      }
+    }
+
     if (hasFlags(["warm_home", "emotional_safety"])) {
       return "你小时候接到过比较稳的情感回应，这让你后来在很多关系里仍然保留了一点相信人的能力。";
     }
@@ -917,7 +1198,7 @@
     if (!ending) {
       ending = pickWeightedEnding(false, {
         ...gameState,
-        choiceCount: Math.max(gameState.choiceCount || 0, 88),
+        choiceCount: Math.max(gameState.choiceCount || 0, 108),
       });
     }
 
@@ -964,7 +1245,7 @@
 
     gameState.currentEventPendingEnter = false;
     rememberEnteredEvent(event.id);
-    applyMutationBlock(event.effectsOnEnter, { skipAge: event.deferEnterAge });
+    applyMutationBlock(event.effectsOnEnter, { skipAge: event.deferEnterAge, skipStatLinks: true });
 
     if (checkInstantEnding()) {
       return;
@@ -972,11 +1253,23 @@
   }
 
   function getCurrentEvent() {
-    if (!gameState.gameStarted || !gameState.currentEventId) {
+    if (!gameState.gameStarted) {
       return null;
     }
 
-    const event = eventMap.get(gameState.currentEventId) || null;
+    if (gameState.setupStep === "family_background") {
+      return buildFamilyBackgroundEvent(getPendingFamilyBackground());
+    }
+
+    if (!gameState.currentEventId) {
+      return null;
+    }
+
+    let event = eventMap.get(gameState.currentEventId) || null;
+    if (!event) {
+      return null;
+    }
+
     applyEventOnEnter(event);
 
     return gameState.gameOver ? null : event;
@@ -994,7 +1287,7 @@
 
   function getEligibleFallbackEvents() {
     return allEvents.filter((event) => {
-      if (gameState.visitedEvents.includes(event.id)) {
+      if (!event.repeatable && gameState.visitedEvents.includes(event.id)) {
         return false;
       }
 
@@ -1006,7 +1299,7 @@
     return allEvents.filter((event) => {
       const rule = normalizeConditionObject(event.conditions, event);
 
-      if (gameState.visitedEvents.includes(event.id)) {
+      if (!event.repeatable && gameState.visitedEvents.includes(event.id)) {
         return false;
       }
 
@@ -1026,11 +1319,19 @@
     }
 
     const nextAge = deferredEvents.reduce((lowest, event) => {
-      const eventAge = typeof event.minAge === "number" ? event.minAge : lowest;
+      const rule = normalizeConditionObject(event.conditions, event);
+      const eventAge = typeof rule.minAge === "number" ? rule.minAge : lowest;
       return Math.min(lowest, eventAge);
     }, Number.POSITIVE_INFINITY);
 
-    const sameAgeEvents = deferredEvents.filter((event) => event.minAge === nextAge);
+    if (!Number.isFinite(nextAge)) {
+      return null;
+    }
+
+    const sameAgeEvents = deferredEvents.filter((event) => {
+      const rule = normalizeConditionObject(event.conditions, event);
+      return rule.minAge === nextAge;
+    });
     const skippedYears = nextAge - gameState.age;
 
     gameState.age = nextAge;
@@ -1040,6 +1341,22 @@
     }
 
     return pickWeightedEvent(sameAgeEvents);
+  }
+
+  function fastForwardToSpecificAge(targetAge, message) {
+    if (typeof targetAge !== "number" || !Number.isFinite(targetAge)) {
+      return;
+    }
+
+    const safeAge = Math.max(gameState.age, targetAge);
+    const skippedYears = safeAge - gameState.age;
+
+    if (skippedYears <= 0) {
+      return;
+    }
+
+    gameState.age = safeAge;
+    addHistory(message || ("日子继续往前推，你在不知不觉间长到了 " + safeAge + " 岁。"));
   }
 
   function pickWeightedEvent(events) {
@@ -1067,8 +1384,25 @@
 
   function advanceTo(nextEventId) {
     if (typeof nextEventId === "string") {
-      setCurrentEvent(nextEventId);
-      return;
+      const requestedEvent = eventMap.get(nextEventId) || null;
+      if (requestedEvent) {
+        const requestedRule = normalizeConditionObject(requestedEvent.conditions, requestedEvent);
+        const targetAge =
+          typeof requestedRule.minAge === "number"
+            ? Math.max(gameState.age, requestedRule.minAge)
+            : gameState.age;
+
+        if (typeof requestedRule.maxAge !== "number" || targetAge <= requestedRule.maxAge) {
+          const candidateState = stateApi.cloneState(gameState);
+          candidateState.age = targetAge;
+
+          if (matchesConditions(requestedRule, candidateState, requestedEvent)) {
+            fastForwardToSpecificAge(targetAge, "日子被推着往前走，你很快到了 " + targetAge + " 岁。");
+            setCurrentEvent(nextEventId);
+            return;
+          }
+        }
+      }
     }
 
     if (nextEventId === null) {
@@ -1090,6 +1424,16 @@
       return getState();
     }
 
+    if (gameState.setupStep === "family_background") {
+      if (optionIndex !== 0) {
+        return getState();
+      }
+
+      applyFamilyBackground(getPendingFamilyBackground());
+      advanceTo();
+      return getState();
+    }
+
     const event = getCurrentEvent();
     if (!event) {
       finalizeGame();
@@ -1103,7 +1447,25 @@
 
     rememberEvent(event.id);
     gameState.choiceCount += 1;
-    applyMutationBlock(option);
+    const deferredEnterAge =
+      event.deferEnterAge &&
+      event.effectsOnEnter &&
+      event.effectsOnEnter.effects &&
+      typeof event.effectsOnEnter.effects.age === "number" &&
+      event.effectsOnEnter.effects.age > 0
+        ? event.effectsOnEnter.effects.age
+        : 0;
+    const optionToApply =
+      deferredEnterAge > 0
+        ? {
+            ...option,
+            effects: {
+              ...(option.effects || {}),
+              age: (typeof option.effects.age === "number" ? option.effects.age : 0) + deferredEnterAge
+            }
+          }
+        : option;
+    applyMutationBlock(optionToApply);
 
     if (checkInstantEnding()) {
       return getState();
@@ -1146,6 +1508,7 @@
     startGame,
     restart,
     formatText,
+    formatOptionText,
     matchesRequirement: matchesConditions,
     hasFlags,
     setActiveRelationship,

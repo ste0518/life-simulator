@@ -819,7 +819,10 @@
       }),
       choices: [
         choice({
-          text: "你开始注意林月，她安静，但总能把话听进心里。",
+          text: "你开始注意林月（女），她安静，但总能把话听进心里。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 2, social: 2 },
@@ -840,7 +843,82 @@
           log: "你开始更在意安静、细腻和能让人安心的那种靠近方式。",
         }),
         choice({
-          text: "你会去注意周屿，因为他总像知道自己要往哪走。",
+          text: "你开始注意苏晚（女），她很会把普通日子过出一点自己的节奏。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 2, social: 1, mental: 1 },
+          },
+          addFlags: ["secret_crush_seed"],
+          addTags: ["romance", "selfhood"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "su_wan",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你开始记住苏晚身上那种松弛又有主见的感觉，也下意识想多靠近一点。",
+            },
+          ],
+          log: "你会被会生活、带一点松弛感的人吸引，也想知道这种靠近能不能走得更远。",
+        }),
+        choice({
+          text: "你开始留意许棠（女），她聪明克制，总像藏着很多没说完的话。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, happiness: 1 },
+          },
+          addFlags: ["secret_crush_seed", "ambition_seed"],
+          addTags: ["romance", "ambition"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "xu_tang",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你会被许棠的敏锐和克制吸引，想知道她真正熟起来会是什么样子。",
+            },
+          ],
+          log: "你开始更在意那种聪明、冷静、需要慢慢靠近才会打开的人。",
+        }),
+        choice({
+          text: "你开始留意沈枝（女），和她待在一起时，很多情绪都变得更亮。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 3, social: 2 },
+          },
+          addFlags: ["secret_crush_seed"],
+          addTags: ["romance", "selfhood"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "shen_zhi",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你会被沈枝那种直接又有生命力的存在感打动，开始越来越在意她。",
+            },
+          ],
+          log: "你发现自己会被热烈和有感染力的人吸引，也会在这种靠近里变得更敢一点。",
+        }),
+        choice({
+          text: "你会去注意周屿（男），因为他总像知道自己要往哪走。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
           effects: {
             age: 0,
             stats: { intelligence: 2, happiness: 1 },
@@ -861,7 +939,58 @@
           log: "你会被有方向感的人打动，也会更想让自己看起来别太差。",
         }),
         choice({
-          text: "你开始留意程楠，因为和他待在一起时情绪总更鲜活。",
+          text: "你会去看林月（女），因为她安静，却总能把你的情绪接住。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 2, social: 2 },
+          },
+          addFlags: ["secret_crush_seed"],
+          addTags: ["romance", "relationship"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "lin_yue",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你第一次明确把目光放到林月身上，开始悄悄记住她说过的话。",
+            },
+          ],
+          log: "你开始更在意安静、细腻和能让人安心的那种靠近方式。",
+        }),
+        choice({
+          text: "你会去注意周屿（男），因为他总像知道自己要往哪走。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, happiness: 1 },
+          },
+          addFlags: ["secret_crush_seed", "ambition_seed"],
+          addTags: ["romance", "ambition"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "zhou_yi",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你被周屿身上那种清晰的目标感吸引，第一次觉得“喜欢”也会和仰望混在一起。",
+            },
+          ],
+          log: "你会被有方向感的人打动，也会更想让自己看起来别太差。",
+        }),
+        choice({
+          text: "你开始留意程楠（男），因为和他待在一起时情绪总更鲜活。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 3, social: 2 },
@@ -882,7 +1011,10 @@
           log: "你会被鲜活和直接打动，也更容易在这种靠近里变得勇敢一点。",
         }),
         choice({
-          text: "你会去看徐清，因为他身上有一种很稳的可靠感。",
+          text: "你会去看徐清（男），因为他身上有一种很稳的可靠感。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 2, health: 1 },
@@ -901,6 +1033,30 @@
             },
           ],
           log: "你发现自己会被稳定和耐心吸引，这会直接影响你以后怎么看待长期关系。",
+        }),
+        choice({
+          text: "你开始留意陆川（男），他不太高调，但关键时候总显得很靠谱。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 1, health: 1, social: 1 },
+          },
+          addFlags: ["secret_crush_seed"],
+          addTags: ["romance", "stability"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "lu_chuan",
+              affection: 14,
+              status: "noticed",
+              setActive: true,
+              addFlags: ["school_crush"],
+              history: "你会被陆川那种安静但能扛事的可靠感吸引，开始越来越在意他。",
+            },
+          ],
+          log: "你发现自己也会被低调、稳妥、真正能让人放心的人打动。",
         }),
         choice({
           text: "你决定先把心收住，别让感情太早占掉自己。",
@@ -1424,7 +1580,10 @@
       }),
       choices: [
         choice({
-          text: "你把更多接触留给林月，想看看这种安静的靠近会不会更长久。",
+          text: "你把更多接触留给林月（女），想看看这种安静的靠近会不会更长久。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 2, social: 2 },
@@ -1444,7 +1603,79 @@
           log: "你没有继续只靠偶然，而是明确地把心往一个方向放了放。",
         }),
         choice({
-          text: "你更想靠近周屿，因为你欣赏那种能一起往前走的感觉。",
+          text: "你把更多接触留给苏晚（女），想看看这种松弛又有主见的感觉能不能走远。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 2, social: 2, mental: 1 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "relationship"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "su_wan",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你主动把更多时间留给了苏晚，关系也开始从轻松相处慢慢变得更具体。",
+            },
+          ],
+          log: "你开始更认真地看待那些能把日常过得舒服、也能让你放松下来的人。",
+        }),
+        choice({
+          text: "你更想靠近许棠（女），因为你会被她的聪明和分寸感吸引。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, social: 1 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "ambition"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "xu_tang",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你主动创造和许棠多聊天、多接触的机会，关系也开始往熟悉的方向走。",
+            },
+          ],
+          log: "你开始把那种聪明、克制、需要慢慢读懂的吸引力，认真放进自己的关系选择里。",
+        }),
+        choice({
+          text: "你更愿意靠近沈枝（女），因为她身上那种热度会让生活变得更亮。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 3, social: 2 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "selfhood"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "shen_zhi",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你把更多互动和见面机会给了沈枝，关系开始真正有了存在感。",
+            },
+          ],
+          log: "你不再只问合不合适，也开始承认自己就是会被鲜活和直接点亮。",
+        }),
+        choice({
+          text: "你更想靠近周屿（男），因为你欣赏那种能一起往前走的感觉。",
+          conditions: condition({
+            requiredFlags: ["player_gender_male"],
+          }),
           effects: {
             age: 0,
             stats: { intelligence: 2, social: 2 },
@@ -1464,7 +1695,56 @@
           log: "你开始把“谁适合走进生活”也纳入了喜欢的判断里。",
         }),
         choice({
-          text: "你更愿意靠近程楠，因为你需要一点真实而直接的热度。",
+          text: "你把更多接触留给林月（女），想看看这种安静的靠近会不会更长久。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 2, social: 2 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "relationship"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "lin_yue",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你在新的阶段里主动把更多时间留给了林月，关系也真的开始往前走。",
+            },
+          ],
+          log: "你没有继续只靠偶然，而是明确地把心往一个方向放了放。",
+        }),
+        choice({
+          text: "你更想靠近周屿（男），因为你欣赏那种能一起往前走的感觉。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, social: 2 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "ambition"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "zhou_yi",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你主动创造和周屿并肩做事、聊天和接触的机会，彼此不再只是擦肩而过。",
+            },
+          ],
+          log: "你开始把“谁适合走进生活”也纳入了喜欢的判断里。",
+        }),
+        choice({
+          text: "你更愿意靠近程楠（男），因为你需要一点真实而直接的热度。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 3, social: 2 },
@@ -1484,7 +1764,10 @@
           log: "你不再只是想着合不合适，也开始承认自己需要被什么样的情绪点亮。",
         }),
         choice({
-          text: "你想多接触徐清，因为那种稳定感让你觉得可托付。",
+          text: "你想多接触徐清（男），因为那种稳定感让你觉得可托付。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
           effects: {
             age: 0,
             stats: { happiness: 2, health: 1 },
@@ -1502,6 +1785,29 @@
             },
           ],
           log: "你开始认真地把“可靠”也当成喜欢的一部分，而不只是年轻时的一种附加项。",
+        }),
+        choice({
+          text: "你想多接触陆川（男），因为那种低调但能扛事的感觉很让人安心。",
+          conditions: condition({
+            requiredFlags: ["player_gender_female"],
+          }),
+          effects: {
+            age: 0,
+            stats: { happiness: 2, health: 1, social: 1 },
+          },
+          addFlags: ["emotional_openness"],
+          addTags: ["romance", "stability"],
+          addRomanceFlags: ["romance_target_chosen"],
+          relationshipEffects: [
+            {
+              targetId: "lu_chuan",
+              affection: 10,
+              status: "familiar",
+              setActive: true,
+              history: "你开始主动把联系和日常分享留给陆川，关系因此变得具体起来。",
+            },
+          ],
+          log: "你开始认真地把那种安静但可靠的托付感，也放进自己对关系的判断里。",
         }),
         choice({
           text: "你先把精力留给自己，短期内不想让任何关系太深入。",
