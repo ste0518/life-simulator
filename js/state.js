@@ -4,6 +4,7 @@
   const relationshipDefinitions = Array.isArray(window.LIFE_RELATIONSHIPS) ? window.LIFE_RELATIONSHIPS : [];
   const STAT_KEYS = [
     "money",
+    "debt",
     "health",
     "mental",
     "happiness",
@@ -30,34 +31,36 @@
   };
 
   const STAT_LABELS = {
-    money: "金钱",
-    health: "健康",
+    money: "财富",
+    debt: "负债",
+    health: "身体健康",
     mental: "心理状态",
     happiness: "幸福感",
     intelligence: "学业能力",
     social: "社交",
-    career: "事业",
+    career: "事业发展",
     familySupport: "家庭支持",
     stress: "压力值",
     discipline: "自律习惯"
   };
 
   const DEFAULT_STATS = {
-    money: 0,
+    money: 20,
+    debt: 0,
     health: 60,
-    mental: 0,
-    happiness: 0,
-    intelligence: 0,
-    social: 0,
+    mental: 60,
+    happiness: 55,
+    intelligence: 25,
+    social: 25,
     career: 0,
-    familySupport: 0,
-    stress: 0,
-    discipline: 0
+    familySupport: 25,
+    stress: 20,
+    discipline: 20
   };
 
   const RELATIONSHIP_STATUS_LABELS = {
     unknown: "尚未相识",
-    noticed: "有点在意",
+    noticed: "开始留意",
     crush: "暗暗喜欢",
     familiar: "逐渐熟悉",
     close: "关系升温",
@@ -95,6 +98,8 @@
         name: typeof definition.name === "string" ? definition.name : id,
         gender: typeof definition.gender === "string" ? definition.gender : "",
         identity: typeof definition.identity === "string" ? definition.identity : "",
+        stageTags: normalizeStringArray(definition.stageTags),
+        roleTags: normalizeStringArray(definition.roleTags),
         traitTags: normalizeStringArray(definition.traitTags),
         contactStyle: typeof definition.contactStyle === "string" ? definition.contactStyle : "",
         conflictStyle: typeof definition.conflictStyle === "string" ? definition.conflictStyle : "",
@@ -122,11 +127,15 @@
       history: [],
       visitedEvents: [],
       enteredEvents: [],
+      eventVisitCounts: {},
+      recentEventIds: [],
       currentEventId: null,
       currentEventPendingEnter: false,
       activeRelationshipId: null,
       familyBackground: null,
       pendingFamilyBackgroundId: null,
+      educationRoute: null,
+      careerRoute: null,
       setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,

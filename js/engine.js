@@ -13,6 +13,10 @@
   const allEndings = normalizeEndingList(window.LIFE_ENDINGS || []);
   const allFamilyBackgrounds = normalizeFamilyBackgroundList(window.LIFE_FAMILY_BACKGROUNDS || []);
   const familyBackgroundMap = new Map(allFamilyBackgrounds.map((background) => [background.id, background]));
+  const allEducationRoutes = normalizeRouteList(window.LIFE_EDUCATION_ROUTES || [], "education");
+  const educationRouteMap = new Map(allEducationRoutes.map((route) => [route.id, route]));
+  const allCareerRoutes = normalizeRouteList(window.LIFE_CAREER_ROUTES || [], "career");
+  const careerRouteMap = new Map(allCareerRoutes.map((route) => [route.id, route]));
   const OPTION_TEXT_REWRITES = new Map([
     ["你决定慢慢接纳自己，不再总和别人比较。", "慢慢接纳自己，不再总和别人比较。"],
     ["你去了寄宿学校，很多事开始只能自己消化。", "把自己放进寄宿生活，很多事开始只能自己消化。"],
@@ -145,6 +149,8 @@
           name: typeof source.name === "string" ? source.name : id,
           gender: typeof source.gender === "string" ? source.gender : "",
           identity: typeof source.identity === "string" ? source.identity : "",
+          stageTags: normalizeStringArray(source.stageTags),
+          roleTags: normalizeStringArray(source.roleTags),
           traitTags: normalizeStringArray(source.traitTags),
           contactStyle: typeof source.contactStyle === "string" ? source.contactStyle : "",
           conflictStyle: typeof source.conflictStyle === "string" ? source.conflictStyle : "",
@@ -153,6 +159,30 @@
         };
       })
       .filter(Boolean);
+  }
+
+  function normalizeRouteObject(route, index, routeType) {
+    const source = route && typeof route === "object" ? route : {};
+
+    return {
+      id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : routeType + "_route_" + String(index + 1),
+      type: routeType,
+      name: typeof source.name === "string" && source.name.trim() ? source.name.trim() : "未命名路线",
+      category: typeof source.category === "string" ? source.category : "",
+      summary: typeof source.summary === "string" ? source.summary : "",
+      description: typeof source.description === "string" ? source.description : "",
+      optionText: typeof source.optionText === "string" ? source.optionText : "",
+      weight: typeof source.weight === "number" ? source.weight : 1,
+      conditions: normalizeConditionObject(source.conditions || {}),
+      apply: normalizeMutationBlock(source.apply),
+      details: normalizeStringArray(source.details)
+    };
+  }
+
+  function normalizeRouteList(routes, routeType) {
+    return routes
+      .map((route, index) => normalizeRouteObject(route, index, routeType))
+      .filter((route) => route.id);
   }
 
   function normalizeRelationshipEffect(effect) {
@@ -210,6 +240,12 @@
       excludedRelationshipFlags: normalizeMapOfStringArrays(conditions.excludedRelationshipFlags),
       minAffection: normalizeNumberMap(conditions.minAffection),
       maxAffection: normalizeNumberMap(conditions.maxAffection),
+      familyBackgroundIds: normalizeStringArray(conditions.familyBackgroundIds),
+      excludedFamilyBackgroundIds: normalizeStringArray(conditions.excludedFamilyBackgroundIds),
+      educationRouteIds: normalizeStringArray(conditions.educationRouteIds),
+      excludedEducationRouteIds: normalizeStringArray(conditions.excludedEducationRouteIds),
+      careerRouteIds: normalizeStringArray(conditions.careerRouteIds),
+      excludedCareerRouteIds: normalizeStringArray(conditions.excludedCareerRouteIds),
       anyRelationshipMinAffection:
         typeof conditions.anyRelationshipMinAffection === "number"
           ? conditions.anyRelationshipMinAffection
@@ -231,10 +267,20 @@
   function normalizeMutationBlock(block) {
     const source = block && typeof block === "object" ? block : {};
     let setActiveRelationship = null;
+    let setEducationRoute = null;
+    let setCareerRoute = null;
 
     if (Object.prototype.hasOwnProperty.call(source, "setActiveRelationship")) {
       setActiveRelationship =
         typeof source.setActiveRelationship === "string" ? source.setActiveRelationship.trim() : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, "setEducationRoute")) {
+      setEducationRoute = typeof source.setEducationRoute === "string" ? source.setEducationRoute.trim() : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(source, "setCareerRoute")) {
+      setCareerRoute = typeof source.setCareerRoute === "string" ? source.setCareerRoute.trim() : null;
     }
 
     return {
@@ -249,6 +295,8 @@
         ? source.relationshipEffects.map(normalizeRelationshipEffect).filter((item) => item.targetId)
         : [],
       setActiveRelationship,
+      setEducationRoute,
+      setCareerRoute,
       clearActiveRelationship: Boolean(source.clearActiveRelationship),
       log: typeof source.log === "string" ? source.log : ""
     };
@@ -302,8 +350,37 @@
     return choices.every((choice) => (choice.effects && choice.effects.age) > 0);
   }
 
+  function getDefaultEventCooldown(stage, repeatable) {
+    if (!repeatable) {
+      return 0;
+    }
+
+    if (stage === "later_life") {
+      return 10;
+    }
+
+    if (stage === "midlife") {
+      return 8;
+    }
+
+    return 6;
+  }
+
+  function getDefaultEventMaxVisits(stage, repeatable) {
+    if (!repeatable) {
+      return null;
+    }
+
+    if (stage === "later_life" || stage === "midlife") {
+      return 2;
+    }
+
+    return 3;
+  }
+
   function normalizeEventObject(event, index) {
     const source = event && typeof event === "object" ? event : {};
+    const repeatable = Boolean(source.repeatable);
     const fallbackId = "event_" + String(index + 1);
     const normalizedEvent = {
       id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : fallbackId,
@@ -314,7 +391,15 @@
       maxAge: typeof source.maxAge === "number" ? source.maxAge : null,
       weight: typeof source.weight === "number" ? source.weight : 1,
       tags: normalizeStringArray(source.tags),
-      repeatable: Boolean(source.repeatable)
+      repeatable,
+      cooldownChoices:
+        typeof source.cooldownChoices === "number"
+          ? Math.max(0, source.cooldownChoices)
+          : getDefaultEventCooldown(typeof source.stage === "string" ? source.stage.trim() : "misc", repeatable),
+      maxVisits:
+        typeof source.maxVisits === "number"
+          ? Math.max(1, source.maxVisits)
+          : getDefaultEventMaxVisits(typeof source.stage === "string" ? source.stage.trim() : "misc", repeatable)
     };
 
     normalizedEvent.conditions = normalizeConditionObject(source.conditions, normalizedEvent);
@@ -376,10 +461,6 @@
   }
 
   function clampStat(key, value) {
-    if (key === "money") {
-      return Math.max(0, value);
-    }
-
     return Math.max(0, Math.min(100, value));
   }
 
@@ -434,6 +515,20 @@
       addChange("happiness", -1);
     }
 
+    if (gameState.stats.debt >= 80) {
+      addChange("stress", 4);
+      addChange("mental", -3);
+      addChange("happiness", -3);
+      addChange("health", -2);
+    } else if (gameState.stats.debt >= 60) {
+      addChange("stress", 3);
+      addChange("mental", -2);
+      addChange("happiness", -2);
+    } else if (gameState.stats.debt >= 40) {
+      addChange("stress", 2);
+      addChange("happiness", -1);
+    }
+
     if (gameState.stats.health <= 30) {
       addChange("mental", -2);
       addChange("happiness", -2);
@@ -442,6 +537,7 @@
     if (gameState.stats.mental <= 30) {
       addChange("happiness", -2);
       addChange("social", -1);
+      addChange("stress", 1);
     }
 
     if (gameState.stats.familySupport >= 72) {
@@ -484,6 +580,8 @@
         name: definition ? definition.name : id,
         gender: definition ? definition.gender : "",
         identity: definition ? definition.identity : "",
+        stageTags: definition ? definition.stageTags.slice() : [],
+        roleTags: definition ? definition.roleTags.slice() : [],
         traitTags: definition ? definition.traitTags.slice() : [],
         contactStyle: definition ? definition.contactStyle : "",
         conflictStyle: definition ? definition.conflictStyle : "",
@@ -534,6 +632,41 @@
     return familyBackgroundMap.get(gameState.pendingFamilyBackgroundId) || null;
   }
 
+  function summarizeRoute(route) {
+    if (!route) {
+      return null;
+    }
+
+    return {
+      id: route.id,
+      type: route.type,
+      name: route.name,
+      category: route.category,
+      summary: route.summary,
+      description: route.description,
+      details: route.details.slice()
+    };
+  }
+
+  function applyRouteDefinition(route) {
+    if (!route) {
+      return;
+    }
+
+    if (route.type === "education") {
+      gameState.educationRoute = summarizeRoute(route);
+    }
+
+    if (route.type === "career") {
+      gameState.careerRoute = summarizeRoute(route);
+    }
+
+    applyMutationBlock(route.apply, {
+      skipAge: true,
+      skipStatLinks: true
+    });
+  }
+
   function formatText(text) {
     const activeRelationship = getActiveRelationship();
     const strongestRelationship = getStrongestRelationship(gameState);
@@ -542,7 +675,9 @@
       playerGender: getPlayerGenderLabel(gameState.playerGender),
       activeLoveName: activeRelationship ? activeRelationship.name : "那个人",
       strongestLoveName: strongestRelationship ? strongestRelationship.name : "那个人",
-      familyBackgroundName: gameState.familyBackground ? gameState.familyBackground.name : "普通家庭"
+      familyBackgroundName: gameState.familyBackground ? gameState.familyBackground.name : "普通家庭",
+      educationRouteName: gameState.educationRoute ? gameState.educationRoute.name : "未定去向",
+      careerRouteName: gameState.careerRoute ? gameState.careerRoute.name : "尚未定型的工作路线"
     };
 
     return String(text || "").replace(/\{(\w+)\}/g, function (_, key) {
@@ -651,6 +786,48 @@
 
     for (const [key, value] of Object.entries(rule.maxStats)) {
       if ((state.stats[key] || 0) > value) {
+        return false;
+      }
+    }
+
+    if (rule.familyBackgroundIds.length) {
+      const familyBackgroundId = state.familyBackground && state.familyBackground.id ? state.familyBackground.id : "";
+      if (!familyBackgroundId || !rule.familyBackgroundIds.includes(familyBackgroundId)) {
+        return false;
+      }
+    }
+
+    if (rule.excludedFamilyBackgroundIds.length) {
+      const familyBackgroundId = state.familyBackground && state.familyBackground.id ? state.familyBackground.id : "";
+      if (familyBackgroundId && rule.excludedFamilyBackgroundIds.includes(familyBackgroundId)) {
+        return false;
+      }
+    }
+
+    if (rule.educationRouteIds.length) {
+      const educationRouteId = state.educationRoute && state.educationRoute.id ? state.educationRoute.id : "";
+      if (!educationRouteId || !rule.educationRouteIds.includes(educationRouteId)) {
+        return false;
+      }
+    }
+
+    if (rule.excludedEducationRouteIds.length) {
+      const educationRouteId = state.educationRoute && state.educationRoute.id ? state.educationRoute.id : "";
+      if (educationRouteId && rule.excludedEducationRouteIds.includes(educationRouteId)) {
+        return false;
+      }
+    }
+
+    if (rule.careerRouteIds.length) {
+      const careerRouteId = state.careerRoute && state.careerRoute.id ? state.careerRoute.id : "";
+      if (!careerRouteId || !rule.careerRouteIds.includes(careerRouteId)) {
+        return false;
+      }
+    }
+
+    if (rule.excludedCareerRouteIds.length) {
+      const careerRouteId = state.careerRoute && state.careerRoute.id ? state.careerRoute.id : "";
+      if (careerRouteId && rule.excludedCareerRouteIds.includes(careerRouteId)) {
         return false;
       }
     }
@@ -924,6 +1101,13 @@
     if (!gameState.visitedEvents.includes(eventId)) {
       gameState.visitedEvents.push(eventId);
     }
+
+    gameState.eventVisitCounts[eventId] = (gameState.eventVisitCounts[eventId] || 0) + 1;
+    gameState.recentEventIds.unshift(eventId);
+
+    if (gameState.recentEventIds.length > 18) {
+      gameState.recentEventIds.length = 18;
+    }
   }
 
   function rememberEnteredEvent(eventId) {
@@ -942,6 +1126,37 @@
     if (removeFlags && removeFlags.length) {
       gameState.romanceFlags = gameState.romanceFlags.filter((flag) => !removeFlags.includes(flag));
     }
+  }
+
+  function getEventVisitCount(eventId) {
+    return gameState.eventVisitCounts[eventId] || 0;
+  }
+
+  function isEventCoolingDown(event) {
+    if (!event || !event.cooldownChoices) {
+      return false;
+    }
+
+    return gameState.recentEventIds.slice(0, event.cooldownChoices).includes(event.id);
+  }
+
+  function isEventEligible(event, candidateState) {
+    const state = candidateState || gameState;
+    const visitCount = state.eventVisitCounts && state.eventVisitCounts[event.id] ? state.eventVisitCounts[event.id] : 0;
+
+    if (!event.repeatable && visitCount > 0) {
+      return false;
+    }
+
+    if (typeof event.maxVisits === "number" && visitCount >= event.maxVisits) {
+      return false;
+    }
+
+    if (!candidateState && isEventCoolingDown(event)) {
+      return false;
+    }
+
+    return matchesConditions(event.conditions, state, event);
   }
 
   function resolveRelationshipTargetId(targetId) {
@@ -1052,6 +1267,14 @@
     updateRomanceFlags(block.addRomanceFlags, block.removeRomanceFlags);
     applyRelationshipEffects(block.relationshipEffects);
 
+    if (typeof block.setEducationRoute === "string" && block.setEducationRoute) {
+      applyRouteDefinition(educationRouteMap.get(block.setEducationRoute) || null);
+    }
+
+    if (typeof block.setCareerRoute === "string" && block.setCareerRoute) {
+      applyRouteDefinition(careerRouteMap.get(block.setCareerRoute) || null);
+    }
+
     if (block.clearActiveRelationship) {
       gameState.activeRelationshipId = null;
     }
@@ -1120,7 +1343,7 @@
     if (gameState.familyBackground && gameState.familyBackground.name) {
       const backgroundIntro = "你人生最初的起点，是“" + gameState.familyBackground.name + "”这样的家庭。";
 
-      if (hasFlags(["warm_home", "emotional_safety"])) {
+      if (hasFlags(["warm_home", "emotion_safe_home"])) {
         return backgroundIntro + " 你小时候接到过比较稳的情感回应，这让你后来在很多关系里仍然保留了一点相信人的能力。";
       }
 
@@ -1133,7 +1356,7 @@
       }
     }
 
-    if (hasFlags(["warm_home", "emotional_safety"])) {
+    if (hasFlags(["warm_home", "emotion_safe_home"])) {
       return "你小时候接到过比较稳的情感回应，这让你后来在很多关系里仍然保留了一点相信人的能力。";
     }
 
@@ -1186,6 +1409,25 @@
     return name + "曾经在你人生里占过很重的位置，你不是没有认真喜欢过，只是走到最后的方式，并不完全由心动决定。";
   }
 
+  function describeRoutes() {
+    const educationRouteName = gameState.educationRoute && gameState.educationRoute.name;
+    const careerRouteName = gameState.careerRoute && gameState.careerRoute.name;
+
+    if (educationRouteName && careerRouteName) {
+      return "你在升学阶段走上了“" + educationRouteName + "”，后来又把自己放进了“" + careerRouteName + "”这条工作路线。很多后劲，正是这两次主动分流慢慢累出来的。";
+    }
+
+    if (educationRouteName) {
+      return "升学转折时，你走上的“" + educationRouteName + "”这条路，后来一直在影响你怎么看待机会、压力和生活半径。";
+    }
+
+    if (careerRouteName) {
+      return "真正进入社会后，你把自己放进了“" + careerRouteName + "”这条路线里。那种工作结构，也一点点改写了你的身体、关系和判断。";
+    }
+
+    return "";
+  }
+
   function describeLaterLife() {
     if (gameState.stats.health <= 38 || hasFlags(["chronic_stress", "health_warning", "appearance_anxiety"])) {
       return "身体一直在替你记账，所以你后半生很多决定，都绕不开健康这道最实际的边界。";
@@ -1203,7 +1445,7 @@
   }
 
   function buildEndingText(ending) {
-    return [ending.text, describeChildhood(), describeGrowth(), describeRelationship(), describeLaterLife()]
+    return [ending.text, describeChildhood(), describeGrowth(), describeRoutes(), describeRelationship(), describeLaterLife()]
       .filter(Boolean)
       .join("\n\n");
   }
@@ -1302,28 +1544,20 @@
   }
 
   function getEligibleFallbackEvents() {
-    return allEvents.filter((event) => {
-      if (!event.repeatable && gameState.visitedEvents.includes(event.id)) {
-        return false;
-      }
-
-      return matchesConditions(event.conditions, gameState, event);
-    });
+    return allEvents.filter((event) => isEventEligible(event));
   }
 
   function getDeferredFallbackEvents() {
     return allEvents.filter((event) => {
       const rule = normalizeConditionObject(event.conditions, event);
-
-      if (!event.repeatable && gameState.visitedEvents.includes(event.id)) {
-        return false;
-      }
+      const candidateState = stateApi.cloneState(gameState);
 
       if (typeof rule.minAge !== "number" || rule.minAge <= gameState.age) {
         return false;
       }
 
-      return matchesConditions(rule, { ...gameState, age: rule.minAge }, event);
+      candidateState.age = rule.minAge;
+      return isEventEligible(event, candidateState);
     });
   }
 
@@ -1398,6 +1632,42 @@
     return events[events.length - 1];
   }
 
+  function shouldNaturallyConcludeLife() {
+    const eligibleEvents = getEligibleFallbackEvents();
+    const nonRepeatableEvents = eligibleEvents.filter((event) => !event.repeatable);
+
+    if (gameState.age >= 68 && nonRepeatableEvents.length === 0 && eligibleEvents.length <= 2) {
+      return true;
+    }
+
+    if (gameState.age >= 76 && eligibleEvents.length <= 4) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function getRequiredMilestoneEvent() {
+    const educationRouteMissing = !gameState.educationRoute;
+    const careerRouteMissing = !gameState.careerRoute;
+
+    if (educationRouteMissing && gameState.age >= 18) {
+      const educationEvent = eventMap.get("score_and_volunteer") || null;
+      if (educationEvent && isEventEligible(educationEvent)) {
+        return educationEvent;
+      }
+    }
+
+    if (careerRouteMissing && gameState.age >= 22) {
+      const careerEvent = eventMap.get("graduation_offer") || null;
+      if (careerEvent && isEventEligible(careerEvent)) {
+        return careerEvent;
+      }
+    }
+
+    return null;
+  }
+
   function advanceTo(nextEventId) {
     if (typeof nextEventId === "string") {
       const requestedEvent = eventMap.get(nextEventId) || null;
@@ -1426,10 +1696,26 @@
       return;
     }
 
+    if (shouldNaturallyConcludeLife()) {
+      setCurrentEvent(null);
+      return;
+    }
+
+    const requiredMilestoneEvent = getRequiredMilestoneEvent();
+    if (requiredMilestoneEvent) {
+      setCurrentEvent(requiredMilestoneEvent.id);
+      return;
+    }
+
     let fallbackEvent = pickWeightedEvent(getEligibleFallbackEvents());
 
     if (!fallbackEvent) {
       fallbackEvent = fastForwardToNextEligibleAge();
+    }
+
+    if (!fallbackEvent && shouldNaturallyConcludeLife()) {
+      setCurrentEvent(null);
+      return;
     }
 
     setCurrentEvent(fallbackEvent ? fallbackEvent.id : null);

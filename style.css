@@ -5,7 +5,7 @@
   --line: #d8cbb4;
   --text: #2a241c;
   --muted: #6e6254;
-  --accent: #8b5e34;
+  --accent: #7e5732;
   --accent-dark: #6f4927;
   --danger: #9c3f31;
   --shadow: 0 16px 40px rgba(66, 49, 30, 0.12);
@@ -255,6 +255,11 @@ button {
   gap: 12px;
 }
 
+#route-container {
+  display: grid;
+  gap: 12px;
+}
+
 .background-card {
   padding: 14px;
   border: 1px solid var(--line);
@@ -409,6 +414,39 @@ button {
   background: #fff7ea;
   color: var(--accent-dark);
   cursor: pointer;
+}
+
+.route-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.route-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-dark);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.route-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+}
+
+.route-summary {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.route-details {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+  line-height: 1.7;
 }
 
 .stat-card {

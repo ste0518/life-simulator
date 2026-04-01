@@ -15,6 +15,7 @@
     elements.optionsContainer = document.getElementById("options-container");
     elements.statsContainer = document.getElementById("stats-container");
     elements.familyBackgroundContainer = document.getElementById("family-background-container");
+    elements.routeContainer = document.getElementById("route-container");
     elements.relationshipsContainer = document.getElementById("relationships-container");
     elements.historyContainer = document.getElementById("history-container");
     elements.storySection = document.getElementById("story-section");
@@ -134,6 +135,69 @@
     elements.familyBackgroundContainer.appendChild(card);
   }
 
+  function renderRoutes(state) {
+    elements.routeContainer.innerHTML = "";
+
+    const routeItems = [
+      {
+        label: "升学路线",
+        route: state.educationRoute,
+        emptyText: "高考或转折节点后，这里会记录你选中的大学 / 去向路线。"
+      },
+      {
+        label: "职业路线",
+        route: state.careerRoute,
+        emptyText: "进入社会后，这里会记录你选中的工作起步路线。"
+      }
+    ];
+
+    routeItems.forEach((item) => {
+      const card = document.createElement("article");
+      card.className = "route-card";
+
+      const label = document.createElement("strong");
+      label.className = "route-label";
+      label.textContent = item.label;
+      card.appendChild(label);
+
+      if (!item.route) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = item.emptyText;
+        card.appendChild(empty);
+        elements.routeContainer.appendChild(card);
+        return;
+      }
+
+      const title = document.createElement("p");
+      title.className = "route-title";
+      title.textContent = item.route.name;
+      card.appendChild(title);
+
+      if (item.route.summary) {
+        const summary = document.createElement("p");
+        summary.className = "route-summary";
+        summary.textContent = item.route.summary;
+        card.appendChild(summary);
+      }
+
+      if (Array.isArray(item.route.details) && item.route.details.length) {
+        const list = document.createElement("ul");
+        list.className = "route-details";
+
+        item.route.details.forEach((detail) => {
+          const detailItem = document.createElement("li");
+          detailItem.textContent = detail;
+          list.appendChild(detailItem);
+        });
+
+        card.appendChild(list);
+      }
+
+      elements.routeContainer.appendChild(card);
+    });
+  }
+
   function renderHistory(state) {
     elements.historyContainer.innerHTML = "";
 
@@ -216,7 +280,8 @@
 
       const traits = document.createElement("div");
       traits.className = "relationship-traits";
-      (relationship.traitTags || []).forEach((tag) => {
+      const displayTags = [...(relationship.roleTags || []), ...(relationship.traitTags || [])];
+      displayTags.forEach((tag) => {
         const badge = document.createElement("span");
         badge.className = "relationship-tag";
         badge.textContent = tag;
@@ -237,7 +302,7 @@
 
       card.appendChild(header);
       card.appendChild(identity);
-      if ((relationship.traitTags || []).length) {
+      if (displayTags.length) {
         card.appendChild(traits);
       }
       card.appendChild(meter);
@@ -428,6 +493,7 @@
     elements.genderValue.textContent = state.playerGender === "male" ? "男孩" : state.playerGender === "female" ? "女孩" : "未选择";
     renderStats(state);
     renderFamilyBackground(state);
+    renderRoutes(state);
     renderRelationships(state);
     renderStory(state, event);
     renderHistory(state);
