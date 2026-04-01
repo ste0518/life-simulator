@@ -155,7 +155,14 @@
           contactStyle: typeof source.contactStyle === "string" ? source.contactStyle : "",
           conflictStyle: typeof source.conflictStyle === "string" ? source.conflictStyle : "",
           initialAffection: typeof source.initialAffection === "number" ? source.initialAffection : 0,
-          initialStatus: typeof source.initialStatus === "string" ? source.initialStatus : "unknown"
+          initialStatus: typeof source.initialStatus === "string" ? source.initialStatus : "unknown",
+          initialMetrics:
+            source.initialMetrics && typeof source.initialMetrics === "object" ? { ...source.initialMetrics } : {},
+          appearance: source.appearance && typeof source.appearance === "object" ? { ...source.appearance } : {},
+          availability:
+            source.availability && typeof source.availability === "object" ? { ...source.availability } : {},
+          romanceProfile:
+            source.romanceProfile && typeof source.romanceProfile === "object" ? { ...source.romanceProfile } : {}
         };
       })
       .filter(Boolean);
@@ -191,6 +198,15 @@
     return {
       targetId: typeof source.targetId === "string" ? source.targetId.trim() : "",
       affection: typeof source.affection === "number" ? source.affection : 0,
+      familiarity: typeof source.familiarity === "number" ? source.familiarity : 0,
+      trust: typeof source.trust === "number" ? source.trust : 0,
+      ambiguity: typeof source.ambiguity === "number" ? source.ambiguity : 0,
+      playerInterest: typeof source.playerInterest === "number" ? source.playerInterest : 0,
+      theirInterest: typeof source.theirInterest === "number" ? source.theirInterest : 0,
+      tension: typeof source.tension === "number" ? source.tension : 0,
+      commitment: typeof source.commitment === "number" ? source.commitment : 0,
+      continuity: typeof source.continuity === "number" ? source.continuity : 0,
+      interactions: typeof source.interactions === "number" ? source.interactions : 0,
       status: typeof source.status === "string" ? source.status : "",
       addFlags: normalizeStringArray(source.addFlags),
       removeFlags: normalizeStringArray(source.removeFlags),
@@ -240,6 +256,14 @@
       excludedRelationshipFlags: normalizeMapOfStringArrays(conditions.excludedRelationshipFlags),
       minAffection: normalizeNumberMap(conditions.minAffection),
       maxAffection: normalizeNumberMap(conditions.maxAffection),
+      minFamiliarity: normalizeNumberMap(conditions.minFamiliarity),
+      minTrust: normalizeNumberMap(conditions.minTrust),
+      minAmbiguity: normalizeNumberMap(conditions.minAmbiguity),
+      minPlayerInterest: normalizeNumberMap(conditions.minPlayerInterest),
+      minTheirInterest: normalizeNumberMap(conditions.minTheirInterest),
+      maxTension: normalizeNumberMap(conditions.maxTension),
+      minCommitment: normalizeNumberMap(conditions.minCommitment),
+      minContinuity: normalizeNumberMap(conditions.minContinuity),
       familyBackgroundIds: normalizeStringArray(conditions.familyBackgroundIds),
       excludedFamilyBackgroundIds: normalizeStringArray(conditions.excludedFamilyBackgroundIds),
       educationRouteIds: normalizeStringArray(conditions.educationRouteIds),
@@ -257,6 +281,30 @@
       activeRelationshipMaxAffection:
         typeof conditions.activeRelationshipMaxAffection === "number"
           ? conditions.activeRelationshipMaxAffection
+          : null,
+      activeRelationshipMinFamiliarity:
+        typeof conditions.activeRelationshipMinFamiliarity === "number"
+          ? conditions.activeRelationshipMinFamiliarity
+          : null,
+      activeRelationshipMinTrust:
+        typeof conditions.activeRelationshipMinTrust === "number" ? conditions.activeRelationshipMinTrust : null,
+      activeRelationshipMinPlayerInterest:
+        typeof conditions.activeRelationshipMinPlayerInterest === "number"
+          ? conditions.activeRelationshipMinPlayerInterest
+          : null,
+      activeRelationshipMinTheirInterest:
+        typeof conditions.activeRelationshipMinTheirInterest === "number"
+          ? conditions.activeRelationshipMinTheirInterest
+          : null,
+      activeRelationshipMaxTension:
+        typeof conditions.activeRelationshipMaxTension === "number" ? conditions.activeRelationshipMaxTension : null,
+      activeRelationshipMinCommitment:
+        typeof conditions.activeRelationshipMinCommitment === "number"
+          ? conditions.activeRelationshipMinCommitment
+          : null,
+      activeRelationshipMinContinuity:
+        typeof conditions.activeRelationshipMinContinuity === "number"
+          ? conditions.activeRelationshipMinContinuity
           : null,
       requiredActiveRelationshipFlags: normalizeStringArray(conditions.requiredActiveRelationshipFlags),
       excludedActiveRelationshipFlags: normalizeStringArray(conditions.excludedActiveRelationshipFlags),
@@ -468,6 +516,105 @@
     return Math.max(0, Math.min(100, value));
   }
 
+  function clampRelationshipMetric(value) {
+    return Math.max(0, Math.min(100, value));
+  }
+
+  function isPartnerStatus(status) {
+    return ["dating", "passionate", "cooling", "conflict", "steady", "married", "reconnected"].includes(status);
+  }
+
+  function refreshRelationshipAffection(relationship) {
+    if (!relationship) {
+      return;
+    }
+
+    const derived = Math.round(
+      (relationship.affection || 0) * 0.4 +
+        (relationship.familiarity || 0) * 0.12 +
+        (relationship.trust || 0) * 0.18 +
+        (relationship.playerInterest || 0) * 0.12 +
+        (relationship.theirInterest || 0) * 0.12 +
+        (relationship.commitment || 0) * 0.12 +
+        (relationship.continuity || 0) * 0.08 -
+        (relationship.tension || 0) * 0.14
+    );
+
+    relationship.affection = clampAffection(Math.round(((relationship.affection || 0) + derived) / 2));
+  }
+
+  function inferRelationshipStatus(relationship) {
+    if (!relationship || ["broken", "missed"].includes(relationship.status)) {
+      return;
+    }
+
+    if ((relationship.commitment || 0) >= 78 && (relationship.trust || 0) >= 72 && (relationship.affection || 0) >= 70) {
+      relationship.status = "steady";
+      return;
+    }
+
+    if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 60) {
+      relationship.status = "conflict";
+      return;
+    }
+
+    if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 38) {
+      relationship.status = "cooling";
+      return;
+    }
+
+    if (
+      (relationship.commitment || 0) >= 46 &&
+      (relationship.playerInterest || 0) >= 56 &&
+      (relationship.theirInterest || 0) >= 56
+    ) {
+      relationship.status = (relationship.tension || 0) >= 34 ? "dating" : "passionate";
+      return;
+    }
+
+    if (
+      (relationship.playerInterest || 0) >= 48 &&
+      (relationship.theirInterest || 0) >= 48 &&
+      (relationship.ambiguity || 0) >= 28
+    ) {
+      relationship.status = "ambiguous";
+      return;
+    }
+
+    if (
+      (relationship.playerInterest || 0) >= 42 &&
+      (relationship.theirInterest || 0) >= 42 &&
+      (relationship.familiarity || 0) >= 28
+    ) {
+      relationship.status = "mutual_crush";
+      return;
+    }
+
+    if ((relationship.familiarity || 0) >= 45 && (relationship.trust || 0) >= 36) {
+      relationship.status = "close";
+      return;
+    }
+
+    if ((relationship.familiarity || 0) >= 20 || (relationship.trust || 0) >= 18) {
+      relationship.status = "familiar";
+      return;
+    }
+
+    if ((relationship.theirInterest || 0) >= 20 && (relationship.playerInterest || 0) < 18) {
+      relationship.status = "noticed_by_them";
+      return;
+    }
+
+    if ((relationship.playerInterest || 0) >= 18 || (relationship.theirInterest || 0) >= 18) {
+      relationship.status = "crush";
+      return;
+    }
+
+    if ((relationship.affection || 0) > 0 || relationship.met) {
+      relationship.status = "noticed";
+    }
+  }
+
   function adjustStat(key, delta) {
     if (!delta) {
       return;
@@ -552,14 +699,28 @@
       addChange("intelligence", 1);
     }
 
-    if (
-      currentPartner &&
-      currentPartner.affection >= 55 &&
-      ["dating", "steady", "married", "reconnected"].includes(currentPartner.status)
-    ) {
-      addChange("happiness", 1);
-      addChange("mental", 1);
-      addChange("stress", -1);
+    if (currentPartner && currentPartner.affection >= 55 && isPartnerStatus(currentPartner.status)) {
+      if (["dating", "passionate", "steady", "married", "reconnected"].includes(currentPartner.status)) {
+        addChange("happiness", 1);
+        addChange("mental", 1);
+        addChange("stress", -1);
+      }
+
+      if (currentPartner.tension >= 55 || ["cooling", "conflict"].includes(currentPartner.status)) {
+        addChange("happiness", -2);
+        addChange("mental", -2);
+        addChange("stress", 2);
+      }
+
+      if (currentPartner.commitment >= 45 && gameState.age <= 22) {
+        addChange("social", 1);
+        addChange("discipline", -1);
+      }
+
+      if (currentPartner.commitment >= 58 && gameState.age >= 22) {
+        addChange("career", -1);
+        addChange("happiness", 1);
+      }
     }
 
     Object.entries(derivedChanges).forEach(([key, delta]) => {
@@ -587,26 +748,79 @@
         conflictStyle: definition ? definition.conflictStyle : "",
         affection: definition ? definition.initialAffection : 0,
         status: definition ? definition.initialStatus : "unknown",
+        appearance: definition && definition.appearance ? { ...definition.appearance } : {},
+        availability: definition && definition.availability ? { ...definition.availability } : {},
+        romanceProfile: definition && definition.romanceProfile ? { ...definition.romanceProfile } : {},
+        familiarity:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.familiarity === "number"
+            ? definition.initialMetrics.familiarity
+            : 0,
+        trust:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.trust === "number"
+            ? definition.initialMetrics.trust
+            : 0,
+        ambiguity:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.ambiguity === "number"
+            ? definition.initialMetrics.ambiguity
+            : 0,
+        playerInterest:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.playerInterest === "number"
+            ? definition.initialMetrics.playerInterest
+            : 0,
+        theirInterest:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.theirInterest === "number"
+            ? definition.initialMetrics.theirInterest
+            : 0,
+        tension:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.tension === "number"
+            ? definition.initialMetrics.tension
+            : 0,
+        commitment:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.commitment === "number"
+            ? definition.initialMetrics.commitment
+            : 0,
+        continuity:
+          definition && definition.initialMetrics && typeof definition.initialMetrics.continuity === "number"
+            ? definition.initialMetrics.continuity
+            : 0,
+        interactionCount: 0,
+        lastInteractionAge: null,
         met: false,
         flags: [],
         history: []
       };
     }
 
-    return state.relationships[id];
+    const relationship = state.relationships[id];
+    relationship.familiarity = typeof relationship.familiarity === "number" ? relationship.familiarity : 0;
+    relationship.trust = typeof relationship.trust === "number" ? relationship.trust : 0;
+    relationship.ambiguity = typeof relationship.ambiguity === "number" ? relationship.ambiguity : 0;
+    relationship.playerInterest = typeof relationship.playerInterest === "number" ? relationship.playerInterest : 0;
+    relationship.theirInterest = typeof relationship.theirInterest === "number" ? relationship.theirInterest : 0;
+    relationship.tension = typeof relationship.tension === "number" ? relationship.tension : 0;
+    relationship.commitment = typeof relationship.commitment === "number" ? relationship.commitment : 0;
+    relationship.continuity = typeof relationship.continuity === "number" ? relationship.continuity : 0;
+    relationship.interactionCount = typeof relationship.interactionCount === "number" ? relationship.interactionCount : 0;
+    relationship.appearance = relationship.appearance && typeof relationship.appearance === "object" ? relationship.appearance : {};
+    relationship.availability =
+      relationship.availability && typeof relationship.availability === "object" ? relationship.availability : {};
+    relationship.romanceProfile =
+      relationship.romanceProfile && typeof relationship.romanceProfile === "object" ? relationship.romanceProfile : {};
+
+    return relationship;
   }
 
   function getCurrentPartner(state) {
     const activeRelationship = getRelationshipSnapshot(state, state.activeRelationshipId);
     if (
       activeRelationship &&
-      ["dating", "steady", "married", "reconnected"].includes(activeRelationship.status)
+      isPartnerStatus(activeRelationship.status)
     ) {
       return activeRelationship;
     }
 
     return Object.values(state.relationships || {}).find((relationship) =>
-      ["dating", "steady", "married", "reconnected"].includes(relationship.status)
+      isPartnerStatus(relationship.status)
     ) || null;
   }
 
@@ -854,6 +1068,13 @@
     if (
       typeof rule.activeRelationshipMinAffection === "number" ||
       typeof rule.activeRelationshipMaxAffection === "number" ||
+      typeof rule.activeRelationshipMinFamiliarity === "number" ||
+      typeof rule.activeRelationshipMinTrust === "number" ||
+      typeof rule.activeRelationshipMinPlayerInterest === "number" ||
+      typeof rule.activeRelationshipMinTheirInterest === "number" ||
+      typeof rule.activeRelationshipMaxTension === "number" ||
+      typeof rule.activeRelationshipMinCommitment === "number" ||
+      typeof rule.activeRelationshipMinContinuity === "number" ||
       rule.requiredActiveRelationshipFlags.length ||
       rule.excludedActiveRelationshipFlags.length
     ) {
@@ -875,6 +1096,55 @@
       if (
         typeof rule.activeRelationshipMaxAffection === "number" &&
         activeRelationship.affection > rule.activeRelationshipMaxAffection
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinFamiliarity === "number" &&
+        (activeRelationship.familiarity || 0) < rule.activeRelationshipMinFamiliarity
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinTrust === "number" &&
+        (activeRelationship.trust || 0) < rule.activeRelationshipMinTrust
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinPlayerInterest === "number" &&
+        (activeRelationship.playerInterest || 0) < rule.activeRelationshipMinPlayerInterest
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinTheirInterest === "number" &&
+        (activeRelationship.theirInterest || 0) < rule.activeRelationshipMinTheirInterest
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMaxTension === "number" &&
+        (activeRelationship.tension || 0) > rule.activeRelationshipMaxTension
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinCommitment === "number" &&
+        (activeRelationship.commitment || 0) < rule.activeRelationshipMinCommitment
+      ) {
+        return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinContinuity === "number" &&
+        (activeRelationship.continuity || 0) < rule.activeRelationshipMinContinuity
       ) {
         return false;
       }
@@ -970,6 +1240,62 @@
     for (const [relationshipId, flags] of Object.entries(rule.excludedRelationshipFlags)) {
       const relationship = getRelationshipSnapshot(state, relationshipId);
       if (relationship && flags.some((flag) => relationship.flags.includes(flag))) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minFamiliarity)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.familiarity || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minTrust)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.trust || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minAmbiguity)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.ambiguity || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minPlayerInterest)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.playerInterest || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minTheirInterest)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.theirInterest || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.maxTension)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (relationship && (relationship.tension || 0) > amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minCommitment)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.commitment || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minContinuity)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.continuity || 0) < amount) {
         return false;
       }
     }
@@ -1185,6 +1511,25 @@
 
       relationship.met = true;
       relationship.affection = clampAffection((relationship.affection || 0) + (effect.affection || 0));
+      relationship.familiarity = clampRelationshipMetric((relationship.familiarity || 0) + (effect.familiarity || 0));
+      relationship.trust = clampRelationshipMetric((relationship.trust || 0) + (effect.trust || 0));
+      relationship.ambiguity = clampRelationshipMetric((relationship.ambiguity || 0) + (effect.ambiguity || 0));
+      relationship.playerInterest = clampRelationshipMetric(
+        (relationship.playerInterest || 0) + (effect.playerInterest || 0)
+      );
+      relationship.theirInterest = clampRelationshipMetric(
+        (relationship.theirInterest || 0) + (effect.theirInterest || 0)
+      );
+      relationship.tension = clampRelationshipMetric((relationship.tension || 0) + (effect.tension || 0));
+      relationship.commitment = clampRelationshipMetric(
+        (relationship.commitment || 0) + (effect.commitment || 0)
+      );
+      relationship.continuity = clampRelationshipMetric((relationship.continuity || 0) + (effect.continuity || 0));
+      relationship.interactionCount = Math.max(
+        0,
+        (relationship.interactionCount || 0) + (effect.interactions || 0)
+      );
+      relationship.lastInteractionAge = gameState.age;
 
       if (effect.status) {
         relationship.status = effect.status;
@@ -1200,6 +1545,11 @@
         relationship.flags = relationship.flags.filter((flag) => !effect.removeFlags.includes(flag));
       }
 
+      refreshRelationshipAffection(relationship);
+      if (!effect.status) {
+        inferRelationshipStatus(relationship);
+      }
+
       if (effect.history) {
         addRelationshipHistory(relationship.id, effect.history);
       }
@@ -1212,7 +1562,7 @@
         nextActiveId = resolvedTargetId;
       }
 
-      if (["broken", "estranged"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
+      if (["broken", "estranged", "missed"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
         clearActive = true;
       }
     });
@@ -1284,6 +1634,8 @@
       const relationship = getRelationshipRecord(gameState, block.setActiveRelationship);
       if (relationship) {
         relationship.met = true;
+        relationship.continuity = clampRelationshipMetric((relationship.continuity || 0) + 2);
+        relationship.lastInteractionAge = gameState.age;
       }
     }
 
@@ -1402,8 +1754,16 @@
       return "你和" + name + "之间留下的，不只是某一段热烈，而是一种被现实反复考验后仍然愿意继续靠近的关系。";
     }
 
+    if (["dating", "passionate", "cooling", "conflict"].includes(status)) {
+      return "你和" + name + "曾认真经营过一段会持续变化的关系，热烈、冷淡、拉扯和舍不得都真实发生过。";
+    }
+
     if (["broken", "estranged"].includes(status)) {
       return "你和" + name + "的关系没有完整留住，但那段靠近、误会和失去，确实改变了你后来理解亲密的方式。";
+    }
+
+    if (status === "missed") {
+      return name + "成了你人生里那种很难完全忘掉的遗憾线。你们并不是没喜欢过彼此，只是时间没有站在同一边。";
     }
 
     return name + "曾经在你人生里占过很重的位置，你不是没有认真喜欢过，只是走到最后的方式，并不完全由心动决定。";
@@ -1794,6 +2154,8 @@
     }
 
     relationship.met = true;
+    relationship.continuity = clampRelationshipMetric((relationship.continuity || 0) + 2);
+    relationship.lastInteractionAge = gameState.age;
     gameState.activeRelationshipId = relationship.id;
     return getState();
   }

@@ -61,17 +61,24 @@
   const RELATIONSHIP_STATUS_LABELS = {
     unknown: "尚未相识",
     noticed: "开始留意",
+    noticed_by_them: "对方先注意到你",
     crush: "暗暗喜欢",
+    mutual_crush: "双向好感",
     familiar: "逐渐熟悉",
     close: "关系升温",
     ambiguous: "暧昧试探",
+    confessed: "已经说开",
     short_dating: "短暂交往",
     dating: "恋爱中",
+    passionate: "热恋期",
+    cooling: "冷淡期",
+    conflict: "争吵拉扯",
     steady: "稳定交往",
     married: "共同生活",
     estranged: "渐渐疏远",
     broken: "已经分开",
-    reconnected: "重新靠近"
+    reconnected: "重新靠近",
+    missed: "错过了"
   };
 
   function normalizeStringArray(value) {
@@ -105,6 +112,65 @@
         conflictStyle: typeof definition.conflictStyle === "string" ? definition.conflictStyle : "",
         affection: typeof definition.initialAffection === "number" ? definition.initialAffection : 0,
         status: typeof definition.initialStatus === "string" ? definition.initialStatus : "unknown",
+        appearance: definition && definition.appearance && typeof definition.appearance === "object" ? { ...definition.appearance } : {},
+        availability:
+          definition && definition.availability && typeof definition.availability === "object"
+            ? { ...definition.availability }
+            : {},
+        romanceProfile:
+          definition && definition.romanceProfile && typeof definition.romanceProfile === "object"
+            ? { ...definition.romanceProfile }
+            : {},
+        familiarity:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.familiarity === "number"
+            ? definition.initialMetrics.familiarity
+            : 0,
+        trust:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.trust === "number"
+            ? definition.initialMetrics.trust
+            : 0,
+        ambiguity:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.ambiguity === "number"
+            ? definition.initialMetrics.ambiguity
+            : 0,
+        playerInterest:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.playerInterest === "number"
+            ? definition.initialMetrics.playerInterest
+            : 0,
+        theirInterest:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.theirInterest === "number"
+            ? definition.initialMetrics.theirInterest
+            : 0,
+        tension:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.tension === "number"
+            ? definition.initialMetrics.tension
+            : 0,
+        commitment:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.commitment === "number"
+            ? definition.initialMetrics.commitment
+            : 0,
+        continuity:
+          definition &&
+          definition.initialMetrics &&
+          typeof definition.initialMetrics.continuity === "number"
+            ? definition.initialMetrics.continuity
+            : 0,
+        interactionCount: 0,
+        lastInteractionAge: null,
         met: false,
         flags: [],
         history: []

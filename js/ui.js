@@ -231,8 +231,12 @@
     elements.relationshipsContainer.innerHTML = "";
 
     const relationships = Object.values(state.relationships || {})
-      .filter((relationship) => relationship.met || relationship.affection > 0)
-      .sort((left, right) => right.affection - left.affection);
+      .filter((relationship) => relationship.met || relationship.affection > 0 || relationship.continuity > 0)
+      .sort((left, right) => {
+        const leftScore = (left.affection || 0) + (left.continuity || 0) * 0.4 + (left.commitment || 0) * 0.2;
+        const rightScore = (right.affection || 0) + (right.continuity || 0) * 0.4 + (right.commitment || 0) * 0.2;
+        return rightScore - leftScore;
+      });
 
     if (!relationships.length) {
       const empty = document.createElement("p");
@@ -300,6 +304,32 @@
       affection.className = "relationship-affection";
       affection.textContent = "好感度 " + relationship.affection;
 
+      const metrics = document.createElement("div");
+      metrics.className = "relationship-metrics";
+
+      [
+        ["熟悉", relationship.familiarity || 0],
+        ["信任", relationship.trust || 0],
+        ["暧昧", relationship.ambiguity || 0],
+        ["我方心动", relationship.playerInterest || 0],
+        ["对方心动", relationship.theirInterest || 0],
+        ["张力", relationship.tension || 0],
+        ["承诺", relationship.commitment || 0],
+        ["连续性", relationship.continuity || 0]
+      ].forEach(([labelText, value]) => {
+        const metric = document.createElement("span");
+        metric.className = "relationship-metric";
+        metric.textContent = labelText + " " + value;
+        metrics.appendChild(metric);
+      });
+
+      const profile = document.createElement("p");
+      profile.className = "relationship-profile";
+      profile.textContent =
+        relationship.romanceProfile && relationship.romanceProfile.futureFocus
+          ? "关系倾向：" + relationship.romanceProfile.futureFocus
+          : "关系倾向：这段关系还在慢慢显形。";
+
       card.appendChild(header);
       card.appendChild(identity);
       if (displayTags.length) {
@@ -307,6 +337,8 @@
       }
       card.appendChild(meter);
       card.appendChild(affection);
+      card.appendChild(metrics);
+      card.appendChild(profile);
 
       if (relationship.history && relationship.history.length) {
         const latestHistory = document.createElement("p");
