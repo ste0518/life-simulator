@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人生模拟器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div>
+        <h1>人生模拟器</h1>
+        <p class="subtitle">阅读事件，做出选择，承担长期后果，走完属于你的一生。</p>
+      </div>
+      <button id="restart-btn" class="ghost-button" type="button">重新开始</button>
+    </header>
+
+    <main class="layout">
+      <section class="panel primary-panel">
+        <div class="panel-header">
+          <h2>当前人生阶段</h2>
+          <div class="panel-badges">
+            <div class="stage-badge">阶段：<span id="stage-value">未开始</span></div>
+            <div class="age-badge">年龄：<span id="age-value">0</span></div>
+          </div>
+        </div>
+
+        <div id="story-section" class="story-section">
+          <h3 id="event-title">加载中...</h3>
+          <div id="story-text" class="story-text"></div>
+        </div>
+
+        <div>
+          <h3>你的选择</h3>
+          <div id="options-container" class="options-container"></div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>当前属性</h2>
+          <div id="stats-container" class="stats-grid"></div>
+        </section>
+
+        <section class="panel">
+          <h2>人际 / 恋爱</h2>
+          <div id="relationships-container" class="relationship-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>人生大事日志</h2>
+          <div id="history-container" class="history-list"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script defer src="data/relationships.js"></script>
+  <script defer src="data/events.js"></script>
+  <script defer src="data/extra-events.js"></script>
+  <script defer src="data/endings.js"></script>
+  <script defer src="js/state.js"></script>
+  <script defer src="js/engine.js"></script>
+  <script defer src="js/ui.js"></script>
+</body>
+</html>
