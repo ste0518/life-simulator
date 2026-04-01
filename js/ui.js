@@ -303,7 +303,7 @@
     elements.eventTitle.textContent = "从名字开始";
     createParagraphs(
       elements.storyText,
-      "你刚刚出生，这一生还没有真正展开。\n\n先为自己取一个名字，并选择这一局的性别。后续恋爱对象会根据这里的选择提供不同组合，然后再抽取家庭背景，从 0 岁开始经历属于你的人生。"
+      "你刚刚出生，这一生还没有真正展开。\n\n先为自己取一个名字，并选择这一局的性别。然后抽取家庭背景，从 0 岁开始经历属于你的人生。"
     );
 
     elements.optionsContainer.innerHTML = "";
@@ -350,13 +350,8 @@
       genderGroup.appendChild(optionLabel);
     });
 
-    const helper = document.createElement("p");
-    helper.className = "setup-helper";
-    helper.textContent = "男孩开局会看到 4 个女孩 + 1 个男孩；女孩开局会看到 4 个男孩 + 1 个女孩。";
-
     genderFieldset.appendChild(genderLegend);
     genderFieldset.appendChild(genderGroup);
-    genderFieldset.appendChild(helper);
 
     const button = document.createElement("button");
     button.type = "submit";

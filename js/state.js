@@ -43,16 +43,16 @@
   };
 
   const DEFAULT_STATS = {
-    money: 20,
-    health: 70,
-    mental: 62,
-    happiness: 60,
-    intelligence: 50,
-    social: 50,
+    money: 0,
+    health: 60,
+    mental: 0,
+    happiness: 0,
+    intelligence: 0,
+    social: 0,
     career: 0,
-    familySupport: 50,
-    stress: 20,
-    discipline: 45
+    familySupport: 0,
+    stress: 0,
+    discipline: 0
   };
 
   const RELATIONSHIP_STATUS_LABELS = {

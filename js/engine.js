@@ -850,10 +850,16 @@
     };
   }
 
-  function applyFamilyBackground(background) {
+  function applyFamilyBackground(background, options) {
+    const settings = options || {};
+
     if (!background) {
-      gameState.setupStep = null;
-      gameState.pendingFamilyBackgroundId = null;
+      if (!settings.keepSetupStep) {
+        gameState.setupStep = null;
+      }
+      if (!settings.keepPendingBackground) {
+        gameState.pendingFamilyBackgroundId = null;
+      }
       return;
     }
 
@@ -865,14 +871,20 @@
       details: background.details.slice(),
       dimensions: { ...background.dimensions }
     };
-    gameState.setupStep = null;
-    gameState.pendingFamilyBackgroundId = null;
+    if (!settings.keepSetupStep) {
+      gameState.setupStep = null;
+    }
+    if (!settings.keepPendingBackground) {
+      gameState.pendingFamilyBackgroundId = null;
+    }
 
     applyMutationBlock(background.apply, { skipStatLinks: true });
-    addHistory("你的原生家庭抽到了“" + background.name + "”。");
+    if (!settings.skipHistory) {
+      addHistory("你的原生家庭抽到了“" + background.name + "”。");
 
-    if (background.summary) {
-      addHistory(background.summary);
+      if (background.summary) {
+        addHistory(background.summary);
+      }
     }
   }
 
@@ -896,6 +908,10 @@
 
     const familyBackground = pickWeightedFamilyBackground();
     gameState.pendingFamilyBackgroundId = familyBackground ? familyBackground.id : null;
+    applyFamilyBackground(familyBackground, {
+      keepSetupStep: true,
+      keepPendingBackground: true
+    });
 
     addHistory("你出生了，名字被定为“" + gameState.playerName + "”。");
     addHistory("这一局里，你会以" + getPlayerGenderLabel(normalizedGender) + "的身份长大。");
@@ -1429,7 +1445,8 @@
         return getState();
       }
 
-      applyFamilyBackground(getPendingFamilyBackground());
+      gameState.setupStep = null;
+      gameState.pendingFamilyBackgroundId = null;
       advanceTo();
       return getState();
     }
