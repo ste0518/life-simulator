@@ -819,7 +819,7 @@
       }),
       choices: [
         choice({
-          text: "你开始注意林月（女），她安静，但总能把话听进心里。",
+          text: "图书角、作文展示栏和后来同班后的值日，让你开始留意那个总显得很安静的女生，后来你记住了她叫宋清禾。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -832,18 +832,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "lin_yue",
+              targetId: "song_qinghe",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你第一次明确把目光放到她身上，开始悄悄记住林月说过的话。",
+              history: "你先是在很多普通校园场景里反复看见宋清禾，后来才慢慢意识到，自己已经开始特别在意她。",
             },
           ],
-          log: "你开始更在意安静、细腻和能让人安心的那种靠近方式。",
+          log: "你开始更在意安静、细腻、会在普通日子里慢慢长出分量的那种靠近方式。",
         }),
         choice({
-          text: "你开始注意苏晚（女），她很会把普通日子过出一点自己的节奏。",
+          text: "补课班和同桌以后的很多小事，让你开始在意那个嘴上不太软、却总会记得细节的女生，方可。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -856,18 +856,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "su_wan",
+              targetId: "fang_ke",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你开始记住苏晚身上那种松弛又有主见的感觉，也下意识想多靠近一点。",
+              history: "你一开始只是记住方可做题快、说话直，后来却开始在很多很小的照应里越来越在意她。",
             },
           ],
-          log: "你会被会生活、带一点松弛感的人吸引，也想知道这种靠近能不能走得更远。",
+          log: "你会被慢热、聪明、需要长时间相处才能真正熟起来的人吸引。",
         }),
         choice({
-          text: "你开始留意许棠（女），她聪明克制，总像藏着很多没说完的话。",
+          text: "在班会、排练和活动准备里，你越来越会先看向那个总能把场子撑亮的人，罗明汐。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -880,18 +880,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "xu_tang",
+              targetId: "luo_mingxi",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你会被许棠的敏锐和克制吸引，想知道她真正熟起来会是什么样子。",
+              history: "你最开始可能只是被罗明汐的亮眼和热度吸引，后来才发现自己已经开始期待每次活动都能再见到她。",
             },
           ],
-          log: "你开始更在意那种聪明、冷静、需要慢慢靠近才会打开的人。",
+          log: "你发现自己也会被那种会把整个校园生活一下带亮的人打动。",
         }),
         choice({
-          text: "你开始留意沈枝（女），和她待在一起时，很多情绪都变得更亮。",
+          text: "球场边、运动会和放学路上的热闹，让你开始更常注意那个总能把气氛带起来的人，江循。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -904,18 +904,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "shen_zhi",
+              targetId: "jiang_xun",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你会被沈枝那种直接又有生命力的存在感打动，开始越来越在意她。",
+              history: "你先是在热闹里注意到江循，后来才发现自己已经会下意识去找他的身影。",
             },
           ],
-          log: "你发现自己会被热烈和有感染力的人吸引，也会在这种靠近里变得更敢一点。",
+          log: "你会被热烈、直接、很有现场感的人吸引，也会在这种靠近里变得更敢一点。",
         }),
         choice({
-          text: "你会去注意周屿（男），因为他总像知道自己要往哪走。",
+          text: "图书角、广播站和演讲比赛准备时，你开始更在意那个讲话不快、却总显得很稳的人，陈砚。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -928,18 +928,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "zhou_yi",
+              targetId: "chen_yan",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你被周屿身上那种清晰的目标感吸引，第一次觉得“喜欢”也会和仰望混在一起。",
+              history: "你先是在安静处一次次碰见陈砚，后来才意识到，自己会开始在意他会不会和你说更多话。",
             },
           ],
-          log: "你会被有方向感的人打动，也会更想让自己看起来别太差。",
+          log: "你开始更在意那种克制、可靠、需要慢慢靠近才会显露温度的人。",
         }),
         choice({
-          text: "你会去看林月（女），因为她安静，却总能把你的情绪接住。",
+          text: "图书角、作文展示栏和后来同班后的值日，让你开始留意那个总显得很安静的女生，后来你记住了她叫宋清禾。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -952,18 +952,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "lin_yue",
+              targetId: "song_qinghe",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你第一次明确把目光放到林月身上，开始悄悄记住她说过的话。",
+              history: "你先是在很多普通校园场景里反复看见宋清禾，后来才慢慢意识到，自己已经开始特别在意她。",
             },
           ],
-          log: "你开始更在意安静、细腻和能让人安心的那种靠近方式。",
+          log: "你开始更在意安静、细腻、会在普通日子里慢慢长出分量的那种靠近方式。",
         }),
         choice({
-          text: "你会去注意周屿（男），因为他总像知道自己要往哪走。",
+          text: "在班会、排练和活动准备里，你越来越会先看向那个总能把场子撑亮的人，罗明汐。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -976,18 +976,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "zhou_yi",
+              targetId: "luo_mingxi",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你被周屿身上那种清晰的目标感吸引，第一次觉得“喜欢”也会和仰望混在一起。",
+              history: "你最开始可能只是被罗明汐的亮眼和热度吸引，后来才发现自己已经开始期待每次活动都能再见到她。",
             },
           ],
-          log: "你会被有方向感的人打动，也会更想让自己看起来别太差。",
+          log: "你发现自己也会被那种会把整个校园生活一下带亮的人打动。",
         }),
         choice({
-          text: "你开始留意程楠（男），因为和他待在一起时情绪总更鲜活。",
+          text: "球场边、运动会和放学路上的热闹，让你开始更常注意那个总能把气氛带起来的人，江循。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1000,18 +1000,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "cheng_nan",
+              targetId: "jiang_xun",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你被程楠那种直接、热烈的存在感吸引，第一次意识到有人真的能一下子点亮你的情绪。",
+              history: "你先是在热闹里注意到江循，后来才发现自己已经会下意识去找他的身影。",
             },
           ],
           log: "你会被鲜活和直接打动，也更容易在这种靠近里变得勇敢一点。",
         }),
         choice({
-          text: "你会去看徐清（男），因为他身上有一种很稳的可靠感。",
+          text: "图书角、广播站和演讲比赛准备时，你开始更在意那个讲话不快、却总显得很稳的人，陈砚。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1024,18 +1024,18 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "xu_qing",
+              targetId: "chen_yan",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你对徐清产生了好感，因为那种让人安心的稳定感，在你的青春期里并不常见。",
+              history: "你先是在安静处一次次碰见陈砚，后来才意识到，自己会开始在意他会不会和你说更多话。",
             },
           ],
-          log: "你发现自己会被稳定和耐心吸引，这会直接影响你以后怎么看待长期关系。",
+          log: "你开始更在意那种克制、可靠、需要慢慢靠近才会显露温度的人。",
         }),
         choice({
-          text: "你开始留意陆川（男），他不太高调，但关键时候总显得很靠谱。",
+          text: "补课班、竞赛训练和雨天一起等车的那些时刻，让你越来越在意那个总把情绪压得很深的人，谭予。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1048,15 +1048,15 @@
           addRomanceFlags: ["romance_target_chosen"],
           relationshipEffects: [
             {
-              targetId: "lu_chuan",
+              targetId: "tan_yu",
               affection: 14,
               status: "noticed",
               setActive: true,
               addFlags: ["school_crush"],
-              history: "你会被陆川那种安静但能扛事的可靠感吸引，开始越来越在意他。",
+              history: "你是在一次次补课后的同行和等待里慢慢记住谭予的，也因此越来越在意他那些没有说出口的情绪。",
             },
           ],
-          log: "你发现自己也会被低调、稳妥、真正能让人放心的人打动。",
+          log: "你也会被那种压着很多压力、却只在熟人面前露出一点真实情绪的人打动。",
         }),
         choice({
           text: "你决定先把心收住，别让感情太早占掉自己。",
@@ -1580,7 +1580,7 @@
       }),
       choices: [
         choice({
-          text: "你把更多接触留给林月（女），想看看这种安静的靠近会不会更长久。",
+          text: "在图书馆、借书台和文学社讨论里，你开始一次次坐到那个总在安静角落的人附近，后来才慢慢和林月熟起来。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -1597,13 +1597,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你在新的阶段里主动把更多时间留给了林月，关系也真的开始往前走。",
+              history: "你是先在图书馆和文学社里反复碰上林月，后来才慢慢把关系从认识推向了真正的熟悉。",
             },
           ],
           log: "你没有继续只靠偶然，而是明确地把心往一个方向放了放。",
         }),
         choice({
-          text: "你把更多接触留给苏晚（女），想看看这种松弛又有主见的感觉能不能走远。",
+          text: "社团活动后的逛展、散步和城市漫游，让你慢慢记住了苏晚那种很有自己节奏的生活感。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -1620,13 +1620,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你主动把更多时间留给了苏晚，关系也开始从轻松相处慢慢变得更具体。",
+              history: "你不是一下子把苏晚划进重要关系里的，而是在一起逛展、走路和聊天的过程里慢慢熟了起来。",
             },
           ],
           log: "你开始更认真地看待那些能把日常过得舒服、也能让你放松下来的人。",
         }),
         choice({
-          text: "你更想靠近许棠（女），因为你会被她的聪明和分寸感吸引。",
+          text: "专业课、辩论队和深夜讨论项目后，你开始更想知道许棠这种看起来克制的人到底会不会真正向谁打开。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -1643,13 +1643,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你主动创造和许棠多聊天、多接触的机会，关系也开始往熟悉的方向走。",
+              history: "你和许棠是从专业课和辩论里的互相接招开始熟起来的，关系也因此慢慢有了私人温度。",
             },
           ],
           log: "你开始把那种聪明、克制、需要慢慢读懂的吸引力，认真放进自己的关系选择里。",
         }),
         choice({
-          text: "你更愿意靠近沈枝（女），因为她身上那种热度会让生活变得更亮。",
+          text: "活动筹备、朋友局和说走就走的短途出行里，你慢慢被沈枝那种很有生命力的热度卷了进去。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -1666,13 +1666,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你把更多互动和见面机会给了沈枝，关系开始真正有了存在感。",
+              history: "你和沈枝并不是靠一次告白熟起来的，而是在很多一起扛事和一起出去的场景里慢慢变近。",
             },
           ],
           log: "你不再只问合不合适，也开始承认自己就是会被鲜活和直接点亮。",
         }),
         choice({
-          text: "你更想靠近周屿（男），因为你欣赏那种能一起往前走的感觉。",
+          text: "项目合作、实习和比赛准备里，你越来越在意那个做事总很利落的人，周屿。",
           conditions: condition({
             requiredFlags: ["player_gender_male"],
           }),
@@ -1689,13 +1689,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你主动创造和周屿并肩做事、聊天和接触的机会，彼此不再只是擦肩而过。",
+              history: "你和周屿是从一起做事、一起赶节点开始慢慢熟起来的，关系也因此比一般心动更带着现实重量。",
             },
           ],
           log: "你开始把“谁适合走进生活”也纳入了喜欢的判断里。",
         }),
         choice({
-          text: "你把更多接触留给林月（女），想看看这种安静的靠近会不会更长久。",
+          text: "在图书馆、借书台和文学社讨论里，你开始一次次坐到那个总在安静角落的人附近，后来才慢慢和林月熟起来。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1712,13 +1712,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你在新的阶段里主动把更多时间留给了林月，关系也真的开始往前走。",
+              history: "你是先在图书馆和文学社里反复碰上林月，后来才慢慢把关系从认识推向了真正的熟悉。",
             },
           ],
           log: "你没有继续只靠偶然，而是明确地把心往一个方向放了放。",
         }),
         choice({
-          text: "你更想靠近周屿（男），因为你欣赏那种能一起往前走的感觉。",
+          text: "项目合作、实习和比赛准备里，你越来越在意那个做事总很利落的人，周屿。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1735,13 +1735,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你主动创造和周屿并肩做事、聊天和接触的机会，彼此不再只是擦肩而过。",
+              history: "你和周屿是从一起做事、一起赶节点开始慢慢熟起来的，关系也因此比一般心动更带着现实重量。",
             },
           ],
           log: "你开始把“谁适合走进生活”也纳入了喜欢的判断里。",
         }),
         choice({
-          text: "你更愿意靠近程楠（男），因为你需要一点真实而直接的热度。",
+          text: "球场、夜宵和朋友局上的一次次同行，让你开始记住程楠那种很真、也很热烈的在场感。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1758,13 +1758,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你把更多互动和见面机会给了程楠，关系开始真正有了存在感。",
+              history: "你和程楠的熟悉是从很多有现场感的相处里长出来的，关系也因此带着一种很直接的热度。",
             },
           ],
           log: "你不再只是想着合不合适，也开始承认自己需要被什么样的情绪点亮。",
         }),
         choice({
-          text: "你想多接触徐清（男），因为那种稳定感让你觉得可托付。",
+          text: "志愿活动收尾、一起做饭和被照顾到的小细节，让你越来越在意徐清那种稳稳在场的感觉。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1781,13 +1781,13 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你开始主动把联系和日常分享留给徐清，关系因此变得具体起来。",
+              history: "你和徐清不是一下热起来的，而是在很多日常照应和活动收尾里慢慢熟起来的。",
             },
           ],
           log: "你开始认真地把“可靠”也当成喜欢的一部分，而不只是年轻时的一种附加项。",
         }),
         choice({
-          text: "你想多接触陆川（男），因为那种低调但能扛事的感觉很让人安心。",
+          text: "实验室、项目组和一起解决问题的过程，让你慢慢注意到陆川那种不声张却很能扛事的可靠。",
           conditions: condition({
             requiredFlags: ["player_gender_female"],
           }),
@@ -1804,7 +1804,7 @@
               affection: 10,
               status: "familiar",
               setActive: true,
-              history: "你开始主动把联系和日常分享留给陆川，关系因此变得具体起来。",
+              history: "你和陆川是在一次次并肩解决问题里慢慢熟起来的，关系也因此比表面看起来更有后劲。",
             },
           ],
           log: "你开始认真地把那种安静但可靠的托付感，也放进自己对关系的判断里。",

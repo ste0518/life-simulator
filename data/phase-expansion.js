@@ -1291,11 +1291,395 @@
     })
   ];
 
+  const EARLY_CONTINUITY_EVENTS = [
+    event({
+      id: "childhood_move_and_neighbor",
+      stage: "childhood",
+      title: "一次搬家，让你第一次知道“熟悉感”也会突然被换掉",
+      text: "小时候的搬家不是简单换个地址。房间、楼道、窗外声音、常见的人，都会一起被替换。有人因此更快适应新环境，也有人会把“突然失去熟悉感”这件事记很多年。",
+      minAge: 5,
+      maxAge: 8,
+      weight: 6,
+      tags: ["childhood", "family", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "环境被换掉以后，你第一次真正体会到，原来关系感和安全感也会跟着地点一起变化。"
+      }),
+      choices: [
+        choice({
+          text: "你很快去认识邻居和新同学，把陌生环境慢慢过成熟悉。",
+          effects: {
+            age: 0,
+            stats: { social: 3, happiness: 2, mental: 1 }
+          },
+          addFlags: ["moved_childhood_once", "adapt_fast"],
+          addTags: ["growth", "relationship"],
+          log: "你后来之所以没有那么怕新环境，很大一部分底气就是在这种小时候被逼着重新开始的经验里长出来的。"
+        }),
+        choice({
+          text: "表面适应了，心里却把以前那种熟悉感惦记了很久。",
+          effects: {
+            age: 0,
+            stats: { happiness: -2, mental: -1, intelligence: 1 }
+          },
+          addFlags: ["moved_childhood_once", "sensitive_attachment"],
+          addTags: ["wound", "selfhood"],
+          log: "你后来会更在意“稳定留下来的人”，并不只是天生恋旧，而是很早就知道熟悉感消失是什么感觉。"
+        }),
+        choice({
+          text: "你开始更依赖自己的小习惯和小世界来稳住心情。",
+          effects: {
+            age: 0,
+            stats: { mental: 2, intelligence: 2, social: -1 }
+          },
+          addFlags: ["moved_childhood_once", "self_soothing_seed"],
+          addTags: ["selfhood", "stability"],
+          log: "很多后来能让你在变化里撑住自己的东西，其实是从小时候这种被迫适应里慢慢练出来的。"
+        })
+      ]
+    }),
+    event({
+      id: "primary_duty_partner_memory",
+      stage: "school",
+      title: "小学那种一起值日、一起被老师点名的关系，会悄悄留下很长后劲",
+      text: "小学的人际并不复杂，却很容易把某些固定搭档过成特别的人。一起值日、一起被留下改作业、一起去办公室交本子，这些小事会让孩子很早开始理解“偏向谁”的感觉。",
+      minAge: 9,
+      maxAge: 11,
+      weight: 6,
+      tags: ["school", "friendship", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你第一次开始隐约知道，人与人之间的特别，很多时候就是从这种很普通的小搭档关系里长出来的。"
+      }),
+      choices: [
+        choice({
+          text: "你很珍惜这种固定搭档带来的安心感，也更敢于主动靠近别人。",
+          effects: {
+            age: 0,
+            stats: { social: 3, happiness: 3 }
+          },
+          addFlags: ["duty_pair_memory", "peer_belonging"],
+          addTags: ["relationship", "stability"],
+          log: "你后来愿意相信关系可以慢慢熟起来，和这种年纪很小就体验过的稳定陪伴有关。"
+        }),
+        choice({
+          text: "一旦这种关系因为换座位或换班散掉，你会格外失落。",
+          effects: {
+            age: 0,
+            stats: { happiness: -2, mental: -1, social: 1 }
+          },
+          addFlags: ["duty_pair_memory", "sensitive_attachment"],
+          addTags: ["relationship", "wound"],
+          log: "你很早就开始知道，关系并不会因为相处得好就自动留下，这会让你以后更怕突然被换走。"
+        }),
+        choice({
+          text: "你把这份熟悉当成普通事，后来却越来越容易在细节里记住别人。",
+          effects: {
+            age: 0,
+            stats: { intelligence: 1, social: 2, happiness: 1 }
+          },
+          addFlags: ["duty_pair_memory", "early_observer"],
+          addTags: ["growth", "relationship"],
+          log: "你开始懂得，很多关系不是靠大场面建立的，而是靠反复一起做小事慢慢长出来的。"
+        })
+      ]
+    }),
+    event({
+      id: "middle_school_tutoring_companion",
+      stage: "adolescence",
+      title: "补课班、兴趣班和放学后的同行，把青春期很多关系推得比白天更近",
+      text: "青春期真正容易长出故事的，往往不是课堂正中央，而是补课结束后一起等车、兴趣班下课后一起买东西、天黑前多走那一小段路的时间。",
+      minAge: 13,
+      maxAge: 15,
+      weight: 6,
+      tags: ["adolescence", "growth", "relationship"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你开始明白，真正会让人越来越在意彼此的，很多时候并不是告白，而是那些白天制度之外的额外相处。"
+      }),
+      choices: [
+        choice({
+          text: "你很珍惜这种同行和额外聊天，慢慢学会把喜欢和亲近放进普通日常。",
+          effects: {
+            age: 0,
+            stats: { social: 3, happiness: 2, mental: 1 }
+          },
+          addFlags: ["after_class_companion_memory", "emotional_openness"],
+          addTags: ["relationship", "romance"],
+          log: "你后来会更容易被“有人愿意和你多走一段路”打动，和这种青春期经验有很深关系。"
+        }),
+        choice({
+          text: "你怕别人看出来，于是总把很多原本能继续的靠近按回去。",
+          effects: {
+            age: 0,
+            stats: { happiness: -2, social: -1, discipline: 1 }
+          },
+          addFlags: ["after_class_companion_memory", "romance_held_back"],
+          addTags: ["romance", "distance"],
+          log: "你很早就知道自己会心动，也很早就学会了在心动发生时先把它往回收一点。"
+        }),
+        choice({
+          text: "你在这种同行里第一次感觉到，原来关系也可能被误会、被起哄、被放大。",
+          effects: {
+            age: 0,
+            stats: { social: 1, happiness: -1, mental: -1 }
+          },
+          addFlags: ["after_class_companion_memory", "social_vigilance"],
+          addTags: ["relationship", "pressure"],
+          log: "你后来之所以对暧昧里的目光和气氛那么敏感，也和这种青春期里被围观的经验有关。"
+        })
+      ]
+    }),
+    event({
+      id: "highschool_library_rain_shelter",
+      stage: "highschool",
+      title: "晚自习、图书馆和雨天檐下，是很多高中关系真正变深的地方",
+      text: "高中的感情往往不是从轰烈场面开始的，而是在一起占座、一起去便利店、雨天一起等车、图书馆闭馆后还想再多说两句的那些缝隙里慢慢长出来。",
+      minAge: 16,
+      maxAge: 18,
+      weight: 6,
+      tags: ["highschool", "growth", "romance"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你开始越来越清楚，高中最容易留下后劲的关系，往往都长在那些压得很紧却又偷偷留出一点温柔的时间缝里。"
+      }),
+      choices: [
+        choice({
+          text: "你愿意把这些很小的相处当回事，也因此更懂长期陪伴为什么会动人。",
+          effects: {
+            age: 0,
+            stats: { happiness: 3, mental: 2, social: 2 }
+          },
+          addFlags: ["rainy_library_memory", "relationship_maintained"],
+          addTags: ["romance", "stability"],
+          log: "你后来会珍惜那些并不张扬、却很持续的陪伴感，很大一部分就是从这种高中时期的相处里长出来的。"
+        }),
+        choice({
+          text: "你会被这些时刻打动，但也因此更怕毕业和分流把一切冲散。",
+          effects: {
+            age: 0,
+            stats: { happiness: 1, mental: -1, stress: 2 }
+          },
+          addFlags: ["rainy_library_memory", "missed_love"],
+          addTags: ["romance", "pressure"],
+          log: "你很早就知道，最动人的关系未必最稳，这会让你后来在靠近和退后之间反复犹豫。"
+        }),
+        choice({
+          text: "你提醒自己别陷得太深，把很多情绪继续留在高考以后。",
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, discipline: 2, happiness: -1 }
+          },
+          addFlags: ["rainy_library_memory", "career_first"],
+          addTags: ["ambition", "romance"],
+          log: "你不是没有被打动，只是又一次把很具体的心动往未来延后了。"
+        })
+      ]
+    })
+  ];
+
+  const ADDITIONAL_EARLY_TEXTURE_EVENTS = [
+    event({
+      id: "sibling_or_only_child_position",
+      stage: "school",
+      title: "家里有没有手足，会很早改变你怎么看待亲近、比较和被偏向",
+      text: "小时候对“关系”的第一批理解，常常不是从朋友开始，而是从家里开始。有没有兄弟姐妹、你是不是更常被照顾、被拿来比较，或者更早被要求懂事，都会慢慢长成你后面处理亲密和冲突的底色。",
+      minAge: 7,
+      maxAge: 10,
+      weight: 6,
+      tags: ["school", "family", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你很早就在家里先体验到，关系并不只是被爱，也包括竞争、让步、依赖和责任。"
+      }),
+      choices: [
+        choice({
+          text: "你更像被照顾和被围着看的那一个，也因此更习惯把很多感受留给自己慢慢长。",
+          effects: {
+            age: 0,
+            stats: { happiness: 2, mental: 1, social: -1 }
+          },
+          addFlags: ["only_child_pattern", "sensitive_attachment"],
+          addTags: ["selfhood", "family"],
+          log: "你后来在关系里会更在意自己是不是被认真放在眼前，和这种早早习惯了被聚焦也被独自承受的经验有关。"
+        }),
+        choice({
+          text: "你常常要在比较和争位置里长大，所以很早就知道关系里也会有输赢和偏向。",
+          effects: {
+            age: 0,
+            stats: { social: 2, discipline: 2, happiness: -1, mental: -1 }
+          },
+          addFlags: ["sibling_competition_seed", "comparison_wound"],
+          addTags: ["pressure", "relationship"],
+          log: "你后来会更快察觉关系里的冷热和高低，不只是敏感，也是因为你很早就在家里学过这种空气。"
+        }),
+        choice({
+          text: "你更早被要求照顾别人、让着别人，于是责任感也比同龄人更早长出来。",
+          effects: {
+            age: 0,
+            stats: { familySupport: 2, social: 2, discipline: 2, happiness: -1 }
+          },
+          addFlags: ["caregiver_sibling", "responsibility_seed"],
+          addTags: ["responsibility", "family"],
+          log: "你后来之所以很容易在关系里先照顾别人，和这种小时候就被推去当‘更懂事的人’的经验有关。"
+        })
+      ]
+    }),
+    event({
+      id: "being_liked_for_the_first_time",
+      stage: "adolescence",
+      title: "第一次察觉到，原来也有人会悄悄喜欢你",
+      text: "青春期很多人第一次重新看自己，不只是因为自己喜欢上谁，也因为忽然发现，原来自己也可能成为别人眼里特别的那个人。那种被留意、被起哄、被小心试探的感觉，会很直接地改写自尊心和边界感。",
+      minAge: 13,
+      maxAge: 16,
+      weight: 6,
+      tags: ["adolescence", "romance", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你第一次从别人看你的方式里，重新理解了一遍自己。"
+      }),
+      choices: [
+        choice({
+          text: "你没有把这件事当玩笑，反而开始更认真地理解别人的靠近和自己的回应。",
+          effects: {
+            age: 0,
+            stats: { social: 3, happiness: 3, mental: 1 }
+          },
+          addFlags: ["liked_once_early", "emotional_honesty"],
+          addTags: ["romance", "growth"],
+          log: "你后来会更尊重关系里的心意，不只是因为你喜欢过别人，也因为你认真接住过一次别人递来的喜欢。"
+        }),
+        choice({
+          text: "你装作不知道，把一切都压回普通同学和普通朋友的位置。",
+          effects: {
+            age: 0,
+            stats: { discipline: 1, happiness: -1, mental: -1 }
+          },
+          addFlags: ["missed_signal", "emotionally_guarded"],
+          addTags: ["romance", "distance"],
+          log: "你后来在暧昧里总会先往后退一点，也和这种年纪很小时就学会装作没看见有关。"
+        }),
+        choice({
+          text: "你因为被起哄和被围观很不自在，开始更警惕感情会不会把自己推到目光中心。",
+          effects: {
+            age: 0,
+            stats: { happiness: -2, social: -1, mental: -1 }
+          },
+          addFlags: ["social_vigilance", "romance_held_back"],
+          addTags: ["pressure", "romance"],
+          log: "你不是不需要被喜欢，只是太早把“被喜欢”跟“被围观、被议论”绑在了一起。"
+        })
+      ]
+    }),
+    event({
+      id: "class_split_and_group_shift",
+      stage: "adolescence",
+      title: "分班之后，你第一次很具体地体会到，人际关系也会被制度突然打散",
+      text: "分班、换座位、升入重点班或普通班，往往不是单纯的学习安排。它会把你原本熟悉的人直接分散，也会让一些本来只是普通来往的人一下变成回头也看不见的旧名字。",
+      minAge: 13,
+      maxAge: 16,
+      weight: 6,
+      tags: ["adolescence", "friendship", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你开始明白，关系并不会只因为彼此在意就自动留下，很多时候它还需要被主动维护。"
+      }),
+      choices: [
+        choice({
+          text: "你主动去找旧朋友、旧同桌和旧搭子，把关系尽量续回日常里。",
+          effects: {
+            age: 0,
+            stats: { social: 3, happiness: 2, mental: 1 }
+          },
+          addFlags: ["kept_after_split", "relationship_maintained"],
+          addTags: ["relationship", "stability"],
+          log: "你后来更懂得维持关系，不只是天生重感情，也因为很早就知道放着不管真的会散。"
+        }),
+        choice({
+          text: "你发现很多人其实就这样淡掉了，心里因此多了一点‘别太当真’的防备。",
+          effects: {
+            age: 0,
+            stats: { happiness: -2, mental: -1, social: -1 }
+          },
+          addFlags: ["class_split_loss", "emotionally_guarded"],
+          addTags: ["relationship", "wound"],
+          log: "你后来会更怕很多关系只活在当下场景里，也和这种分班以后很快就被打散的经验有关。"
+        }),
+        choice({
+          text: "你索性把这次变化当成重新进新圈子的机会，逼自己再长一层适应力。",
+          effects: {
+            age: 0,
+            stats: { social: 2, intelligence: 1, happiness: 1 }
+          },
+          addFlags: ["new_circle_adaptation", "adapt_fast"],
+          addTags: ["growth", "selfhood"],
+          log: "你后来没有那么怕陌生人和新圈子，和这种年轻时被迫重新融入的经历有很大关系。"
+        })
+      ]
+    }),
+    event({
+      id: "family_role_in_teen_years",
+      stage: "highschool",
+      title: "青春期以后，你开始更清楚自己在家里到底扮演什么角色",
+      text: "有的人是家里最被寄望的那个，有的人是最会安抚气氛的那个，也有人慢慢成了不太麻烦别人、出了事先自己扛的那个。这个角色未必是你自己选的，却会深深影响你后面怎么恋爱、怎么工作、怎么处理责任。",
+      minAge: 15,
+      maxAge: 18,
+      weight: 6,
+      tags: ["highschool", "family", "growth"],
+      conditions: condition({}),
+      effectsOnEnter: mutation({
+        effects: { age: 0, stats: {} },
+        log: "你开始第一次从更清楚的角度看见，自己在原生家庭里到底被放在什么位置。"
+      }),
+      choices: [
+        choice({
+          text: "你越来越像那个被寄予厚望的人，很多选择都会先往“别让人失望”上靠。",
+          effects: {
+            age: 0,
+            stats: { intelligence: 2, discipline: 3, stress: 2, happiness: -1 }
+          },
+          addFlags: ["high_expectation_child", "achievement_compensation"],
+          addTags: ["ambition", "pressure"],
+          log: "你后来很难完全不在乎成绩、前途和表现，也和这种被寄予太多、太久的家庭位置分不开。"
+        }),
+        choice({
+          text: "你更像家里的缓冲垫，习惯先看气氛、先照顾别人，再轮到自己。",
+          effects: {
+            age: 0,
+            stats: { social: 2, familySupport: -1, mental: -2, stress: 2 }
+          },
+          addFlags: ["people_pleaser", "family_pressure"],
+          addTags: ["family", "relationship"],
+          log: "你后来在亲密关系里很容易先去收拾局面，不只是温柔，也因为你太熟悉当那个先稳住一切的人。"
+        }),
+        choice({
+          text: "你慢慢决定把家里的角色和自己真正想活成的人分开一点。",
+          effects: {
+            age: 0,
+            stats: { mental: 2, happiness: 2, social: 1 }
+          },
+          addFlags: ["self_definition_seed", "boundary_awareness"],
+          addTags: ["selfhood", "growth"],
+          log: "你后来之所以更能在关系和人生选择里守住自己，和这种青春期就开始练习把‘家里要的我’和‘我自己’分开有关。"
+        })
+      ]
+    })
+  ];
+
   window.LIFE_EXTRA_EVENTS = [
     ...(Array.isArray(window.LIFE_EXTRA_EVENTS) ? window.LIFE_EXTRA_EVENTS : []),
     ...FAMILY_BACKGROUND_EVENTS,
     ...EARLY_ROMANCE_AND_YOUTH_EVENTS,
     ...PARAMETER_AND_LATER_LINK_EVENTS,
-    ...STAGE_LOOP_EVENTS
+    ...STAGE_LOOP_EVENTS,
+    ...EARLY_CONTINUITY_EVENTS,
+    ...ADDITIONAL_EARLY_TEXTURE_EVENTS
   ];
 })();
