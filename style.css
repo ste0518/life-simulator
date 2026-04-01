@@ -413,11 +413,39 @@ button {
   font-size: 0.88rem;
 }
 
+.relationship-arc-summary {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(216, 160, 165, 0.12);
+  color: var(--accent-dark);
+  line-height: 1.6;
+  font-size: 0.88rem;
+}
+
 .relationship-history {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.7;
   font-size: 0.9rem;
+}
+
+.relationship-shared-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.relationship-shared-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 10px;
+  background: rgba(216, 203, 180, 0.38);
+  color: var(--accent-dark);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .relationship-active {

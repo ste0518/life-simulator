@@ -4,6 +4,14 @@
   const stateApi = window.LifeState;
   const relationshipDefinitions = normalizeRelationshipDefinitions(window.LIFE_RELATIONSHIPS || []);
   const relationshipDefinitionMap = new Map(relationshipDefinitions.map((item) => [item.id, item]));
+  const relationshipArcDefinitions = Array.isArray(window.LIFE_RELATIONSHIP_ARCS)
+    ? window.LIFE_RELATIONSHIP_ARCS
+    : [];
+  const relationshipArcMap = new Map(
+    relationshipArcDefinitions
+      .filter((arc) => arc && typeof arc.characterId === "string" && arc.characterId.trim())
+      .map((arc) => [arc.characterId.trim(), arc])
+  );
   const rawEvents = [
     ...(Array.isArray(window.LIFE_EVENTS) ? window.LIFE_EVENTS : []),
     ...(Array.isArray(window.LIFE_EXTRA_EVENTS) ? window.LIFE_EXTRA_EVENTS : [])
@@ -210,6 +218,8 @@
       status: typeof source.status === "string" ? source.status : "",
       addFlags: normalizeStringArray(source.addFlags),
       removeFlags: normalizeStringArray(source.removeFlags),
+      addSharedHistory: normalizeStringArray(source.addSharedHistory),
+      removeSharedHistory: normalizeStringArray(source.removeSharedHistory),
       history: typeof source.history === "string" ? source.history : "",
       setActive: Boolean(source.setActive),
       clearActive: Boolean(source.clearActive)
@@ -254,6 +264,8 @@
       excludedRelationshipStatuses: normalizeMapOfStringArrays(conditions.excludedRelationshipStatuses),
       requiredRelationshipFlags: normalizeMapOfStringArrays(conditions.requiredRelationshipFlags),
       excludedRelationshipFlags: normalizeMapOfStringArrays(conditions.excludedRelationshipFlags),
+      requiredSharedHistory: normalizeMapOfStringArrays(conditions.requiredSharedHistory),
+      excludedSharedHistory: normalizeMapOfStringArrays(conditions.excludedSharedHistory),
       minAffection: normalizeNumberMap(conditions.minAffection),
       maxAffection: normalizeNumberMap(conditions.maxAffection),
       minFamiliarity: normalizeNumberMap(conditions.minFamiliarity),
@@ -264,6 +276,7 @@
       maxTension: normalizeNumberMap(conditions.maxTension),
       minCommitment: normalizeNumberMap(conditions.minCommitment),
       minContinuity: normalizeNumberMap(conditions.minContinuity),
+      minInteractionCount: normalizeNumberMap(conditions.minInteractionCount),
       familyBackgroundIds: normalizeStringArray(conditions.familyBackgroundIds),
       excludedFamilyBackgroundIds: normalizeStringArray(conditions.excludedFamilyBackgroundIds),
       educationRouteIds: normalizeStringArray(conditions.educationRouteIds),
@@ -308,6 +321,12 @@
           : null,
       requiredActiveRelationshipFlags: normalizeStringArray(conditions.requiredActiveRelationshipFlags),
       excludedActiveRelationshipFlags: normalizeStringArray(conditions.excludedActiveRelationshipFlags),
+      activeRelationshipRequiredSharedHistory: normalizeStringArray(conditions.activeRelationshipRequiredSharedHistory),
+      activeRelationshipExcludedSharedHistory: normalizeStringArray(conditions.activeRelationshipExcludedSharedHistory),
+      activeRelationshipMinInteractionCount:
+        typeof conditions.activeRelationshipMinInteractionCount === "number"
+          ? conditions.activeRelationshipMinInteractionCount
+          : null,
       noCurrentPartner: Boolean(conditions.noCurrentPartner)
     };
   }
@@ -521,7 +540,7 @@
   }
 
   function isPartnerStatus(status) {
-    return ["dating", "passionate", "cooling", "conflict", "steady", "married", "reconnected"].includes(status);
+    return ["dating", "passionate", "cooling", "conflict", "steady", "married", "reconnect", "reconnected"].includes(status);
   }
 
   function refreshRelationshipAffection(relationship) {
@@ -544,22 +563,30 @@
   }
 
   function inferRelationshipStatus(relationship) {
-    if (!relationship || ["broken", "missed"].includes(relationship.status)) {
+    if (!relationship) {
+      return;
+    }
+
+    if (["breakup", "broken", "missed"].includes(relationship.status)) {
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.commitment || 0) >= 78 && (relationship.trust || 0) >= 72 && (relationship.affection || 0) >= 70) {
       relationship.status = "steady";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 60) {
       relationship.status = "conflict";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 38) {
       relationship.status = "cooling";
+      syncRelationshipStage(relationship);
       return;
     }
 
@@ -569,6 +596,7 @@
       (relationship.theirInterest || 0) >= 56
     ) {
       relationship.status = (relationship.tension || 0) >= 34 ? "dating" : "passionate";
+      syncRelationshipStage(relationship);
       return;
     }
 
@@ -578,6 +606,7 @@
       (relationship.ambiguity || 0) >= 28
     ) {
       relationship.status = "ambiguous";
+      syncRelationshipStage(relationship);
       return;
     }
 
@@ -587,32 +616,46 @@
       (relationship.familiarity || 0) >= 28
     ) {
       relationship.status = "mutual_crush";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.familiarity || 0) >= 45 && (relationship.trust || 0) >= 36) {
       relationship.status = "close";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.familiarity || 0) >= 20 || (relationship.trust || 0) >= 18) {
       relationship.status = "familiar";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.theirInterest || 0) >= 20 && (relationship.playerInterest || 0) < 18) {
       relationship.status = "noticed_by_them";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.playerInterest || 0) >= 18 || (relationship.theirInterest || 0) >= 18) {
       relationship.status = "crush";
+      syncRelationshipStage(relationship);
       return;
     }
 
     if ((relationship.affection || 0) > 0 || relationship.met) {
       relationship.status = "noticed";
     }
+    syncRelationshipStage(relationship);
+  }
+
+  function syncRelationshipStage(relationship) {
+    if (!relationship) {
+      return;
+    }
+
+    relationship.relationshipStage = relationship.status || "unknown";
   }
 
   function adjustStat(key, delta) {
@@ -736,18 +779,25 @@
 
     if (!state.relationships[id]) {
       const definition = relationshipDefinitionMap.get(id);
+      const arcDefinition = relationshipArcMap.get(id) || null;
       state.relationships[id] = {
         id,
         name: definition ? definition.name : id,
+        arcId: arcDefinition && typeof arcDefinition.arcId === "string" ? arcDefinition.arcId : id,
         gender: definition ? definition.gender : "",
         identity: definition ? definition.identity : "",
         stageTags: definition ? definition.stageTags.slice() : [],
         roleTags: definition ? definition.roleTags.slice() : [],
         traitTags: definition ? definition.traitTags.slice() : [],
+        exclusiveEvents:
+          arcDefinition && Array.isArray(arcDefinition.exclusiveEvents)
+            ? normalizeStringArray(arcDefinition.exclusiveEvents)
+            : [],
         contactStyle: definition ? definition.contactStyle : "",
         conflictStyle: definition ? definition.conflictStyle : "",
         affection: definition ? definition.initialAffection : 0,
         status: definition ? definition.initialStatus : "unknown",
+        relationshipStage: definition ? definition.initialStatus : "unknown",
         appearance: definition && definition.appearance ? { ...definition.appearance } : {},
         availability: definition && definition.availability ? { ...definition.availability } : {},
         romanceProfile: definition && definition.romanceProfile ? { ...definition.romanceProfile } : {},
@@ -787,11 +837,13 @@
         lastInteractionAge: null,
         met: false,
         flags: [],
+        sharedHistory: [],
         history: []
       };
     }
 
     const relationship = state.relationships[id];
+    relationship.arcId = typeof relationship.arcId === "string" && relationship.arcId ? relationship.arcId : id;
     relationship.familiarity = typeof relationship.familiarity === "number" ? relationship.familiarity : 0;
     relationship.trust = typeof relationship.trust === "number" ? relationship.trust : 0;
     relationship.ambiguity = typeof relationship.ambiguity === "number" ? relationship.ambiguity : 0;
@@ -806,6 +858,9 @@
       relationship.availability && typeof relationship.availability === "object" ? relationship.availability : {};
     relationship.romanceProfile =
       relationship.romanceProfile && typeof relationship.romanceProfile === "object" ? relationship.romanceProfile : {};
+    relationship.exclusiveEvents = normalizeStringArray(relationship.exclusiveEvents);
+    relationship.sharedHistory = normalizeStringArray(relationship.sharedHistory);
+    syncRelationshipStage(relationship);
 
     return relationship;
   }
@@ -1075,8 +1130,11 @@
       typeof rule.activeRelationshipMaxTension === "number" ||
       typeof rule.activeRelationshipMinCommitment === "number" ||
       typeof rule.activeRelationshipMinContinuity === "number" ||
+      typeof rule.activeRelationshipMinInteractionCount === "number" ||
       rule.requiredActiveRelationshipFlags.length ||
-      rule.excludedActiveRelationshipFlags.length
+      rule.excludedActiveRelationshipFlags.length ||
+      rule.activeRelationshipRequiredSharedHistory.length ||
+      rule.activeRelationshipExcludedSharedHistory.length
     ) {
       const activeRelationship = state.activeRelationshipId
         ? getRelationshipSnapshot(state, state.activeRelationshipId)
@@ -1150,6 +1208,13 @@
       }
 
       if (
+        typeof rule.activeRelationshipMinInteractionCount === "number" &&
+        (activeRelationship.interactionCount || 0) < rule.activeRelationshipMinInteractionCount
+      ) {
+        return false;
+      }
+
+      if (
         rule.requiredActiveRelationshipFlags.length &&
         !rule.requiredActiveRelationshipFlags.every((flag) => activeRelationship.flags.includes(flag))
       ) {
@@ -1159,6 +1224,24 @@
       if (
         rule.excludedActiveRelationshipFlags.length &&
         rule.excludedActiveRelationshipFlags.some((flag) => activeRelationship.flags.includes(flag))
+      ) {
+        return false;
+      }
+
+      if (
+        rule.activeRelationshipRequiredSharedHistory.length &&
+        !rule.activeRelationshipRequiredSharedHistory.every((item) =>
+          (activeRelationship.sharedHistory || []).includes(item)
+        )
+      ) {
+        return false;
+      }
+
+      if (
+        rule.activeRelationshipExcludedSharedHistory.length &&
+        rule.activeRelationshipExcludedSharedHistory.some((item) =>
+          (activeRelationship.sharedHistory || []).includes(item)
+        )
       ) {
         return false;
       }
@@ -1244,6 +1327,20 @@
       }
     }
 
+    for (const [relationshipId, historyIds] of Object.entries(rule.requiredSharedHistory)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || !historyIds.every((item) => (relationship.sharedHistory || []).includes(item))) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, historyIds] of Object.entries(rule.excludedSharedHistory)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (relationship && historyIds.some((item) => (relationship.sharedHistory || []).includes(item))) {
+        return false;
+      }
+    }
+
     for (const [relationshipId, amount] of Object.entries(rule.minFamiliarity)) {
       const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || (relationship.familiarity || 0) < amount) {
@@ -1296,6 +1393,13 @@
     for (const [relationshipId, amount] of Object.entries(rule.minContinuity)) {
       const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || (relationship.continuity || 0) < amount) {
+        return false;
+      }
+    }
+
+    for (const [relationshipId, amount] of Object.entries(rule.minInteractionCount)) {
+      const relationship = getRelationshipSnapshot(state, relationshipId);
+      if (!relationship || (relationship.interactionCount || 0) < amount) {
         return false;
       }
     }
@@ -1533,6 +1637,7 @@
 
       if (effect.status) {
         relationship.status = effect.status;
+        syncRelationshipStage(relationship);
       }
 
       (effect.addFlags || []).forEach((flag) => {
@@ -1545,9 +1650,23 @@
         relationship.flags = relationship.flags.filter((flag) => !effect.removeFlags.includes(flag));
       }
 
+      (effect.addSharedHistory || []).forEach((historyId) => {
+        if (!relationship.sharedHistory.includes(historyId)) {
+          relationship.sharedHistory.push(historyId);
+        }
+      });
+
+      if (effect.removeSharedHistory && effect.removeSharedHistory.length) {
+        relationship.sharedHistory = relationship.sharedHistory.filter(
+          (historyId) => !effect.removeSharedHistory.includes(historyId)
+        );
+      }
+
       refreshRelationshipAffection(relationship);
       if (!effect.status) {
         inferRelationshipStatus(relationship);
+      } else {
+        syncRelationshipStage(relationship);
       }
 
       if (effect.history) {
@@ -1562,7 +1681,7 @@
         nextActiveId = resolvedTargetId;
       }
 
-      if (["broken", "estranged", "missed"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
+      if (["breakup", "broken", "estranged", "missed"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
         clearActive = true;
       }
     });

@@ -2,6 +2,14 @@
   "use strict";
 
   const relationshipDefinitions = Array.isArray(window.LIFE_RELATIONSHIPS) ? window.LIFE_RELATIONSHIPS : [];
+  const relationshipArcDefinitions = Array.isArray(window.LIFE_RELATIONSHIP_ARCS)
+    ? window.LIFE_RELATIONSHIP_ARCS
+    : [];
+  const relationshipArcMap = new Map(
+    relationshipArcDefinitions
+      .filter((arc) => arc && typeof arc.characterId === "string" && arc.characterId.trim())
+      .map((arc) => [arc.characterId.trim(), arc])
+  );
   const STAT_KEYS = [
     "money",
     "debt",
@@ -60,7 +68,8 @@
 
   const RELATIONSHIP_STATUS_LABELS = {
     unknown: "尚未相识",
-    noticed: "开始留意",
+    acquaintance: "初识 / 刚进入彼此生活",
+    noticed: "初识 / 开始留意",
     noticed_by_them: "对方先注意到你",
     crush: "暗暗喜欢",
     mutual_crush: "双向好感",
@@ -76,8 +85,10 @@
     steady: "稳定交往",
     married: "共同生活",
     estranged: "渐渐疏远",
-    broken: "已经分开",
-    reconnected: "重新靠近",
+    breakup: "分手 / 关系断开",
+    broken: "分手 / 已经分开",
+    reconnect: "重逢 / 尝试修复",
+    reconnected: "重逢后重新靠近",
     missed: "错过了"
   };
 
@@ -99,19 +110,26 @@
       if (!id) {
         return;
       }
+      const arcDefinition = relationshipArcMap.get(id) || null;
 
       relationships[id] = {
         id,
         name: typeof definition.name === "string" ? definition.name : id,
+        arcId: arcDefinition && typeof arcDefinition.arcId === "string" ? arcDefinition.arcId : id,
         gender: typeof definition.gender === "string" ? definition.gender : "",
         identity: typeof definition.identity === "string" ? definition.identity : "",
         stageTags: normalizeStringArray(definition.stageTags),
         roleTags: normalizeStringArray(definition.roleTags),
         traitTags: normalizeStringArray(definition.traitTags),
+        exclusiveEvents:
+          arcDefinition && Array.isArray(arcDefinition.exclusiveEvents)
+            ? normalizeStringArray(arcDefinition.exclusiveEvents)
+            : [],
         contactStyle: typeof definition.contactStyle === "string" ? definition.contactStyle : "",
         conflictStyle: typeof definition.conflictStyle === "string" ? definition.conflictStyle : "",
         affection: typeof definition.initialAffection === "number" ? definition.initialAffection : 0,
         status: typeof definition.initialStatus === "string" ? definition.initialStatus : "unknown",
+        relationshipStage: typeof definition.initialStatus === "string" ? definition.initialStatus : "unknown",
         appearance: definition && definition.appearance && typeof definition.appearance === "object" ? { ...definition.appearance } : {},
         availability:
           definition && definition.availability && typeof definition.availability === "object"
@@ -173,6 +191,7 @@
         lastInteractionAge: null,
         met: false,
         flags: [],
+        sharedHistory: [],
         history: []
       };
     });

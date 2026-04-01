@@ -3,6 +3,9 @@
 
   const engine = window.LifeGameEngine;
   const stateApi = window.LifeState;
+  const relationshipArcMap = new Map(
+    (Array.isArray(window.LIFE_RELATIONSHIP_ARCS) ? window.LIFE_RELATIONSHIP_ARCS : []).map((arc) => [arc.characterId, arc])
+  );
 
   const elements = {};
 
@@ -46,6 +49,18 @@
     }
 
     return "";
+  }
+
+  function getRelationshipStageLabel(relationship) {
+    const stage = relationship && relationship.relationshipStage ? relationship.relationshipStage : relationship.status;
+    return stateApi.RELATIONSHIP_STATUS_LABELS[stage] || stage || "关系未定义";
+  }
+
+  function getSharedHistoryLabels(relationship, arcMeta) {
+    const historyIds = Array.isArray(relationship && relationship.sharedHistory) ? relationship.sharedHistory.slice(-4).reverse() : [];
+    const labelMap = arcMeta && arcMeta.historyLabels && typeof arcMeta.historyLabels === "object" ? arcMeta.historyLabels : {};
+
+    return historyIds.map((historyId) => labelMap[historyId] || historyId);
   }
 
   function renderStats(state) {
@@ -270,8 +285,7 @@
 
       const status = document.createElement("span");
       status.className = "relationship-status";
-      status.textContent =
-        stateApi.RELATIONSHIP_STATUS_LABELS[relationship.status] || relationship.status || "关系未定义";
+      status.textContent = getRelationshipStageLabel(relationship);
 
       header.appendChild(nameRow);
       header.appendChild(status);
@@ -330,6 +344,31 @@
           ? "关系倾向：" + relationship.romanceProfile.futureFocus
           : "关系倾向：这段关系还在慢慢显形。";
 
+      const arcMeta = relationshipArcMap.get(relationship.id);
+      let arcSummary = null;
+      if (arcMeta) {
+        const arcNode = document.createElement("p");
+        arcNode.className = "relationship-arc-summary";
+        arcNode.textContent = "专属剧情线：" + arcMeta.title + "。 " + arcMeta.summary;
+        arcSummary = arcNode;
+      }
+
+      const sharedHistoryLabels = getSharedHistoryLabels(relationship, arcMeta);
+      let sharedHistoryNode = null;
+      if (sharedHistoryLabels.length) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "relationship-shared-history";
+
+        sharedHistoryLabels.forEach((labelText) => {
+          const item = document.createElement("span");
+          item.className = "relationship-shared-item";
+          item.textContent = labelText;
+          wrapper.appendChild(item);
+        });
+
+        sharedHistoryNode = wrapper;
+      }
+
       card.appendChild(header);
       card.appendChild(identity);
       if (displayTags.length) {
@@ -339,6 +378,12 @@
       card.appendChild(affection);
       card.appendChild(metrics);
       card.appendChild(profile);
+      if (arcSummary) {
+        card.appendChild(arcSummary);
+      }
+      if (sharedHistoryNode) {
+        card.appendChild(sharedHistoryNode);
+      }
 
       if (relationship.history && relationship.history.length) {
         const latestHistory = document.createElement("p");
