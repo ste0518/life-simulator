@@ -32,6 +32,15 @@
     window.LIFE_UNIVERSITY_POOLS && typeof window.LIFE_UNIVERSITY_POOLS === "object"
       ? window.LIFE_UNIVERSITY_POOLS
       : {};
+  const realDomesticUniversities =
+    window.LIFE_REAL_DOMESTIC_UNIVERSITIES && typeof window.LIFE_REAL_DOMESTIC_UNIVERSITIES === "object"
+      ? window.LIFE_REAL_DOMESTIC_UNIVERSITIES
+      : {};
+  const overseasQsBands = Array.isArray(window.LIFE_OVERSEAS_QS_BANDS) ? window.LIFE_OVERSEAS_QS_BANDS : [];
+  const realOverseasUniversities =
+    window.LIFE_REAL_OVERSEAS_UNIVERSITIES && typeof window.LIFE_REAL_OVERSEAS_UNIVERSITIES === "object"
+      ? window.LIFE_REAL_OVERSEAS_UNIVERSITIES
+      : {};
   const nonGaokaoRouteConfig =
     window.LIFE_NON_GAOKAO_ROUTES && typeof window.LIFE_NON_GAOKAO_ROUTES === "object"
       ? window.LIFE_NON_GAOKAO_ROUTES
@@ -1113,7 +1122,10 @@
       willingnessToLeaveHome:
         typeof gameState.gaokao.willingnessToLeaveHome === "boolean" ? gameState.gaokao.willingnessToLeaveHome : null,
       majorPreference: typeof gameState.gaokao.majorPreference === "string" ? gameState.gaokao.majorPreference : "",
-      notes: Array.isArray(gameState.gaokao.notes) ? gameState.gaokao.notes : []
+      notes: Array.isArray(gameState.gaokao.notes) ? gameState.gaokao.notes : [],
+      recommendedUniversities: Array.isArray(gameState.gaokao.recommendedUniversities)
+        ? gameState.gaokao.recommendedUniversities
+        : []
     });
 
     return gameState.gaokao;
@@ -1138,7 +1150,13 @@
         : [],
       newConnectionIds: Array.isArray(gameState.overseas.newConnectionIds) ? gameState.overseas.newConnectionIds : [],
       doubleTrack: Boolean(gameState.overseas.doubleTrack),
-      exposureRisk: typeof gameState.overseas.exposureRisk === "number" ? gameState.overseas.exposureRisk : 0
+      exposureRisk: typeof gameState.overseas.exposureRisk === "number" ? gameState.overseas.exposureRisk : 0,
+      academicIndex: typeof gameState.overseas.academicIndex === "number" ? gameState.overseas.academicIndex : null,
+      qsBandId: typeof gameState.overseas.qsBandId === "string" ? gameState.overseas.qsBandId : "",
+      qsBandLabel: typeof gameState.overseas.qsBandLabel === "string" ? gameState.overseas.qsBandLabel : "",
+      recommendedUniversities: Array.isArray(gameState.overseas.recommendedUniversities)
+        ? gameState.overseas.recommendedUniversities
+        : []
     });
 
     return gameState.overseas;
@@ -1378,6 +1396,187 @@
     return Array.isArray(pool) ? pool : [];
   }
 
+  function getDomesticUniversityCandidates(tierId) {
+    const pool = realDomesticUniversities && typeof realDomesticUniversities === "object" ? realDomesticUniversities[tierId] : [];
+    return Array.isArray(pool) ? pool : [];
+  }
+
+  function getOverseasUniversityCandidates(qsBandId) {
+    const pool = realOverseasUniversities && typeof realOverseasUniversities === "object" ? realOverseasUniversities[qsBandId] : [];
+    return Array.isArray(pool) ? pool : [];
+  }
+
+  function getOverseasQsBandById(qsBandId) {
+    const target = String(qsBandId || "").trim();
+    if (!target) {
+      return null;
+    }
+
+    return overseasQsBands.find((item) => item && item.id === target) || null;
+  }
+
+  function pickUniqueWeightedEntries(entries, count) {
+    const pool = Array.isArray(entries) ? entries.slice() : [];
+    const selected = [];
+    const limit = Math.max(0, typeof count === "number" ? count : 0);
+
+    while (pool.length && selected.length < limit) {
+      const choice = pickWeightedEntry(pool);
+      if (!choice) {
+        break;
+      }
+
+      selected.push(choice);
+      const chosenName = choice.name || choice.id;
+      const index = pool.findIndex((item) => (item.name || item.id) === chosenName);
+      if (index >= 0) {
+        pool.splice(index, 1);
+      } else {
+        break;
+      }
+    }
+
+    return selected;
+  }
+
+  function getFirstMatchingTag(tags, preferredTags) {
+    const sourceTags = normalizeStringArray(tags);
+    const priorities = normalizeStringArray(preferredTags);
+    return priorities.find((tag) => sourceTags.includes(tag)) || sourceTags[0] || "";
+  }
+
+  function resolveRecommendationReason(fitNotes, preferredTags, fallbackText) {
+    const notes = fitNotes && typeof fitNotes === "object" ? fitNotes : {};
+    const preferredTag = getFirstMatchingTag(Object.keys(notes), preferredTags);
+    if (preferredTag && typeof notes[preferredTag] === "string" && notes[preferredTag].trim()) {
+      return notes[preferredTag].trim();
+    }
+
+    const firstNote = Object.values(notes).find((value) => typeof value === "string" && value.trim());
+    if (firstNote) {
+      return firstNote.trim();
+    }
+
+    return fallbackText;
+  }
+
+  function buildDomesticUniversityRecommendations(tierId, preference) {
+    const source = preference && typeof preference === "object" ? preference : {};
+    const preferredTags = [];
+    if (source.majorPreference) {
+      preferredTags.push(source.majorPreference);
+    }
+    preferredTags.push(source.willingnessToLeaveHome ? "leave_home" : "stay_close");
+    if (source.familyPreference) {
+      preferredTags.push(source.familyPreference);
+    }
+
+    const candidates = getDomesticUniversityCandidates(tierId).map((school) => {
+      const tags = normalizeStringArray(school.tags);
+      let weight = 1;
+      preferredTags.forEach((tag) => {
+        if (tag && tags.includes(tag)) {
+          weight += 2;
+        }
+      });
+
+      return {
+        ...school,
+        weight
+      };
+    });
+
+    return pickUniqueWeightedEntries(candidates, 4).map((school) => ({
+      name: school.name,
+      location: school.city || "国内",
+      categoryLabel: "全国近似参考 · " + (school.type || "大学"),
+      reason: resolveRecommendationReason(
+        school.fitNotes,
+        preferredTags,
+        "这所学校和你当前的成绩区间、去向取向相对更接近。"
+      )
+    }));
+  }
+
+  function calculateOverseasAcademicIndex(routeId) {
+    const stats = gameState.stats || {};
+    const intelligence = typeof stats.intelligence === "number" ? stats.intelligence : 0;
+    const discipline = typeof stats.discipline === "number" ? stats.discipline : 0;
+    const mental = typeof stats.mental === "number" ? stats.mental : 0;
+    const health = typeof stats.health === "number" ? stats.health : 0;
+    const stress = typeof stats.stress === "number" ? stats.stress : 0;
+    let index = intelligence * 0.68 + discipline * 0.18 + mental * 0.08 + health * 0.06;
+
+    if (routeId === "overseas_research_path") {
+      index += 4;
+    } else if (routeId === "overseas_practical_path") {
+      index -= 2;
+    }
+
+    if (stress > 55) {
+      index -= Math.min(8, Math.round((stress - 55) * 0.2));
+    }
+    if (mental < 45) {
+      index -= Math.min(6, Math.round((45 - mental) * 0.15));
+    }
+
+    return clampNumber(Math.round(index), 0, 100);
+  }
+
+  function determineOverseasQsBand(academicIndex) {
+    const score = typeof academicIndex === "number" ? academicIndex : 0;
+    if (score >= 80) {
+      return getOverseasQsBandById("qs_top_30");
+    }
+    if (score >= 72) {
+      return getOverseasQsBandById("qs_31_60");
+    }
+    if (score >= 64) {
+      return getOverseasQsBandById("qs_61_100");
+    }
+    if (score >= 56) {
+      return getOverseasQsBandById("qs_101_200");
+    }
+
+    return getOverseasQsBandById("qs_201_plus");
+  }
+
+  function buildOverseasUniversityRecommendations(routeId, qsBand) {
+    const preferredTags =
+      routeId === "overseas_research_path"
+        ? ["research", "academic", "engineering", "ambition"]
+        : routeId === "overseas_practical_path"
+          ? ["practical", "balanced", "city", "cost"]
+          : ["city", "balanced", "academic", "stable"];
+    const bandId = qsBand && qsBand.id ? qsBand.id : "";
+    const bandLabel = qsBand && qsBand.label ? qsBand.label : "QS 档位未定";
+    const candidates = getOverseasUniversityCandidates(bandId).map((school) => {
+      const tags = normalizeStringArray(school.tags);
+      let weight = 1;
+      preferredTags.forEach((tag) => {
+        if (tag && tags.includes(tag)) {
+          weight += 2;
+        }
+      });
+
+      return {
+        ...school,
+        weight
+      };
+    });
+
+    return pickUniqueWeightedEntries(candidates, 4).map((school) => ({
+      name: school.name,
+      location: school.country || "海外",
+      categoryLabel: bandLabel + " · " + (school.country || "海外"),
+      reason: resolveRecommendationReason(
+        school.fitNotes,
+        preferredTags,
+        "这所学校和你当前的学业能力、路线取向相对更接近。"
+      )
+    }));
+  }
+
   function pickUniversityDestination(tierId, payload) {
     const preference = payload && typeof payload === "object" ? payload : {};
     const willingnessToLeaveHome = Boolean(preference.willingnessToLeaveHome);
@@ -1539,6 +1738,11 @@
       if (destination && destination.routeId) {
         gaokaoState.destinationPoolId = destination.id || "";
         gaokaoState.destinationLabel = destination.label || destination.routeId;
+        gaokaoState.recommendedUniversities = buildDomesticUniversityRecommendations(gaokaoState.tierId, {
+          willingnessToLeaveHome,
+          majorPreference,
+          familyPreference
+        });
         addHistory(
           "最后去向没有被一条固定分数线写死。结合地区、成绩、家里条件和你的取向，你走进了“" +
             gaokaoState.destinationLabel +
@@ -1593,6 +1797,11 @@
       if (typeof data.routeId === "string" && data.routeId) {
         applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
       }
+      overseasState.academicIndex = calculateOverseasAcademicIndex(overseasState.routeId);
+      const qsBand = determineOverseasQsBand(overseasState.academicIndex);
+      overseasState.qsBandId = qsBand && qsBand.id ? qsBand.id : "";
+      overseasState.qsBandLabel = qsBand && qsBand.label ? qsBand.label : "";
+      overseasState.recommendedUniversities = buildOverseasUniversityRecommendations(overseasState.routeId, qsBand);
       convertDomesticRelationshipsToDistance();
       addHistory(
         "你把生活连根拔起，开始准备去" +

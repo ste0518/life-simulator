@@ -310,6 +310,730 @@
     }
   ];
 
+  window.LIFE_REAL_DOMESTIC_UNIVERSITIES = {
+    elite: [
+      {
+        name: "清华大学",
+        city: "北京",
+        type: "综合 / 工科顶尖",
+        tags: ["academic", "ambition", "leave_home"],
+        tier: "elite",
+        fitNotes: {
+          academic: "更适合继续往高强度平台和顶尖资源里冲。",
+          ambition: "平台、资源和竞争密度都很高，适合把目标继续拉满。",
+          leave_home: "通常意味着真正去到全国竞争最集中的城市和环境。"
+        }
+      },
+      {
+        name: "北京大学",
+        city: "北京",
+        type: "综合顶尖",
+        tags: ["academic", "ambition", "leave_home"],
+        tier: "elite",
+        fitNotes: {
+          academic: "更接近学术和综合能力都很强的路线。",
+          ambition: "适合把平台、视野和上限一起往上抬。",
+          leave_home: "会更早进入头部城市和顶尖同龄人密集的环境。"
+        }
+      },
+      {
+        name: "复旦大学",
+        city: "上海",
+        type: "综合顶尖",
+        tags: ["academic", "leave_home", "city"],
+        tier: "elite",
+        fitNotes: {
+          academic: "适合学术取向强、愿意面对更快节奏的人。",
+          city: "大城市资源密度很高，实习和行业接触会更早。",
+          leave_home: "通常意味着把生活半径和竞争半径一起拉开。"
+        }
+      },
+      {
+        name: "上海交通大学",
+        city: "上海",
+        type: "综合 / 工科强校",
+        tags: ["academic", "practical", "leave_home"],
+        tier: "elite",
+        fitNotes: {
+          academic: "适合学业能力强、愿意继续往上冲的人。",
+          practical: "工科和就业导向都强，比较适合平台与落地并重。",
+          leave_home: "去向会更偏向外地和高密度机会环境。"
+        }
+      },
+      {
+        name: "浙江大学",
+        city: "杭州",
+        type: "综合顶尖",
+        tags: ["academic", "practical", "leave_home"],
+        tier: "elite",
+        fitNotes: {
+          academic: "综合平台高，适合继续保持上行节奏。",
+          practical: "科研和产业联系都强，发展面比较均衡。",
+          leave_home: "更适合愿意离开原有环境的人。"
+        }
+      },
+      {
+        name: "南京大学",
+        city: "南京",
+        type: "综合顶尖",
+        tags: ["academic", "stable", "leave_home"],
+        tier: "elite",
+        fitNotes: {
+          academic: "更像学术底子强、节奏偏稳的顶尖路线。",
+          stable: "适合想要平台但不只盯着最激烈城市竞争的人。",
+          leave_home: "通常仍意味着去外地建立新生活。"
+        }
+      }
+    ],
+    key: [
+      {
+        name: "武汉大学",
+        city: "武汉",
+        type: "综合强校",
+        tags: ["academic", "leave_home", "city"],
+        tier: "key",
+        fitNotes: {
+          academic: "比较适合成绩稳、还想继续争平台的人。",
+          city: "所在城市资源和生活成本比较平衡。",
+          leave_home: "适合愿意外出读书、扩大半径的人。"
+        }
+      },
+      {
+        name: "中山大学",
+        city: "广州",
+        type: "综合强校",
+        tags: ["academic", "city", "leave_home"],
+        tier: "key",
+        fitNotes: {
+          academic: "平台扎实，适合继续冲更完整的本科体验。",
+          city: "大城市机会和生活感兼具。",
+          leave_home: "更适合能接受离家发展的选择。"
+        }
+      },
+      {
+        name: "厦门大学",
+        city: "厦门",
+        type: "综合强校",
+        tags: ["stable", "academic", "leave_home"],
+        tier: "key",
+        fitNotes: {
+          stable: "比较适合想要体面平台又希望生活节奏不至于太失控的人。",
+          academic: "综合能力和学业基础都能接得住。",
+          leave_home: "往往对应去外地建立更独立的生活。"
+        }
+      },
+      {
+        name: "四川大学",
+        city: "成都",
+        type: "综合强校",
+        tags: ["stable", "family", "stay_close"],
+        tier: "key",
+        fitNotes: {
+          stable: "适合想要一条更稳的重点本科路线。",
+          family: "对看重家庭承压和生活可持续的人更友好。",
+          stay_close: "更接近离家相对可控的思路。"
+        }
+      },
+      {
+        name: "华东师范大学",
+        city: "上海",
+        type: "师范 / 综合强校",
+        tags: ["academic", "stable", "city"],
+        tier: "key",
+        fitNotes: {
+          academic: "适合学业底子不错、想在大城市读本科的人。",
+          stable: "整体路线更平衡，不只是单点冲刺。",
+          city: "城市平台对实习和视野有明显加成。"
+        }
+      },
+      {
+        name: "北京邮电大学",
+        city: "北京",
+        type: "行业强校",
+        tags: ["practical", "academic", "leave_home"],
+        tier: "key",
+        fitNotes: {
+          practical: "更适合把专业和就业一起考虑的人。",
+          academic: "需要较强的学习能力来接住专业强度。",
+          leave_home: "更像去资源密集的一线城市读书。"
+        }
+      }
+    ],
+    general: [
+      {
+        name: "深圳大学",
+        city: "深圳",
+        type: "综合本科",
+        tags: ["city", "practical", "leave_home"],
+        tier: "general",
+        fitNotes: {
+          city: "更适合优先考虑城市平台和实习机会的人。",
+          practical: "整体更强调落地和就业感。",
+          leave_home: "通常意味着愿意去更远的城市试一试。"
+        }
+      },
+      {
+        name: "苏州大学",
+        city: "苏州",
+        type: "综合本科",
+        tags: ["stable", "academic", "city"],
+        tier: "general",
+        fitNotes: {
+          stable: "比较适合稳稳读完本科、把基础打扎实。",
+          academic: "学术氛围和综合性都比较均衡。",
+          city: "城市资源不错但生活节奏相对没那么压迫。"
+        }
+      },
+      {
+        name: "宁波大学",
+        city: "宁波",
+        type: "综合本科",
+        tags: ["stable", "family", "stay_close"],
+        tier: "general",
+        fitNotes: {
+          stable: "整体属于更均衡、可持续的本科路线。",
+          family: "更适合把家庭承压和生活成本一起算进去。",
+          stay_close: "适合不想把距离一下拉太远的人。"
+        }
+      },
+      {
+        name: "浙江工业大学",
+        city: "杭州",
+        type: "理工本科",
+        tags: ["practical", "city", "leave_home"],
+        tier: "general",
+        fitNotes: {
+          practical: "更偏就业和专业落地。",
+          city: "城市对实习和行业接触有帮助。",
+          leave_home: "适合愿意去外地读一所更务实学校的人。"
+        }
+      },
+      {
+        name: "杭州电子科技大学",
+        city: "杭州",
+        type: "理工本科",
+        tags: ["practical", "city", "academic"],
+        tier: "general",
+        fitNotes: {
+          practical: "更像把专业方向和以后找工作放前面。",
+          academic: "对理工基础和后续进阶更友好。",
+          city: "城市资源会成为加分项。"
+        }
+      },
+      {
+        name: "广东工业大学",
+        city: "广州",
+        type: "理工本科",
+        tags: ["practical", "stable", "city"],
+        tier: "general",
+        fitNotes: {
+          practical: "适合更看重专业、就业和性价比的人。",
+          stable: "属于比较完整、稳妥的本科落点。",
+          city: "能兼顾城市机会和现实成本。"
+        }
+      }
+    ],
+    borderline: [
+      {
+        name: "北京城市学院",
+        city: "北京",
+        type: "民办本科",
+        tags: ["family", "stable", "city"],
+        tier: "borderline",
+        fitNotes: {
+          family: "更需要家里愿不愿意继续托底。",
+          stable: "仍然保留完整本科路径，但现实计算更重。",
+          city: "城市资源会是这类选择的重要理由之一。"
+        }
+      },
+      {
+        name: "武昌首义学院",
+        city: "武汉",
+        type: "民办本科",
+        tags: ["stable", "practical", "leave_home"],
+        tier: "borderline",
+        fitNotes: {
+          stable: "适合想保留本科身份的人。",
+          practical: "会更看重专业是否实用、值不值。",
+          leave_home: "通常要接受去外地完成这段学历。"
+        }
+      },
+      {
+        name: "三亚学院",
+        city: "三亚",
+        type: "民办本科",
+        tags: ["leave_home", "city", "family"],
+        tier: "borderline",
+        fitNotes: {
+          leave_home: "更像离家较远的重新布局。",
+          family: "能不能接住学费和生活成本很关键。",
+          city: "会把地点和生活体验一起算进去。"
+        }
+      },
+      {
+        name: "西安翻译学院",
+        city: "西安",
+        type: "民办本科",
+        tags: ["practical", "stable", "stay_close"],
+        tier: "borderline",
+        fitNotes: {
+          practical: "更适合把专业和就业一起算账。",
+          stable: "属于现实感比较强的继续升学方案。",
+          stay_close: "对想把距离控制住的人更容易接受。"
+        }
+      },
+      {
+        name: "吉林外国语大学",
+        city: "长春",
+        type: "民办本科",
+        tags: ["academic", "practical", "leave_home"],
+        tier: "borderline",
+        fitNotes: {
+          academic: "更适合有明确专业兴趣、想继续读本科的人。",
+          practical: "专业方向感会比名校叙事更重要。",
+          leave_home: "更偏向把去向重新放到别的城市。"
+        }
+      },
+      {
+        name: "南昌理工学院",
+        city: "南昌",
+        type: "民办本科",
+        tags: ["practical", "family", "stay_close"],
+        tier: "borderline",
+        fitNotes: {
+          practical: "更像在成本、专业和学历之间做平衡。",
+          family: "家里的承压能力会明显影响判断。",
+          stay_close: "更适合不想把距离和成本都拉太高。"
+        }
+      }
+    ],
+    vocational: [
+      {
+        name: "深圳职业技术大学",
+        city: "深圳",
+        type: "职业本科 / 高职强校",
+        tags: ["practical", "city", "leave_home"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "更适合把技能和就业放在最前面。",
+          city: "城市产业环境会直接影响成长速度。",
+          leave_home: "适合愿意为机会去更远地方的人。"
+        }
+      },
+      {
+        name: "南京工业职业技术大学",
+        city: "南京",
+        type: "职业本科 / 高职强校",
+        tags: ["practical", "stable", "stay_close"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "更偏技能、岗位和尽快站稳。",
+          stable: "路线务实，后续还能再规划升学。",
+          stay_close: "适合把距离和生活成本放进考虑。"
+        }
+      },
+      {
+        name: "金华职业技术大学",
+        city: "金华",
+        type: "职业本科 / 高职强校",
+        tags: ["practical", "stable", "family"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "更像把技能学习和现实就业接起来。",
+          stable: "适合先求一条能走得稳的路。",
+          family: "对看重家庭承压和支撑的人更友好。"
+        }
+      },
+      {
+        name: "无锡职业技术学院",
+        city: "无锡",
+        type: "高职院校",
+        tags: ["practical", "city", "stay_close"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "更适合尽快把技术和岗位感练起来。",
+          city: "地区产业环境会比较直接地反哺就业。",
+          stay_close: "适合希望选择更稳、更近路线的人。"
+        }
+      },
+      {
+        name: "山东商业职业技术学院",
+        city: "济南",
+        type: "高职院校",
+        tags: ["practical", "stable", "family"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "路线更看重技能和就业匹配。",
+          stable: "比起名校叙事，更强调现实可持续性。",
+          family: "更适合把经济压力也考虑进去。"
+        }
+      },
+      {
+        name: "陕西工业职业技术学院",
+        city: "咸阳",
+        type: "高职院校",
+        tags: ["practical", "stay_close", "stable"],
+        tier: "vocational",
+        fitNotes: {
+          practical: "技能导向很强，更贴近岗位。",
+          stable: "比较适合先站稳再慢慢往上走。",
+          stay_close: "整体是更务实、更可控的选择。"
+        }
+      }
+    ]
+  };
+
+  window.LIFE_OVERSEAS_QS_BANDS = [
+    { id: "qs_top_30", label: "QS 前 30 档" },
+    { id: "qs_31_60", label: "QS 31-60 档" },
+    { id: "qs_61_100", label: "QS 61-100 档" },
+    { id: "qs_101_200", label: "QS 101-200 档" },
+    { id: "qs_201_plus", label: "QS 200+ 档" }
+  ];
+
+  window.LIFE_REAL_OVERSEAS_UNIVERSITIES = {
+    qs_top_30: [
+      {
+        name: "Massachusetts Institute of Technology",
+        country: "美国",
+        qsBand: "qs_top_30",
+        tags: ["research", "ambition", "engineering"],
+        fitNotes: {
+          research: "更适合学业能力非常强、愿意冲顶尖研究环境。",
+          ambition: "平台和竞争强度都处在最高一档。",
+          engineering: "更适合偏理工和技术路线。"
+        }
+      },
+      {
+        name: "Imperial College London",
+        country: "英国",
+        qsBand: "qs_top_30",
+        tags: ["research", "engineering", "city"],
+        fitNotes: {
+          research: "适合继续冲高强度学术和专业训练。",
+          engineering: "理工和应用学科都很强。",
+          city: "大城市资源密度很高。"
+        }
+      },
+      {
+        name: "University of Oxford",
+        country: "英国",
+        qsBand: "qs_top_30",
+        tags: ["research", "academic", "ambition"],
+        fitNotes: {
+          research: "更接近研究型和学术型顶尖路线。",
+          academic: "适合学业底子非常扎实的人。",
+          ambition: "会把平台和自我要求一起拉高。"
+        }
+      },
+      {
+        name: "University of Cambridge",
+        country: "英国",
+        qsBand: "qs_top_30",
+        tags: ["research", "academic", "ambition"],
+        fitNotes: {
+          research: "偏向顶尖研究和长线学术训练。",
+          academic: "适合学业能力极强的角色画像。",
+          ambition: "目标感和竞争承受力都要很强。"
+        }
+      },
+      {
+        name: "ETH Zurich",
+        country: "瑞士",
+        qsBand: "qs_top_30",
+        tags: ["research", "engineering", "practical"],
+        fitNotes: {
+          research: "适合理工研究取向明显的人。",
+          engineering: "工程和技术气质更强。",
+          practical: "科研与技术应用衔接感很强。"
+        }
+      },
+      {
+        name: "National University of Singapore",
+        country: "新加坡",
+        qsBand: "qs_top_30",
+        tags: ["research", "city", "practical"],
+        fitNotes: {
+          research: "能承接较强的学术上限。",
+          city: "城市平台和国际化环境都很集中。",
+          practical: "比较适合既看平台也看落地的人。"
+        }
+      }
+    ],
+    qs_31_60: [
+      {
+        name: "King's College London",
+        country: "英国",
+        qsBand: "qs_31_60",
+        tags: ["academic", "city", "research"],
+        fitNotes: {
+          academic: "适合学业能力较强、仍想保持平台感。",
+          city: "大城市环境加成明显。",
+          research: "更偏研究和学术延展。"
+        }
+      },
+      {
+        name: "The University of Melbourne",
+        country: "澳大利亚",
+        qsBand: "qs_31_60",
+        tags: ["academic", "city", "balanced"],
+        fitNotes: {
+          academic: "整体平台比较强，适合综合能力稳定的人。",
+          city: "城市生活和国际环境都比较成熟。",
+          balanced: "属于平台和生活感相对平衡的路线。"
+        }
+      },
+      {
+        name: "The University of Sydney",
+        country: "澳大利亚",
+        qsBand: "qs_31_60",
+        tags: ["city", "balanced", "practical"],
+        fitNotes: {
+          city: "城市资源和国际化氛围都较明显。",
+          practical: "适合把发展机会和现实落地一起考虑。",
+          balanced: "适合想要稳一些的海外名校体验。"
+        }
+      },
+      {
+        name: "The University of New South Wales",
+        country: "澳大利亚",
+        qsBand: "qs_31_60",
+        tags: ["engineering", "practical", "city"],
+        fitNotes: {
+          engineering: "适合理工和应用学科导向。",
+          practical: "整体更看重专业和就业连接。",
+          city: "城市平台会放大资源优势。"
+        }
+      },
+      {
+        name: "Technical University of Munich",
+        country: "德国",
+        qsBand: "qs_31_60",
+        tags: ["engineering", "research", "practical"],
+        fitNotes: {
+          engineering: "理工气质很强，适合技术路线。",
+          research: "学术与科研承接度高。",
+          practical: "和产业、应用之间距离更近。"
+        }
+      },
+      {
+        name: "The University of Tokyo",
+        country: "日本",
+        qsBand: "qs_31_60",
+        tags: ["academic", "research", "balanced"],
+        fitNotes: {
+          academic: "适合学术基础强、节奏能稳住的人。",
+          research: "研究型取向比较明显。",
+          balanced: "更偏稳扎稳打的高平台路线。"
+        }
+      }
+    ],
+    qs_61_100: [
+      {
+        name: "University of Warwick",
+        country: "英国",
+        qsBand: "qs_61_100",
+        tags: ["academic", "balanced", "city"],
+        fitNotes: {
+          academic: "比较适合学业能力稳、还想保持名校感。",
+          balanced: "平台、难度和可持续性比较均衡。",
+          city: "整体国际化氛围较强。"
+        }
+      },
+      {
+        name: "University of Glasgow",
+        country: "英国",
+        qsBand: "qs_61_100",
+        tags: ["balanced", "academic", "stable"],
+        fitNotes: {
+          balanced: "适合想要一条更稳的海外本科路线。",
+          academic: "能接住较完整的学术训练。",
+          stable: "整体更像可持续的长期选择。"
+        }
+      },
+      {
+        name: "University of Birmingham",
+        country: "英国",
+        qsBand: "qs_61_100",
+        tags: ["balanced", "practical", "city"],
+        fitNotes: {
+          practical: "更适合同时考虑专业和未来落地。",
+          balanced: "平台感和现实感相对平衡。",
+          city: "城市和生活成本通常比最顶级中心更可控。"
+        }
+      },
+      {
+        name: "University of Leeds",
+        country: "英国",
+        qsBand: "qs_61_100",
+        tags: ["balanced", "city", "practical"],
+        fitNotes: {
+          balanced: "属于比较完整且不失平台感的选择。",
+          city: "适合在较成熟城市环境里读书。",
+          practical: "对求稳落地的人更友好。"
+        }
+      },
+      {
+        name: "Durham University",
+        country: "英国",
+        qsBand: "qs_61_100",
+        tags: ["academic", "stable", "research"],
+        fitNotes: {
+          academic: "学术气质偏强，适合仍想读得扎实的人。",
+          stable: "整体节奏比顶尖档更可持续。",
+          research: "适合研究型倾向仍然明显的画像。"
+        }
+      },
+      {
+        name: "The University of Auckland",
+        country: "新西兰",
+        qsBand: "qs_61_100",
+        tags: ["balanced", "stable", "city"],
+        fitNotes: {
+          balanced: "适合综合权衡平台和生活状态。",
+          stable: "更接近稳妥的海外本科路线。",
+          city: "城市环境国际化但压力相对没那么尖锐。"
+        }
+      }
+    ],
+    qs_101_200: [
+      {
+        name: "University of Exeter",
+        country: "英国",
+        qsBand: "qs_101_200",
+        tags: ["stable", "balanced", "academic"],
+        fitNotes: {
+          stable: "更适合求稳一点的海外本科落点。",
+          balanced: "平台和压力都相对更容易接住。",
+          academic: "仍然保留比较完整的学术训练。"
+        }
+      },
+      {
+        name: "Newcastle University",
+        country: "英国",
+        qsBand: "qs_101_200",
+        tags: ["practical", "city", "stable"],
+        fitNotes: {
+          practical: "更适合把就业和专业适配放前面。",
+          city: "城市环境比较适合慢慢过渡适应。",
+          stable: "整体是相对务实的选择。"
+        }
+      },
+      {
+        name: "Queen Mary University of London",
+        country: "英国",
+        qsBand: "qs_101_200",
+        tags: ["city", "balanced", "academic"],
+        fitNotes: {
+          city: "想要留在国际化大城市的人会更容易考虑它。",
+          balanced: "平台感仍在，但难度更可控。",
+          academic: "适合学业能力中上且希望继续读本科的人。"
+        }
+      },
+      {
+        name: "University of Alberta",
+        country: "加拿大",
+        qsBand: "qs_101_200",
+        tags: ["research", "stable", "practical"],
+        fitNotes: {
+          research: "适合还保留一定研究和专业训练诉求。",
+          stable: "整体更像可持续的长期路线。",
+          practical: "比较适合兼顾专业与现实落地。"
+        }
+      },
+      {
+        name: "University of Technology Sydney",
+        country: "澳大利亚",
+        qsBand: "qs_101_200",
+        tags: ["practical", "city", "balanced"],
+        fitNotes: {
+          practical: "更看重应用性和就业感。",
+          city: "城市资源是很直观的优势。",
+          balanced: "适合想要平台但不追最顶尖档的人。"
+        }
+      },
+      {
+        name: "University of Reading",
+        country: "英国",
+        qsBand: "qs_101_200",
+        tags: ["stable", "balanced", "practical"],
+        fitNotes: {
+          stable: "整体压力和门槛会更稳一些。",
+          balanced: "适合想先把海外路径接住的人。",
+          practical: "会更自然地转向专业与落地。"
+        }
+      }
+    ],
+    qs_201_plus: [
+      {
+        name: "Coventry University",
+        country: "英国",
+        qsBand: "qs_201_plus",
+        tags: ["practical", "city", "cost"],
+        fitNotes: {
+          practical: "更适合把落地、就业和适应成本一起考虑。",
+          city: "城市生活与资源仍有支撑。",
+          cost: "整体更贴近现实承压能力。"
+        }
+      },
+      {
+        name: "De Montfort University",
+        country: "英国",
+        qsBand: "qs_201_plus",
+        tags: ["practical", "cost", "stable"],
+        fitNotes: {
+          practical: "路线更偏应用和落地。",
+          cost: "比较适合预算更敏感的海外路径。",
+          stable: "适合先把出国这条路稳稳接住。"
+        }
+      },
+      {
+        name: "University of Hertfordshire",
+        country: "英国",
+        qsBand: "qs_201_plus",
+        tags: ["practical", "city", "stable"],
+        fitNotes: {
+          practical: "适合更关注专业和就业的人。",
+          city: "靠近大城市会保留一定机会密度。",
+          stable: "整体难度和适应压力更容易承接。"
+        }
+      },
+      {
+        name: "Massey University",
+        country: "新西兰",
+        qsBand: "qs_201_plus",
+        tags: ["balanced", "stable", "practical"],
+        fitNotes: {
+          balanced: "适合先找一条整体更平衡的海外路线。",
+          stable: "更容易把生活和学习一起接稳。",
+          practical: "适应和落地感较强。"
+        }
+      },
+      {
+        name: "Toronto Metropolitan University",
+        country: "加拿大",
+        qsBand: "qs_201_plus",
+        tags: ["city", "practical", "balanced"],
+        fitNotes: {
+          city: "适合仍然看重城市平台的人。",
+          practical: "更偏应用和就业导向。",
+          balanced: "属于不追最顶尖档但想把路走通的选择。"
+        }
+      },
+      {
+        name: "University of Canberra",
+        country: "澳大利亚",
+        qsBand: "qs_201_plus",
+        tags: ["stable", "practical", "cost"],
+        fitNotes: {
+          stable: "更适合先稳稳进入海外体系。",
+          practical: "比较强调专业和后续落地。",
+          cost: "整体更符合务实型出国思路。"
+        }
+      }
+    ]
+  };
+
   window.LIFE_UNIVERSITY_POOLS = {
     elite: [
       {
@@ -737,8 +1461,8 @@
     event({
       id: "gaokao_result",
       stage: "transition",
-      title: "分数出来以后，真正要面对的是“去向池”",
-      text: "参考地区：{gaokaoRegionName}\n\n基础实力约落在 {gaokaoBaseScore} 分，实际结算为 {gaokaoScore} 分，对应“{gaokaoTierLabel}”。\n\n这次属于：{gaokaoPerformanceLabel}\n\n{gaokaoPerformanceText}\n\n你不会被强行精确塞进某一所真实大学，而是要在这个成绩区间里，按离家远近、专业倾向、家庭承压和自己的想法，落进某个大学池或去向池。",
+      title: "分数出来以后，你开始真正看见那些可能去的学校",
+      text: "参考地区：{gaokaoRegionName}\n\n基础实力约落在 {gaokaoBaseScore} 分，实际结算为 {gaokaoScore} 分，对应“{gaokaoTierLabel}”。\n\n这次属于：{gaokaoPerformanceLabel}\n\n{gaokaoPerformanceText}\n\n这一次不会直接给你一张唯一正确答案。系统会按你当前分数段、离家远近、专业倾向和家庭承压，给出一组更接近现实的国内大学候选。它们是全国近似参考，不等于真实录取结果。",
       minAge: 18,
       maxAge: 21,
       weight: 100,
@@ -861,7 +1585,7 @@
       id: "overseas_departure",
       stage: "transition",
       title: "去国外念书，不只是换一个地点名称",
-      text: "出国以后，原来的语言环境、消费习惯、社交方式和感情节奏都会一起被换掉。你会得到新的城市、新朋友圈和新对象池，也会同时面对更直接的经济压力、孤独感和文化差异。\n\n如果国内已经有人在你心里占了位置，这段关系不会自动消失，它只会被拖进更难维系的状态里。",
+      text: "出国以后，原来的语言环境、消费习惯、社交方式和感情节奏都会一起被换掉。你会得到新的城市、新朋友圈和新对象池，也会同时面对更直接的经济压力、孤独感和文化差异。\n\n系统不会拿高考分数去硬套国外学校，而是会按你现在的学业能力、自律和状态，给出更接近的 QS 排名段真实学校候选。它们只是路线参考，不等于实际录取承诺。\n\n如果国内已经有人在你心里占了位置，这段关系不会自动消失，它只会被拖进更难维系的状态里。",
       minAge: 18,
       maxAge: 21,
       weight: 100,

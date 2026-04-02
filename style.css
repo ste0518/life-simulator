@@ -568,6 +568,51 @@ button {
   line-height: 1.7;
 }
 
+.route-recommendations {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(139, 94, 52, 0.18);
+}
+
+.route-recommendations-title {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--accent-dark);
+  font-size: 0.92rem;
+}
+
+.route-university-list {
+  display: grid;
+  gap: 10px;
+}
+
+.route-university-item {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 247, 234, 0.9);
+  border: 1px solid rgba(139, 94, 52, 0.12);
+}
+
+.route-university-name {
+  display: block;
+  color: var(--text);
+  font-size: 0.96rem;
+}
+
+.route-university-meta {
+  margin: 6px 0 0;
+  color: var(--accent-dark);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.route-university-reason {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+  font-size: 0.88rem;
+}
+
 .stat-card {
   display: grid;
   grid-template-columns: 76px 1fr 44px;

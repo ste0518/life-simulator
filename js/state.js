@@ -246,7 +246,8 @@
         destinationLabel: "",
         willingnessToLeaveHome: null,
         majorPreference: "",
-        notes: []
+        notes: [],
+        recommendedUniversities: []
       },
       overseas: {
         active: false,
@@ -260,7 +261,11 @@
         domesticConnectionIds: [],
         newConnectionIds: [],
         doubleTrack: false,
-        exposureRisk: 0
+        exposureRisk: 0,
+        academicIndex: null,
+        qsBandId: "",
+        qsBandLabel: "",
+        recommendedUniversities: []
       },
       setupStep: "naming",
       relationships: createInitialRelationships(),

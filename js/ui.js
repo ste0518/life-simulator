@@ -65,6 +65,54 @@
     container.appendChild(section);
   }
 
+  function appendUniversityRecommendations(container, titleText, items) {
+    if (!Array.isArray(items) || !items.length) {
+      return;
+    }
+
+    const section = document.createElement("section");
+    section.className = "route-recommendations";
+
+    const title = document.createElement("strong");
+    title.className = "route-recommendations-title";
+    title.textContent = titleText;
+    section.appendChild(title);
+
+    const list = document.createElement("div");
+    list.className = "route-university-list";
+
+    items.forEach((item) => {
+      if (!item || typeof item !== "object") {
+        return;
+      }
+
+      const card = document.createElement("article");
+      card.className = "route-university-item";
+
+      const name = document.createElement("strong");
+      name.className = "route-university-name";
+      name.textContent = item.name || "学校待定";
+      card.appendChild(name);
+
+      const meta = document.createElement("p");
+      meta.className = "route-university-meta";
+      meta.textContent = [item.location || "", item.categoryLabel || ""].filter(Boolean).join(" · ");
+      card.appendChild(meta);
+
+      if (item.reason) {
+        const reason = document.createElement("p");
+        reason.className = "route-university-reason";
+        reason.textContent = item.reason;
+        card.appendChild(reason);
+      }
+
+      list.appendChild(card);
+    });
+
+    section.appendChild(list);
+    container.appendChild(section);
+  }
+
   function renderEndingAnalysis(container, analysis) {
     if (!analysis) {
       return;
@@ -298,7 +346,7 @@
       details.className = "route-details";
       [
         "基础实力约 " + (state.gaokao.baseScore || 0) + " 分",
-        state.gaokao.destinationLabel ? "当前去向池：" + state.gaokao.destinationLabel : "",
+        state.gaokao.destinationLabel ? "当前去向：" + state.gaokao.destinationLabel : "",
         state.gaokao.performanceNarrative || ""
       ]
         .filter(Boolean)
@@ -308,6 +356,7 @@
           details.appendChild(item);
         });
       card.appendChild(details);
+      appendUniversityRecommendations(card, "真实学校候选", state.gaokao.recommendedUniversities);
 
       elements.routeContainer.appendChild(card);
     }
@@ -330,6 +379,7 @@
       summary.className = "route-summary";
       summary.textContent =
         (state.overseas.supportLevel || "支持方式未定") +
+        (state.overseas.qsBandLabel ? "，学业匹配约落在 " + state.overseas.qsBandLabel : "") +
         "，语言压力 " +
         (state.overseas.languagePressure || 0) +
         "，孤独感 " +
@@ -365,6 +415,8 @@
       if (details.childNodes.length) {
         card.appendChild(details);
       }
+
+      appendUniversityRecommendations(card, "海外学校候选", state.overseas.recommendedUniversities);
 
       elements.routeContainer.appendChild(card);
     }
