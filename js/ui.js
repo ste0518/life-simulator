@@ -26,6 +26,7 @@
     elements.storySection = document.getElementById("story-section");
     elements.restartButton = document.getElementById("restart-btn");
     elements.shopOpenBtn = document.getElementById("shop-open-btn");
+    elements.shopOpenBtnSecondary = document.getElementById("shop-open-btn-secondary");
     elements.shopHint = document.getElementById("shop-hint");
     elements.shopModal = document.getElementById("shop-modal");
     elements.shopModalBackdrop = document.getElementById("shop-modal-backdrop");
@@ -44,6 +45,90 @@
       const node = document.createElement("p");
       node.textContent = paragraph;
       container.appendChild(node);
+    });
+  }
+
+  function triggerStoryTextEnter() {
+    const el = elements.storyText;
+    if (!el) {
+      return;
+    }
+    el.classList.remove("story-text--enter");
+    window.requestAnimationFrame(function () {
+      void el.offsetWidth;
+      el.classList.add("story-text--enter");
+    });
+    function onAnimEnd(ev) {
+      if (ev.target !== el || ev.animationName !== "storyFade") {
+        return;
+      }
+      el.classList.remove("story-text--enter");
+      el.removeEventListener("animationend", onAnimEnd);
+    }
+    el.addEventListener("animationend", onAnimEnd);
+  }
+
+  function statCardModifierClass(key, value) {
+    const n = typeof value === "number" ? value : 0;
+    const classes = [];
+    if (key === "health" && n < 30) {
+      classes.push("stat-card--warn");
+    }
+    if (key === "debt" && n > 45) {
+      classes.push("stat-card--warn");
+    }
+    if (key === "stress" && n > 72) {
+      classes.push("stat-card--stress");
+    }
+    if (key === "mental" && n < 28) {
+      classes.push("stat-card--warn");
+    }
+    if (key === "happiness" && n < 25) {
+      classes.push("stat-card--warn");
+    }
+    if (key === "money" && n < 12) {
+      classes.push("stat-card--warn");
+    }
+    if (key === "familySupport" && n < 18) {
+      classes.push("stat-card--warn");
+    }
+    return classes.join(" ");
+  }
+
+  function isHistoryMilestoneText(text) {
+    const t = String(text || "");
+    const keys = [
+      "家庭背景",
+      "抽取",
+      "高考",
+      "志愿",
+      "录取",
+      "留学",
+      "出国",
+      "异国",
+      "确认关系",
+      "交往",
+      "恋爱",
+      "分手",
+      "复合",
+      "结婚",
+      "婚礼",
+      "孩子",
+      "生育",
+      "怀孕",
+      "辞职",
+      "离职",
+      "工作",
+      "人生尽头",
+      "结局",
+      "移民",
+      "签证",
+      "入狱",
+      "出狱",
+      "大学"
+    ];
+    return keys.some(function (k) {
+      return t.indexOf(k) !== -1;
     });
   }
 
@@ -185,13 +270,19 @@
     elements.statsContainer.innerHTML = "";
 
     stateApi.STAT_KEYS.forEach((key) => {
-      const value = state.stats[key];
+      const raw = state.stats[key];
+      const value = typeof raw === "number" ? raw : 0;
       const row = document.createElement("div");
-      row.className = "stat-card";
+      const mod = statCardModifierClass(key, value);
+      row.className = "stat-card" + (mod ? " " + mod : "");
+      row.setAttribute("data-stat", key);
 
       const label = document.createElement("div");
       label.className = "stat-label";
       label.textContent = stateApi.STAT_LABELS[key];
+
+      const barWrap = document.createElement("div");
+      barWrap.className = "stat-bar-wrap";
 
       const bar = document.createElement("div");
       bar.className = "stat-bar";
@@ -200,13 +291,14 @@
       fill.className = "stat-fill";
       fill.style.width = Math.max(0, Math.min(100, value)) + "%";
       bar.appendChild(fill);
+      barWrap.appendChild(bar);
 
       const number = document.createElement("div");
       number.className = "stat-value";
       number.textContent = String(value);
 
       row.appendChild(label);
-      row.appendChild(bar);
+      row.appendChild(barWrap);
       row.appendChild(number);
       elements.statsContainer.appendChild(row);
     });
@@ -574,19 +666,25 @@
     }
 
     state.history.forEach((item) => {
+      const formatted = engine.formatText(item.text);
       const entry = document.createElement("article");
-      entry.className = "history-item";
+      entry.className =
+        "history-item" + (isHistoryMilestoneText(formatted) ? " history-item--milestone" : "");
 
       const age = document.createElement("span");
       age.className = "history-age";
       age.textContent = item.age + " 岁";
 
+      const body = document.createElement("div");
+      body.className = "history-body";
+
       const text = document.createElement("p");
       text.className = "history-text";
-      text.textContent = engine.formatText(item.text);
+      text.textContent = formatted;
 
+      body.appendChild(text);
       entry.appendChild(age);
-      entry.appendChild(text);
+      entry.appendChild(body);
       elements.historyContainer.appendChild(entry);
     });
   }
@@ -715,11 +813,17 @@
   }
 
   function renderShopEntry(state) {
-    if (!elements.shopOpenBtn || !elements.shopHint) {
+    if (!elements.shopHint) {
       return;
     }
     const canUse = isShopAvailableForState(state);
-    elements.shopOpenBtn.disabled = !state.gameStarted || state.gameOver || Boolean(state.setupStep);
+    const shopLocked = !state.gameStarted || state.gameOver || Boolean(state.setupStep);
+    if (elements.shopOpenBtn) {
+      elements.shopOpenBtn.disabled = shopLocked;
+    }
+    if (elements.shopOpenBtnSecondary) {
+      elements.shopOpenBtnSecondary.disabled = shopLocked;
+    }
     if (!state.gameStarted || state.gameOver) {
       elements.shopHint.textContent = "开始人生后，在 16–55 岁可打开商店购物。";
     } else if (state.setupStep) {
@@ -862,7 +966,8 @@
 
     relationships.forEach((relationship) => {
       const card = document.createElement("article");
-      card.className = "relationship-card";
+      card.className =
+        "relationship-card" + (relationship.id === state.activeRelationshipId ? " relationship-card--active" : "");
 
       const header = document.createElement("div");
       header.className = "relationship-header";
@@ -1069,6 +1174,7 @@
       elements.storyText,
       "你刚刚出生，这一生还没有真正展开。\n\n先为自己取一个名字，并选择这一局的性别。然后抽取家庭背景，从 0 岁开始经历属于你的人生。"
     );
+    triggerStoryTextEnter();
 
     elements.optionsContainer.innerHTML = "";
 
@@ -1120,7 +1226,13 @@
     const button = document.createElement("button");
     button.type = "submit";
     button.className = "option-button";
-    button.textContent = "带着这个名字开始人生";
+    const submitWrap = document.createElement("span");
+    submitWrap.className = "option-button-content";
+    const submitLabel = document.createElement("span");
+    submitLabel.className = "option-main-text";
+    submitLabel.textContent = "带着这个名字开始人生";
+    submitWrap.appendChild(submitLabel);
+    button.appendChild(submitWrap);
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -1155,12 +1267,19 @@
       elements.eventTitle.textContent = engine.formatText(state.ending.title);
       createParagraphs(elements.storyText, state.ending.text);
       renderEndingAnalysis(elements.storyText, state.ending.analysis);
+      triggerStoryTextEnter();
       elements.optionsContainer.innerHTML = "";
 
       const restart = document.createElement("button");
       restart.type = "button";
       restart.className = "option-button";
-      restart.textContent = "重新开始一局";
+      const rw = document.createElement("span");
+      rw.className = "option-button-content";
+      const rt = document.createElement("span");
+      rt.className = "option-main-text";
+      rt.textContent = "重新开始一局";
+      rw.appendChild(rt);
+      restart.appendChild(rw);
       restart.addEventListener("click", function () {
         engine.restart();
         render();
@@ -1175,6 +1294,7 @@
       elements.stageValue.textContent = "人生总结";
       elements.eventTitle.textContent = "人生暂时停在这里";
       createParagraphs(elements.storyText, "当前没有新的事件可以继续。你可以重新开始，或者继续补充更多事件数据。");
+      triggerStoryTextEnter();
       elements.optionsContainer.innerHTML = "";
       return;
     }
@@ -1182,6 +1302,7 @@
     elements.stageValue.textContent = stateApi.getStageLabel(event.stage);
     elements.eventTitle.textContent = engine.formatText(event.title);
     createParagraphs(elements.storyText, event.text);
+    triggerStoryTextEnter();
     renderOptions(event, state);
   }
 
@@ -1212,12 +1333,18 @@
       render();
     });
 
+    function openShopModal() {
+      const state = engine.getState();
+      setShopModalOpen(true);
+      populateShopItems(state);
+    }
+
     if (elements.shopOpenBtn) {
-      elements.shopOpenBtn.addEventListener("click", function () {
-        const state = engine.getState();
-        setShopModalOpen(true);
-        populateShopItems(state);
-      });
+      elements.shopOpenBtn.addEventListener("click", openShopModal);
+    }
+
+    if (elements.shopOpenBtnSecondary) {
+      elements.shopOpenBtnSecondary.addEventListener("click", openShopModal);
     }
 
     function closeShop() {

@@ -4,93 +4,141 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>人生模拟器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="app-bg" aria-hidden="true"></div>
+
   <div class="page">
-    <header class="hero">
-      <div>
-        <h1>人生模拟器</h1>
-        <p class="subtitle">阅读事件，做出选择，承担长期后果，走完属于你的一生。</p>
+    <header class="app-header">
+      <div class="app-header__brand">
+        <p class="app-kicker">互动文字 · 人生轨迹</p>
+        <h1 class="app-title">人生模拟器</h1>
+        <p class="app-tagline">阅读事件，做出选择，承担长期后果，走完属于你的一生。</p>
       </div>
-      <button id="restart-btn" class="ghost-button" type="button">重新开始</button>
+      <nav class="app-toolbar" aria-label="快捷操作">
+        <button id="restart-btn" class="toolbar-btn toolbar-btn--primary" type="button">重新开始</button>
+        <button type="button" id="shop-open-btn" class="toolbar-btn">打开商店</button>
+        <a class="toolbar-link" href="#panel-relationships">关系</a>
+        <a class="toolbar-link" href="#panel-history">历程</a>
+        <a class="toolbar-link" href="#panel-stats">属性</a>
+      </nav>
     </header>
 
-    <main class="layout">
-      <section class="panel primary-panel">
-        <div class="panel-header">
-          <h2>当前人生阶段</h2>
-          <div class="panel-badges">
-            <div class="stage-badge">阶段：<span id="stage-value">未开始</span></div>
-            <div class="age-badge">年龄：<span id="age-value">0</span></div>
-            <div class="gender-badge">性别：<span id="gender-value">未选择</span></div>
+    <main class="app-main">
+      <article class="game-column game-column--story" aria-labelledby="story-heading">
+        <header class="story-head">
+          <div class="story-head__meta">
+            <h2 id="story-heading" class="visually-hidden">当前剧情</h2>
+            <div class="life-chips" role="group" aria-label="当前人生概况">
+              <span class="life-chip life-chip--stage">阶段 <strong id="stage-value">未开始</strong></span>
+              <span class="life-chip life-chip--age">年龄 <strong id="age-value">0</strong></span>
+              <span class="life-chip life-chip--gender">性别 <strong id="gender-value">未选择</strong></span>
+            </div>
           </div>
+        </header>
+
+        <section id="story-section" class="story-book">
+          <div class="story-book__inner">
+            <p class="story-book__label">正在发生</p>
+            <h3 id="event-title" class="story-book__title">加载中...</h3>
+            <div id="story-text" class="story-book__body story-text"></div>
+          </div>
+        </section>
+
+        <section class="choices-panel" aria-labelledby="choices-heading">
+          <div class="choices-panel__head">
+            <h3 id="choices-heading" class="choices-panel__title">命运分叉</h3>
+            <p class="choices-panel__hint">选择一条路径；后果会在岁月里慢慢浮现。</p>
+          </div>
+          <div id="options-container" class="options-container options-container--fate"></div>
+        </section>
+      </article>
+
+      <aside class="game-column game-column--sidebar" aria-label="人生状态侧栏">
+        <div class="sidebar-stack">
+          <section id="panel-stats" class="ui-panel ui-panel--stats">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">当前属性</h2>
+              <p class="ui-panel__subtitle">数值会随选择与时间波动</p>
+            </header>
+            <div id="stats-container" class="stats-grid"></div>
+          </section>
+
+          <section id="panel-family-bg" class="ui-panel">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">家庭背景</h2>
+              <p class="ui-panel__subtitle">出身的底色</p>
+            </header>
+            <div id="family-background-container"></div>
+          </section>
+
+          <section id="panel-routes" class="ui-panel">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">成长路线</h2>
+              <p class="ui-panel__subtitle">学业、职业与关键节点</p>
+            </header>
+            <div id="route-container"></div>
+          </section>
+
+          <section id="panel-relationships" class="ui-panel ui-panel--relationships">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">人际与恋爱</h2>
+              <p class="ui-panel__subtitle">重要的人与关系温度</p>
+            </header>
+            <div id="relationships-container" class="relationship-list"></div>
+          </section>
+
+          <section id="panel-inventory" class="ui-panel">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">物品栏</h2>
+              <p class="ui-panel__subtitle">可赠礼与持有物</p>
+            </header>
+            <div id="inventory-container"></div>
+          </section>
+
+          <section id="panel-shop" class="ui-panel ui-panel--shop">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">商店</h2>
+              <p class="ui-panel__subtitle">16–55 岁可用</p>
+            </header>
+            <p id="shop-hint" class="shop-hint muted">开局并完成家庭背景后，16–55 岁可随时在此购物（与随机事件「街边购物」商品一致）。</p>
+            <button type="button" id="shop-open-btn-secondary" class="shop-enter-btn">进入商店</button>
+          </section>
+
+          <section id="panel-family" class="ui-panel">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">家庭与子女</h2>
+              <p class="ui-panel__subtitle">孩子与家庭财务摘要</p>
+            </header>
+            <div id="family-life-container"></div>
+          </section>
+
+          <section id="panel-history" class="ui-panel ui-panel--timeline">
+            <header class="ui-panel__head">
+              <h2 class="ui-panel__title">人生大事</h2>
+              <p class="ui-panel__subtitle">时间线上的回忆与转折</p>
+            </header>
+            <div id="history-container" class="history-timeline"></div>
+          </section>
         </div>
-
-        <div id="story-section" class="story-section">
-          <h3 id="event-title">加载中...</h3>
-          <div id="story-text" class="story-text"></div>
-        </div>
-
-        <div>
-          <h3>你的选择</h3>
-          <div id="options-container" class="options-container"></div>
-        </div>
-      </section>
-
-      <aside class="sidebar">
-        <section class="panel">
-          <h2>当前属性</h2>
-          <div id="stats-container" class="stats-grid"></div>
-        </section>
-
-        <section class="panel">
-          <h2>家庭背景</h2>
-          <div id="family-background-container"></div>
-        </section>
-
-        <section class="panel">
-          <h2>成长路线</h2>
-          <div id="route-container"></div>
-        </section>
-
-        <section class="panel">
-          <h2>人际 / 恋爱</h2>
-          <div id="relationships-container" class="relationship-list"></div>
-        </section>
-
-        <section class="panel">
-          <h2>物品栏</h2>
-          <div id="inventory-container"></div>
-        </section>
-
-        <section class="panel shop-entry-panel">
-          <h2>商店</h2>
-          <p id="shop-hint" class="muted shop-hint">开局并完成家庭背景后，16–55 岁可随时在此购物（与随机事件「街边购物」商品一致）。</p>
-          <button type="button" id="shop-open-btn" class="ghost-button shop-open-button">进入商店</button>
-        </section>
-
-        <section class="panel">
-          <h2>家庭与子女</h2>
-          <div id="family-life-container"></div>
-        </section>
-
-        <section class="panel">
-          <h2>人生大事日志</h2>
-          <div id="history-container" class="history-list"></div>
-        </section>
       </aside>
     </main>
   </div>
 
   <div id="shop-modal" class="shop-modal" hidden aria-hidden="true">
     <div class="shop-modal-backdrop" id="shop-modal-backdrop" aria-hidden="true"></div>
-    <div class="shop-modal-card panel" role="dialog" aria-modal="true" aria-labelledby="shop-modal-title">
+    <div class="shop-modal-card ui-panel" role="dialog" aria-modal="true" aria-labelledby="shop-modal-title">
       <div class="shop-modal-head">
-        <h2 id="shop-modal-title">商店</h2>
-        <button type="button" id="shop-modal-close" class="ghost-button shop-modal-close" aria-label="关闭商店">关闭</button>
+        <div>
+          <h2 id="shop-modal-title" class="shop-modal-title">商店</h2>
+          <p class="shop-modal-lede muted">每件商品下方为购买后的属性变化说明；标有「可送人」的会进入物品栏，可在关系合适时送给当前选中对象。</p>
+        </div>
+        <button type="button" id="shop-modal-close" class="modal-close" aria-label="关闭商店">关闭</button>
       </div>
-      <p class="muted shop-modal-intro">每件商品下方为购买后的属性变化说明；标有「可送人」的会进入物品栏，可在关系合适时送给当前选中对象。</p>
       <div id="shop-items-container" class="shop-items-container"></div>
     </div>
   </div>
