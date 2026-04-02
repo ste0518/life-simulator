@@ -55,6 +55,12 @@
     window.LIFE_GIFT_EFFECTS && typeof window.LIFE_GIFT_EFFECTS === "object" ? window.LIFE_GIFT_EFFECTS : {};
   const lifeOverseasFinance =
     window.LIFE_OVERSEAS_FINANCE && typeof window.LIFE_OVERSEAS_FINANCE === "object" ? window.LIFE_OVERSEAS_FINANCE : {};
+  const lifeCharacterGrowth =
+    window.LIFE_CHARACTER_GROWTH && typeof window.LIFE_CHARACTER_GROWTH === "object" ? window.LIFE_CHARACTER_GROWTH : {};
+  const lifeMarriageConfig =
+    (lifeCharacterGrowth && lifeCharacterGrowth.marriageConfig) ||
+    (window.LIFE_MARRIAGE_CONFIG && typeof window.LIFE_MARRIAGE_CONFIG === "object" ? window.LIFE_MARRIAGE_CONFIG : {}) ||
+    {};
   const OVERSEAS_PHASE_LABELS = {
     arrival: "初到适应期",
     settling: "初步融入期",
@@ -429,6 +435,10 @@
         typeof conditions.activeRelationshipMinInteractionCount === "number"
           ? conditions.activeRelationshipMinInteractionCount
           : null,
+      activeRelationshipMinPartnerAgeSpan:
+        typeof conditions.activeRelationshipMinPartnerAgeSpan === "number"
+          ? conditions.activeRelationshipMinPartnerAgeSpan
+          : null,
       noCurrentPartner: Boolean(conditions.noCurrentPartner),
       minChildCount:
         typeof conditions.minChildCount === "number" ? conditions.minChildCount : null,
@@ -681,57 +691,265 @@
     return Math.max(0, bag[itemId] || 0);
   }
 
-  function effectiveOverseasCashThreshold(state) {
-    const cfg = lifeOverseasFinance.overseasCostConfig || {};
-    let threshold = typeof cfg.cashLiquidityMin === "number" ? cfg.cashLiquidityMin : 50;
-    const fs = (state.stats && state.stats.familySupport) || 0;
-    const discountUnit =
-      typeof cfg.familySupportThresholdDiscountPer5 === "number" ? cfg.familySupportThresholdDiscountPer5 : 1;
-    threshold -= Math.floor(Math.max(0, fs - 25) / 5) * discountUnit;
-    const wealthy = normalizeStringArray(cfg.wealthyHomeFlags || []);
-    const bonus = typeof cfg.wealthyHomeThresholdBonus === "number" ? cfg.wealthyHomeThresholdBonus : 0;
-    if (wealthy.some((f) => state.flags.includes(f))) {
-      threshold -= bonus;
-    }
-    const floor = typeof cfg.absoluteCashFloor === "number" ? cfg.absoluteCashFloor : 38;
-    return Math.max(floor, threshold);
+  /**
+   * 留学资金：始终允许选择出国；扣款规则见 applyStudyAbroadFunding（与 data/life-systems.js 配置一致）。
+   */
+  function resolveOverseasFunding() {
+    return { ok: true, mode: "dynamic" };
   }
 
-  function meetsStudyLoanEligibility(state) {
-    const cfg = lifeOverseasFinance.loanConfig || {};
-    const stats = state.stats || {};
-    const fam = stats.familySupport || 0;
-    let minFam = typeof cfg.minFamilySupport === "number" ? cfg.minFamilySupport : 20;
-    const bypass = normalizeStringArray(cfg.familySupportBypassFlags || []);
-    if (bypass.some((f) => state.flags.includes(f))) {
-      minFam = typeof cfg.minFamilySupportWithBypass === "number" ? cfg.minFamilySupportWithBypass : 15;
+  /**
+   * 自动还贷（仅留学贷款 studyLoanBalance）：
+   * 规则：仅当 财富 > 贷款余额（严格大于）时，一次性还清。
+   * 若 财富 === 贷款余额，不触发自动还贷（需财富再增加至少 1）。
+   * 这样「刚好够」不会自动清零，避免与某些事件数值边界打架；全文仅此一处定义。
+   */
+  function autoRepayStudyLoan() {
+    const os = ensureOverseasState();
+    const balance = Math.max(0, os.studyLoanBalance || 0);
+    if (balance <= 0) {
+      if (os.studyLoanActive) {
+        os.studyLoanActive = false;
+        os.studyLoanDebtStatContribution = 0;
+        removeGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+        syncOverseasDerivedFlags();
+      }
+      return;
     }
-    const minI = typeof cfg.minIntelligence === "number" ? cfg.minIntelligence : 24;
-    const minD = typeof cfg.minDiscipline === "number" ? cfg.minDiscipline : 18;
-    if ((stats.intelligence || 0) < minI) {
-      return false;
+
+    const money = gameState.stats.money || 0;
+    if (money <= balance) {
+      return;
     }
-    if ((stats.discipline || 0) < minD) {
-      return false;
+
+    const contribution = typeof os.studyLoanDebtStatContribution === "number" ? os.studyLoanDebtStatContribution : 0;
+    adjustStat("money", -balance);
+    if (contribution > 0) {
+      const debtNow = gameState.stats.debt || 0;
+      adjustStat("debt", -Math.min(contribution, debtNow));
     }
-    if (fam < minFam) {
-      return false;
-    }
-    return true;
+
+    os.studyLoanBalance = 0;
+    os.studyLoanActive = false;
+    os.studyLoanDebtStatContribution = 0;
+    os.fundingMode = os.fundingMode ? os.fundingMode + "_loan_cleared" : "loan_cleared";
+    removeGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+    syncOverseasDerivedFlags();
+
+    const msgs = normalizeStringArray((lifeOverseasFinance.autoRepayLoanMessages || []).slice());
+    const line =
+      msgs.length > 0
+        ? msgs[Math.floor(Math.random() * msgs.length)]
+        : "终于还清了留学贷款，手头第一次轻了一点。";
+    addHistory(line);
   }
 
-  function resolveOverseasFunding(state) {
+  /**
+   * 出国一次性扣费：财富 > cashFullPayThreshold 时扣满 tuitionCost，无贷款；
+   * 否则用尽当前财富支付 tuition，差额记入 studyLoanBalance。
+   */
+  function applyStudyAbroadFunding(tuition) {
     const costCfg = lifeOverseasFinance.overseasCostConfig || {};
-    const money = (state.stats && state.stats.money) || 0;
-    const tuition = typeof costCfg.tuitionCost === "number" ? costCfg.tuitionCost : 30;
-    const needCash = effectiveOverseasCashThreshold(state);
-    if (money >= needCash && money >= tuition) {
-      return { ok: true, mode: "cash" };
+    const loanCfg = lifeOverseasFinance.loanConfig || {};
+    const t = typeof tuition === "number" ? tuition : typeof costCfg.tuitionCost === "number" ? costCfg.tuitionCost : 30;
+    const threshold =
+      typeof costCfg.cashFullPayThreshold === "number" ? costCfg.cashFullPayThreshold : 50;
+    const money = gameState.stats.money || 0;
+    const os = ensureOverseasState();
+    const fullDebtBump = typeof loanCfg.addDebtStat === "number" ? loanCfg.addDebtStat : 30;
+    const fullStress = typeof loanCfg.addStress === "number" ? loanCfg.addStress : 4;
+    const fullFinPressure = typeof loanCfg.financePressureBonus === "number" ? loanCfg.financePressureBonus : 28;
+
+    let financeExtraFromLoan = 0;
+    let budgetLoanNote = "";
+
+    if (money > threshold) {
+      adjustStat("money", -t);
+      os.studyLoanActive = false;
+      os.studyLoanBalance = 0;
+      os.studyLoanDebtStatContribution = 0;
+      os.fundingMode = "cash_full";
+      removeGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+      addGameFlags(["overseas_paid_cash_tuition"]);
+      addHistory("你的财富超过 " + threshold + "，出国费用一次性从存款里扣清，没有签下留学贷款。");
+    } else {
+      const pay = Math.min(money, t);
+      const loanAmt = Math.max(0, t - pay);
+      adjustStat("money", -pay);
+
+      if (loanAmt > 0) {
+        const ratio = loanAmt / t;
+        const debtPart = Math.max(0, Math.round(ratio * fullDebtBump));
+        os.studyLoanDebtStatContribution = debtPart;
+        adjustStat("debt", debtPart);
+        adjustStat("stress", Math.max(0, Math.round(ratio * fullStress)));
+        addGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+        financeExtraFromLoan = ratio * fullFinPressure;
+        budgetLoanNote = "贷款后极度节省";
+        os.studyLoanActive = true;
+        os.studyLoanBalance = loanAmt;
+        os.fundingMode = "cash_split_loan";
+        addHistory(
+          "出国费用共 " +
+            t +
+            "：你先用手头 " +
+            pay +
+            " 顶上，剩余 " +
+            loanAmt +
+            " 记作留学贷款，之后账本会一直提醒你。"
+        );
+      } else {
+        os.studyLoanActive = false;
+        os.studyLoanBalance = 0;
+        os.studyLoanDebtStatContribution = 0;
+        os.fundingMode = "cash_edge_no_loan";
+        removeGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+        addHistory("你用当前积蓄刚好盖住了出国首期，没有额外贷款。");
+      }
     }
-    if (meetsStudyLoanEligibility(state)) {
-      return { ok: true, mode: "loan" };
+
+    return { financeExtraFromLoan, budgetLoanNote };
+  }
+
+  function computeTeenVirtueScore(relationship) {
+    const def = relationshipDefinitionMap.get(relationship.id);
+    const rp = def && def.romanceProfile ? def.romanceProfile : {};
+    const lt = typeof rp.longTermPotential === "number" ? rp.longTermPotential : 55;
+    const vol = typeof rp.volatility === "number" ? rp.volatility : 45;
+    return Math.max(8, Math.min(92, lt * 0.55 + (100 - vol) * 0.45));
+  }
+
+  function pickProfileBucketForBio(relationship, age) {
+    const a = typeof age === "number" ? age : 0;
+    if (relationship.status === "married" && a >= 24) {
+      return "married";
     }
-    return { ok: false, mode: null };
+    if (a >= 40) {
+      return "mature";
+    }
+    if (a >= 28) {
+      return "young_adult_deep";
+    }
+    if (a >= 22) {
+      return "work_early";
+    }
+    if (a >= 18) {
+      return "college";
+    }
+    if (a >= 14) {
+      return "highschool";
+    }
+    if (a >= 11) {
+      return "adolescence";
+    }
+    return "youth";
+  }
+
+  function resolveRelationshipDynamicBio(relationship, state) {
+    if (!relationship || !state) {
+      return { text: "", stageKey: "", arcLabel: "" };
+    }
+    const pool = lifeCharacterGrowth.characterStageProfiles || {};
+    const packs = pool[relationship.id] || pool._default || {};
+    const defPacks = lifeCharacterGrowth.defaultStageProfiles || {};
+    const bucket = pickProfileBucketForBio(relationship, state.age);
+    const byArc = packs.byArc && relationship.growthArcId ? packs.byArc[relationship.growthArcId] : null;
+    const raw =
+      (byArc && byArc[bucket]) ||
+      packs[bucket] ||
+      defPacks[bucket] ||
+      packs.college ||
+      relationship.identity ||
+      "";
+    const name = relationship.name || "TA";
+    const text = String(raw).replace(/\{name\}/g, name);
+    let arcLabel = "";
+    const pools = lifeCharacterGrowth.characterGrowthPools || {};
+    const gPool = pools[relationship.id] || pools._default;
+    if (relationship.growthArcId && gPool && Array.isArray(gPool.arcs)) {
+      const hit = gPool.arcs.find(function (x) {
+        return x && x.id === relationship.growthArcId;
+      });
+      if (hit && hit.label) {
+        arcLabel = hit.label;
+      }
+    }
+    return { text, stageKey: bucket, arcLabel };
+  }
+
+  function resolvePrimaryGrowthArcIfNeeded(relationship) {
+    if (!relationship || !relationship.met) {
+      return;
+    }
+    if (relationship.growthArcId) {
+      return;
+    }
+    if (!Array.isArray(relationship.growthResolvedStages)) {
+      relationship.growthResolvedStages = [];
+    }
+    if (relationship.growthResolvedStages.includes("primary_arc")) {
+      return;
+    }
+    const pools = lifeCharacterGrowth.characterGrowthPools || {};
+    const pool = pools[relationship.id] || pools._default;
+    if (!pool || !Array.isArray(pool.arcs) || !pool.arcs.length) {
+      return;
+    }
+    const rollAge = typeof pool.rollAge === "number" ? pool.rollAge : 17;
+    if ((gameState.age || 0) < rollAge) {
+      return;
+    }
+    const virtue = computeTeenVirtueScore(relationship) / 100;
+    const weights = pool.arcs.map(function (arc) {
+      const vb = typeof arc.virtueBias === "number" ? arc.virtueBias : 1;
+      const vc = typeof arc.viceBias === "number" ? arc.viceBias : 1;
+      const base = typeof arc.weight === "number" ? arc.weight : 1;
+      return Math.max(0.05, base * (virtue * vb + (1 - virtue) * vc));
+    });
+    const total = weights.reduce(function (s, w) {
+      return s + w;
+    }, 0);
+    let roll = Math.random() * total;
+    let chosen = pool.arcs[pool.arcs.length - 1];
+    for (let i = 0; i < pool.arcs.length; i++) {
+      roll -= weights[i];
+      if (roll <= 0) {
+        chosen = pool.arcs[i];
+        break;
+      }
+    }
+    relationship.growthArcId = chosen && chosen.id ? chosen.id : "warm_stable";
+    relationship.growthResolvedStages.push("primary_arc");
+    if (!relationship.growthModifiers || typeof relationship.growthModifiers !== "object") {
+      relationship.growthModifiers = {};
+    }
+    const mods = chosen && chosen.modifiers && typeof chosen.modifiers === "object" ? chosen.modifiers : {};
+    Object.keys(mods).forEach(function (k) {
+      const v = mods[k];
+      if (typeof v === "number") {
+        relationship.growthModifiers[k] = (relationship.growthModifiers[k] || 0) + v;
+      }
+    });
+    normalizeStringArray(chosen && chosen.addArcFlags).forEach(function (f) {
+      if (f && !relationship.flags.includes(f)) {
+        relationship.flags.push(f);
+      }
+    });
+    addHistory(
+      (relationship.name || "对方") + "的成长慢慢显出走向：" + ((chosen && chosen.label) || relationship.growthArcId) + "。"
+    );
+  }
+
+  function runRelationshipGrowthHooks(ageBefore, ageAfter) {
+    if (ageAfter <= ageBefore) {
+      return;
+    }
+    Object.values(gameState.relationships || {}).forEach(function (rel) {
+      if (!rel || !rel.met) {
+        return;
+      }
+      resolvePrimaryGrowthArcIfNeeded(rel);
+    });
   }
 
   function isPartnerStatus(status) {
@@ -771,6 +989,31 @@
     relationship.affection = clampAffection(Math.round(((relationship.affection || 0) + derived) / 2));
   }
 
+  function notePartnerSinceAge(relationship) {
+    if (!relationship) {
+      return;
+    }
+    const track = [
+      "dating",
+      "passionate",
+      "steady",
+      "long_distance_dating",
+      "conflict",
+      "cooling",
+      "married",
+      "hidden_double_track",
+      "exposed_double_track",
+      "rebuilding_distance",
+      "distance_cooling"
+    ];
+    if (
+      track.includes(relationship.status) &&
+      (relationship.partnerSinceAge === null || relationship.partnerSinceAge === undefined)
+    ) {
+      relationship.partnerSinceAge = gameState.age;
+    }
+  }
+
   function inferRelationshipStatus(relationship) {
     if (!relationship) {
       return;
@@ -781,21 +1024,37 @@
       return;
     }
 
-    if ((relationship.commitment || 0) >= 78 && (relationship.trust || 0) >= 72 && (relationship.affection || 0) >= 70) {
+    if (relationship.status === "married") {
+      syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
+      return;
+    }
+
+    const gm = relationship.growthModifiers || {};
+    const relax = Math.min(10, ((gm.stability || 0) + (gm.warmth || 0) * 0.5) * 0.07);
+
+    if (
+      (relationship.commitment || 0) >= 78 - relax &&
+      (relationship.trust || 0) >= 72 - relax * 0.45 &&
+      (relationship.affection || 0) >= 70 - relax * 0.45
+    ) {
       relationship.status = "steady";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 60) {
       relationship.status = "conflict";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.commitment || 0) >= 48 && (relationship.tension || 0) >= 38) {
       relationship.status = "cooling";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
@@ -806,6 +1065,7 @@
     ) {
       relationship.status = (relationship.tension || 0) >= 34 ? "dating" : "passionate";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
@@ -816,6 +1076,7 @@
     ) {
       relationship.status = "ambiguous";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
@@ -826,30 +1087,35 @@
     ) {
       relationship.status = "mutual_crush";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.familiarity || 0) >= 45 && (relationship.trust || 0) >= 36) {
       relationship.status = "close";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.familiarity || 0) >= 20 || (relationship.trust || 0) >= 18) {
       relationship.status = "familiar";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.theirInterest || 0) >= 20 && (relationship.playerInterest || 0) < 18) {
       relationship.status = "noticed_by_them";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
     if ((relationship.playerInterest || 0) >= 18 || (relationship.theirInterest || 0) >= 18) {
       relationship.status = "crush";
       syncRelationshipStage(relationship);
+      notePartnerSinceAge(relationship);
       return;
     }
 
@@ -857,6 +1123,7 @@
       relationship.status = "noticed";
     }
     syncRelationshipStage(relationship);
+    notePartnerSinceAge(relationship);
   }
 
   function syncRelationshipStage(relationship) {
@@ -982,6 +1249,14 @@
         addChange("career", -1);
         addChange("happiness", 1);
       }
+
+      const br = (currentPartner.growthModifiers || {}).breakupRisk || 0;
+      if (br >= 10) {
+        addChange("stress", 1);
+      }
+      if (br >= 16) {
+        addChange("happiness", -1);
+      }
     }
 
     Object.entries(derivedChanges).forEach(([key, delta]) => {
@@ -1053,6 +1328,11 @@
             : 0,
         interactionCount: 0,
         lastInteractionAge: null,
+        partnerSinceAge: null,
+        marriedSinceAge: null,
+        growthArcId: "",
+        growthModifiers: {},
+        growthResolvedStages: [],
         met: false,
         flags: [],
         sharedHistory: [],
@@ -1078,6 +1358,21 @@
       relationship.romanceProfile && typeof relationship.romanceProfile === "object" ? relationship.romanceProfile : {};
     relationship.exclusiveEvents = normalizeStringArray(relationship.exclusiveEvents);
     relationship.sharedHistory = normalizeStringArray(relationship.sharedHistory);
+    if (!("partnerSinceAge" in relationship)) {
+      relationship.partnerSinceAge = null;
+    }
+    if (!("marriedSinceAge" in relationship)) {
+      relationship.marriedSinceAge = null;
+    }
+    if (typeof relationship.growthArcId !== "string") {
+      relationship.growthArcId = "";
+    }
+    if (!relationship.growthModifiers || typeof relationship.growthModifiers !== "object") {
+      relationship.growthModifiers = {};
+    }
+    if (!Array.isArray(relationship.growthResolvedStages)) {
+      relationship.growthResolvedStages = [];
+    }
     syncRelationshipStage(relationship);
 
     return relationship;
@@ -1224,8 +1519,9 @@
       overseasMentorSummary: mentorNames.length ? mentorNames.join("、") : "你还没有遇到真正愿意托你一把的导师型人物",
       studyLoanSummary: (() => {
         const os = gameState.overseas || {};
-        if (os.studyLoanActive) {
-          return "你背着留学贷款，海外账本比同龄人更紧，每一笔开销都像在跟未来对账。";
+        const bal = typeof os.studyLoanBalance === "number" ? os.studyLoanBalance : 0;
+        if (os.studyLoanActive && bal > 0) {
+          return "你背着留学贷款（当前余额约 " + bal + "），海外账本比同龄人更紧，每一笔开销都像在跟未来对账。";
         }
         if (gameState.flags.includes("overseas_paid_cash_tuition")) {
           return "出国首期是用真金白银砸出去的，至少不欠银行那一头。";
@@ -1397,6 +1693,10 @@
       studyLoanActive: Boolean(gameState.overseas.studyLoanActive),
       studyLoanBalance:
         typeof gameState.overseas.studyLoanBalance === "number" ? gameState.overseas.studyLoanBalance : 0,
+      studyLoanDebtStatContribution:
+        typeof gameState.overseas.studyLoanDebtStatContribution === "number"
+          ? gameState.overseas.studyLoanDebtStatContribution
+          : 0,
       fundingMode: typeof gameState.overseas.fundingMode === "string" ? gameState.overseas.fundingMode : ""
     });
 
@@ -1674,6 +1974,7 @@
     relationship.met = true;
     relationship.status = status;
     syncRelationshipStage(relationship);
+    notePartnerSinceAge(relationship);
 
     if (historyText) {
       addRelationshipHistory(relationshipId, historyText);
@@ -2117,7 +2418,7 @@
       return [];
     }
 
-    const funding = resolveOverseasFunding(gameState);
+    const funding = resolveOverseasFunding();
     const routeChoices = event.choices.filter((choice) => {
       return (
         choice &&
@@ -2571,10 +2872,17 @@
       }
       addGameFlags(["overseas_blocked_finance"]);
       const os = ensureOverseasState();
+      const debtContrib = typeof os.studyLoanDebtStatContribution === "number" ? os.studyLoanDebtStatContribution : 0;
+      if (debtContrib > 0) {
+        const debtNow = gameState.stats.debt || 0;
+        adjustStat("debt", -Math.min(debtContrib, debtNow));
+      }
       os.active = false;
       os.studyLoanActive = false;
       os.studyLoanBalance = 0;
+      os.studyLoanDebtStatContribution = 0;
       os.fundingMode = "";
+      removeGameFlags(["overseas_study_loan", "study_abroad_debt"]);
       addHistory(
         typeof data.log === "string" && data.log
           ? data.log
@@ -2584,43 +2892,9 @@
     }
 
     if (action === "start_overseas_route") {
-      const funding = resolveOverseasFunding(gameState);
-      let financeExtraFromLoan = 0;
-      let budgetLoanNote = "";
-
-      if (!funding.ok) {
-        addHistory("你想出国，但手里的现金接不住首期开销，贷款条件也凑不齐。现实先把这扇门按住了。");
-        return;
-      }
-
-      const loanCfg = lifeOverseasFinance.loanConfig || {};
       const costCfg = lifeOverseasFinance.overseasCostConfig || {};
       const tuition = typeof costCfg.tuitionCost === "number" ? costCfg.tuitionCost : 30;
-
-      if (funding.mode === "cash") {
-        adjustStat("money", -tuition);
-        addGameFlags(["overseas_paid_cash_tuition"]);
-        const os = ensureOverseasState();
-        os.studyLoanActive = false;
-        os.studyLoanBalance = 0;
-        os.fundingMode = "cash";
-        addHistory("你用家里的积蓄和自己攒下的钱，先砸出一笔实打实的出国首期开销。");
-      } else if (funding.mode === "loan") {
-        const loanAmt = typeof loanCfg.loanAmount === "number" ? loanCfg.loanAmount : 30;
-        const debtAdd = typeof loanCfg.addDebtStat === "number" ? loanCfg.addDebtStat : loanAmt;
-        adjustStat("debt", debtAdd);
-        adjustStat("stress", typeof loanCfg.addStress === "number" ? loanCfg.addStress : 4);
-        addGameFlags(["overseas_study_loan", "study_abroad_debt"]);
-        financeExtraFromLoan = typeof loanCfg.financePressureBonus === "number" ? loanCfg.financePressureBonus : 28;
-        budgetLoanNote = "贷款后极度节省";
-        const os = ensureOverseasState();
-        os.studyLoanActive = true;
-        os.studyLoanBalance = loanAmt;
-        os.fundingMode = "loan";
-        addHistory(
-          "现金不够一次性押出去，你只能签下留学贷款。之后在国外，每一笔消费都会带着还款的回音。"
-        );
-      }
+      const { financeExtraFromLoan, budgetLoanNote } = applyStudyAbroadFunding(tuition);
 
       const overseasState = ensureOverseasState();
       gameState.lifePath = "overseas";
@@ -2685,7 +2959,7 @@
       } else if (overseasState.routeId === "overseas_art_path") {
         addUniqueItems(overseasState.branchFocuses, ["social", "romance"]);
       }
-      if (funding.mode === "loan") {
+      if (overseasState.studyLoanActive && (overseasState.studyLoanBalance || 0) > 0) {
         addUniqueItems(overseasState.branchFocuses, ["survival"]);
       }
       if (typeof data.routeId === "string" && data.routeId) {
@@ -2791,6 +3065,61 @@
       if (data.clearFlag !== false) {
         removeGameFlags(["overseas_double_track"]);
       }
+      return;
+    }
+
+    if (action === "marriage_commit") {
+      const activeId = gameState.activeRelationshipId ? String(gameState.activeRelationshipId).trim() : "";
+      if (!activeId) {
+        addHistory("你想推进到婚姻，但当下并没有一段被标记为「主要」的关系。");
+        return;
+      }
+      const partner = getRelationshipRecord(gameState, activeId);
+      const allowed = normalizeStringArray(lifeMarriageConfig.allowedStatuses || []);
+      if (!partner || !allowed.includes(partner.status)) {
+        addHistory("你们的状态还不到能把婚约说实的那一步。");
+        return;
+      }
+
+      const cost = typeof data.moneyCost === "number" ? data.moneyCost : 0;
+      if (cost > 0) {
+        const have = gameState.stats.money || 0;
+        const pay = Math.min(cost, have);
+        if (pay > 0) {
+          adjustStat("money", -pay);
+        }
+      }
+
+      if (typeof data.happiness === "number") {
+        adjustStat("happiness", data.happiness);
+      }
+      if (typeof data.stress === "number") {
+        adjustStat("stress", data.stress);
+      }
+
+      normalizeStringArray(data.addFlags).forEach((f) => {
+        if (f && !gameState.flags.includes(f)) {
+          gameState.flags.push(f);
+        }
+      });
+
+      const spanNeed =
+        typeof lifeMarriageConfig.minPartnerAgeSpan === "number" ? lifeMarriageConfig.minPartnerAgeSpan : 2;
+      if (partner.partnerSinceAge === null || partner.partnerSinceAge === undefined) {
+        partner.partnerSinceAge = Math.max(0, gameState.age - spanNeed);
+      }
+
+      partner.marriedSinceAge = gameState.age;
+      setRelationshipStatus(
+        activeId,
+        "married",
+        typeof data.partnerHistory === "string" && data.partnerHistory
+          ? data.partnerHistory
+          : "你们把关系写进更长的条款里：婚礼或许简单，但承诺是认真的。"
+      );
+      syncRelationshipStage(partner);
+      inferRelationshipStatus(partner);
+      addHistory("你们进入了婚姻：生活从「我」默认要改成「我们」。");
       return;
     }
   }
@@ -2949,6 +3278,7 @@
       typeof rule.activeRelationshipMinCommitment === "number" ||
       typeof rule.activeRelationshipMinContinuity === "number" ||
       typeof rule.activeRelationshipMinInteractionCount === "number" ||
+      typeof rule.activeRelationshipMinPartnerAgeSpan === "number" ||
       rule.requiredActiveRelationshipFlags.length ||
       rule.excludedActiveRelationshipFlags.length ||
       rule.activeRelationshipRequiredSharedHistory.length ||
@@ -3011,11 +3341,16 @@
         return false;
       }
 
-      if (
-        typeof rule.activeRelationshipMinCommitment === "number" &&
-        (activeRelationship.commitment || 0) < rule.activeRelationshipMinCommitment
-      ) {
-        return false;
+      if (typeof rule.activeRelationshipMinCommitment === "number") {
+        const ease = (activeRelationship.growthModifiers || {}).marriageEase || 0;
+        const factor =
+          typeof lifeMarriageConfig.commitmentEaseFactor === "number"
+            ? lifeMarriageConfig.commitmentEaseFactor
+            : 0.35;
+        const need = Math.max(30, rule.activeRelationshipMinCommitment - ease * factor);
+        if ((activeRelationship.commitment || 0) < need) {
+          return false;
+        }
       }
 
       if (
@@ -3030,6 +3365,17 @@
         (activeRelationship.interactionCount || 0) < rule.activeRelationshipMinInteractionCount
       ) {
         return false;
+      }
+
+      if (
+        typeof rule.activeRelationshipMinPartnerAgeSpan === "number" &&
+        rule.activeRelationshipMinPartnerAgeSpan > 0
+      ) {
+        const started =
+          typeof activeRelationship.partnerSinceAge === "number" ? activeRelationship.partnerSinceAge : null;
+        if (started === null || state.age - started < rule.activeRelationshipMinPartnerAgeSpan) {
+          return false;
+        }
       }
 
       if (
@@ -3559,6 +3905,7 @@
     }
 
     const settings = options || {};
+    const ageBeforeMutation = gameState.age;
     const effects = block.effects || {};
 
     if (!settings.skipAge && typeof effects.age === "number") {
@@ -3627,6 +3974,9 @@
     if (!settings.skipStatLinks) {
       applyDerivedStatLinks();
     }
+
+    autoRepayStudyLoan();
+    runRelationshipGrowthHooks(ageBeforeMutation, gameState.age);
   }
 
   function calculateEndingWeight(ending, state) {
@@ -3746,6 +4096,7 @@
       typeof rule.activeRelationshipMinCommitment === "number" ||
       typeof rule.activeRelationshipMinContinuity === "number" ||
       typeof rule.activeRelationshipMinInteractionCount === "number" ||
+      typeof rule.activeRelationshipMinPartnerAgeSpan === "number" ||
       (Array.isArray(rule.requiredActiveRelationshipFlags) && rule.requiredActiveRelationshipFlags.length > 0) ||
       (Array.isArray(rule.excludedActiveRelationshipFlags) && rule.excludedActiveRelationshipFlags.length > 0) ||
       (Array.isArray(rule.activeRelationshipRequiredSharedHistory) && rule.activeRelationshipRequiredSharedHistory.length > 0) ||
@@ -4790,6 +5141,14 @@
     return getState();
   }
 
+  function getRelationshipDynamicBio(state, relationshipId) {
+    const rel = getRelationshipSnapshot(state, relationshipId);
+    if (!rel) {
+      return { text: "", stageKey: "", arcLabel: "" };
+    }
+    return resolveRelationshipDynamicBio(rel, state);
+  }
+
   window.LifeGameEngine = {
     getState,
     getCurrentEvent,
@@ -4807,6 +5166,7 @@
     canPurchaseShopItem,
     purchaseShopItem,
     canGiveGiftFromInventory,
-    giveGiftFromInventory
+    giveGiftFromInventory,
+    getRelationshipDynamicBio
   };
 })();

@@ -11,32 +11,36 @@
    * - educationToCareerHints：文档式映射说明（真正门槛在 routes.js 的 conditions 里维护）
    */
 
+  /**
+   * 留学费用（与 js/engine.js 中 applyStudyAbroadCost / autoRepayStudyLoan 一致）
+   * - tuitionCost：出国一次性总费用（游戏内单位，与财富同刻度）
+   * - cashFullPayThreshold：财富 **严格大于** 此值时，直接扣 tuitionCost，不生成留学贷款
+   * - 财富 ≤ cashFullPayThreshold 时：用尽当前财富支付，不足部分记入 studyLoanBalance
+   */
   const overseasCostConfig = {
     tuitionCost: 30,
-    /** 可支配现金 ≥ 此值才允许「现款付首期留学开销」（会扣 tuitionCost） */
-    cashLiquidityMin: 46,
-    /** 每 5 点家庭支持，阈值 -1，最低不低于 absoluteCashFloor */
-    familySupportThresholdDiscountPer5: 1,
-    absoluteCashFloor: 34,
-    /** 富裕家庭标签：再额外降低门槛 */
-    wealthyHomeThresholdBonus: 8,
-    wealthyHomeFlags: ["resource_rich_home", "family_wealth_high", "privileged_home_finance"]
+    cashFullPayThreshold: 50
   };
 
+  /**
+   * 留学贷款对属性与海外压力的修正（贷款余额按比例缩放；全额贷款=以下数值）
+   */
   const loanConfig = {
-    loanAmount: 30,
-    /** 贷款入学后叠加在海外 financePressure 上 */
-    financePressureBonus: 28,
-    /** 额外压力与负债感 */
-    addStress: 4,
+    /** 全额贷款时写入 stats.debt 的增量（0–100 负债条） */
     addDebtStat: 30,
-    minIntelligence: 24,
-    minDiscipline: 18,
-    minFamilySupport: 20,
-    /** 满足任一标签时，家庭支持底线 -5 */
-    familySupportBypassFlags: ["mentor_support", "parental_support", "family_expectation_high"],
-    minFamilySupportWithBypass: 15
+    /** 全额贷款时额外压力 */
+    addStress: 4,
+    /** 全额贷款时叠加到海外 financePressure */
+    financePressureBonus: 28
   };
+
+  /** 自动还清留学贷款后随机择一写入人生日志（也可在引擎侧 fallback） */
+  const autoRepayLoanMessages = [
+    "终于还清了留学贷款，账本上的那一栏终于能合上。",
+    "手头第一次轻了一点——至少不用再每笔开销都听见还款的回声。",
+    "多年压在心里的留学债暂时卸下，你深吸了一口气。",
+    "你把留学欠的那笔一次性还掉，像把一段紧绷的日子对折收进抽屉。"
+  ];
 
   const childSystem = {
     minParentAge: 24,
@@ -458,7 +462,7 @@
         }),
         ch({
           text: "硬着头皮去参加一次高消费聚会，回来更焦虑。",
-          conditions: { excludedFlags: ["overseas_study_loan"] },
+          conditions: { excludedFlags: ["overseas_study_loan", "study_abroad_debt"] },
           effects: { stats: { social: 2, happiness: 1, money: -5, stress: 2 } }
         }),
         ch({
@@ -556,7 +560,8 @@
 
   window.LIFE_OVERSEAS_FINANCE = {
     overseasCostConfig,
-    loanConfig
+    loanConfig,
+    autoRepayLoanMessages
   };
   window.LIFE_SHOP_ITEMS = shopItems;
   window.LIFE_GIFT_EFFECTS = giftEffects;

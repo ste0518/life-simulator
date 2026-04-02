@@ -827,11 +827,14 @@
     }
 
     const overseas = (state && state.overseas) || {};
-    if (overseas.studyLoanActive) {
+    if (overseas.studyLoanActive || (typeof overseas.studyLoanBalance === "number" && overseas.studyLoanBalance > 0)) {
       const loan = document.createElement("p");
       loan.className = "loan-note";
+      const bal = typeof overseas.studyLoanBalance === "number" ? overseas.studyLoanBalance : 0;
       loan.textContent =
-        "留学贷款未结清（负债与海外压力已写入系统，会影响消费类选项与结局权重）。";
+        "留学贷款未结清（当前余额约 " +
+        bal +
+        "）。当财富严格大于贷款余额时会自动一次性还清。";
       wrap.appendChild(loan);
     }
 
@@ -891,6 +894,17 @@
       identity.textContent =
         (relationship.gender ? getGenderLabel(relationship.gender) + "生 · " : "") +
         (relationship.identity || "你们的关系还在慢慢形成。");
+
+      let stageBioNode = null;
+      const bioPack = engine.getRelationshipDynamicBio(state, relationship.id);
+      if (bioPack && bioPack.text) {
+        stageBioNode = document.createElement("p");
+        stageBioNode.className = "relationship-stage-bio";
+        stageBioNode.textContent =
+          "现阶段印象：" +
+          bioPack.text +
+          (bioPack.arcLabel ? "（成年走向倾向：" + bioPack.arcLabel + "）" : "");
+      }
 
       const traits = document.createElement("div");
       traits.className = "relationship-traits";
@@ -967,6 +981,9 @@
 
       card.appendChild(header);
       card.appendChild(identity);
+      if (stageBioNode) {
+        card.appendChild(stageBioNode);
+      }
       if (displayTags.length) {
         card.appendChild(traits);
       }
