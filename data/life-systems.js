@@ -20,7 +20,7 @@
     absoluteCashFloor: 34,
     /** 富裕家庭标签：再额外降低门槛 */
     wealthyHomeThresholdBonus: 8,
-    wealthyHomeFlags: ["resource_rich_home", "family_wealth_high"]
+    wealthyHomeFlags: ["resource_rich_home", "family_wealth_high", "privileged_home_finance"]
   };
 
   const loanConfig = {

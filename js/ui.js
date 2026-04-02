@@ -265,6 +265,69 @@
       card.appendChild(detailList);
     }
 
+    const meta = state.familyBackground.meta;
+    if (meta && (meta.advantages.length || meta.costs.length || Object.keys(meta.longTermBias || {}).length)) {
+      const metaWrap = document.createElement("div");
+      metaWrap.className = "background-meta";
+
+      if (meta.advantages.length) {
+        const sub = document.createElement("div");
+        sub.className = "background-meta-block";
+        const h = document.createElement("div");
+        h.className = "background-meta-label";
+        h.textContent = "优势";
+        sub.appendChild(h);
+        const ul = document.createElement("ul");
+        ul.className = "background-meta-list";
+        meta.advantages.forEach((line) => {
+          const li = document.createElement("li");
+          li.textContent = line;
+          ul.appendChild(li);
+        });
+        sub.appendChild(ul);
+        metaWrap.appendChild(sub);
+      }
+
+      if (meta.costs.length) {
+        const sub = document.createElement("div");
+        sub.className = "background-meta-block";
+        const h = document.createElement("div");
+        h.className = "background-meta-label";
+        h.textContent = "代价与张力";
+        sub.appendChild(h);
+        const ul = document.createElement("ul");
+        ul.className = "background-meta-list";
+        meta.costs.forEach((line) => {
+          const li = document.createElement("li");
+          li.textContent = line;
+          ul.appendChild(li);
+        });
+        sub.appendChild(ul);
+        metaWrap.appendChild(sub);
+      }
+
+      const bias = meta.longTermBias && typeof meta.longTermBias === "object" ? meta.longTermBias : {};
+      const biasLabels = { romance: "恋爱", education: "升学", career: "工作", endings: "结局倾向" };
+      Object.entries(bias).forEach(([key, text]) => {
+        if (!text || typeof text !== "string") {
+          return;
+        }
+        const sub = document.createElement("div");
+        sub.className = "background-meta-block background-meta-bias";
+        const h = document.createElement("div");
+        h.className = "background-meta-label";
+        h.textContent = biasLabels[key] || key;
+        sub.appendChild(h);
+        const p = document.createElement("p");
+        p.className = "background-meta-text";
+        p.textContent = text;
+        sub.appendChild(p);
+        metaWrap.appendChild(sub);
+      });
+
+      card.appendChild(metaWrap);
+    }
+
     elements.familyBackgroundContainer.appendChild(card);
   }
 

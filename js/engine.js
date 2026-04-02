@@ -480,6 +480,17 @@
     };
   }
 
+  function normalizeFamilyMeta(source) {
+    const raw = source && typeof source === "object" ? source : {};
+    const bias = raw.longTermBias && typeof raw.longTermBias === "object" ? raw.longTermBias : {};
+    return {
+      tier: typeof raw.tier === "string" ? raw.tier : "",
+      advantages: normalizeStringArray(raw.advantages),
+      costs: normalizeStringArray(raw.costs),
+      longTermBias: { ...bias }
+    };
+  }
+
   function normalizeFamilyBackgroundObject(background, index) {
     const source = background && typeof background === "object" ? background : {};
     const fallbackId = "family_background_" + String(index + 1);
@@ -492,6 +503,8 @@
       details: normalizeStringArray(source.details),
       dimensions: normalizeStringMap(source.dimensions),
       weight: typeof source.weight === "number" ? source.weight : 1,
+      storyHookTags: normalizeStringArray(source.storyHookTags),
+      meta: normalizeFamilyMeta(source.meta),
       apply: normalizeMutationBlock(source.apply)
     };
   }
@@ -586,6 +599,7 @@
       ? source.choices.map((choice) => normalizeChoiceObject(choice, normalizedEvent))
       : [];
     normalizedEvent.deferEnterAge = shouldDelayEnterAge(normalizedEvent.effectsOnEnter, normalizedEvent.choices);
+    normalizedEvent.familyStoryHookTags = normalizeStringArray(source.familyStoryHookTags);
 
     return normalizedEvent;
   }
@@ -3300,7 +3314,17 @@
       summary: background.summary,
       description: background.description,
       details: background.details.slice(),
-      dimensions: { ...background.dimensions }
+      dimensions: { ...background.dimensions },
+      storyHookTags: (background.storyHookTags || []).slice(),
+      meta: {
+        tier: background.meta && background.meta.tier ? background.meta.tier : "",
+        advantages: background.meta && background.meta.advantages ? background.meta.advantages.slice() : [],
+        costs: background.meta && background.meta.costs ? background.meta.costs.slice() : [],
+        longTermBias:
+          background.meta && background.meta.longTermBias && typeof background.meta.longTermBias === "object"
+            ? { ...background.meta.longTermBias }
+            : {}
+      }
     };
     if (!settings.keepSetupStep) {
       gameState.setupStep = null;
@@ -3886,6 +3910,20 @@
       weight += 4;
     }
 
+    if (
+      Array.isArray(event.familyStoryHookTags) &&
+      event.familyStoryHookTags.length &&
+      currentState.familyBackground &&
+      Array.isArray(currentState.familyBackground.storyHookTags) &&
+      currentState.familyBackground.storyHookTags.length
+    ) {
+      const bgHooks = currentState.familyBackground.storyHookTags;
+      const overlap = event.familyStoryHookTags.filter((tag) => bgHooks.includes(tag));
+      if (overlap.length) {
+        weight += Math.min(14, overlap.length * 4);
+      }
+    }
+
     if (Array.isArray(event.tags) && event.tags.length) {
       const matchedTags = event.tags.filter((tag) => currentState.tags.includes(tag));
       weight += Math.min(6, matchedTags.length * 2);
@@ -4087,6 +4125,42 @@
 
       if (hasFlags(["migrant_home"])) {
         return backgroundIntro + " 你从小对“缺席”就不陌生，这让你比不少人更会独自扛事，也更难轻易示弱。";
+      }
+
+      if (hasFlags(["archetype_second_gen"])) {
+        return backgroundIntro + " 资源从来不缺，但“你自己想要什么”却常常要让位于安排、比较和继承期待。";
+      }
+
+      if (hasFlags(["archetype_power_network"])) {
+        return backgroundIntro + " 你更早学会分寸、场面与后果：家里给你的力很强，给你的任性却很少。";
+      }
+
+      if (hasFlags(["archetype_old_money"])) {
+        return backgroundIntro + " 体面与门槛像空气一样自然，你拥有平台，也背负名分与门当户对的沉默规则。";
+      }
+
+      if (hasFlags(["archetype_overseas_resource"])) {
+        return backgroundIntro + " 地图与护照很早就叠进日常，你在更宽的选项里长大，也在“属于哪里”的问题上更早迷路。";
+      }
+
+      if (hasFlags(["archetype_intellectual_elite"])) {
+        return backgroundIntro + " 你被期待优秀得很具体：排名、校友与贡献感，常常比疲惫更先被写进日程。";
+      }
+
+      if (hasFlags(["archetype_nouveau_riche"])) {
+        return backgroundIntro + " 生活换档很快，规则却慢半拍：阔气是真的，怕被看不起的恐惧也同样真实。";
+      }
+
+      if (hasFlags(["archetype_family_enterprise"])) {
+        return backgroundIntro + " 钱与人情在餐桌上一起被算账，你更早懂机会，也更早懂利益怎样改写亲密。";
+      }
+
+      if (hasFlags(["archetype_merchant_volatile"])) {
+        return backgroundIntro + " 宽裕与吃紧交替上场，你对风险和侥幸的嗅觉，比许多同龄人更早被训练出来。";
+      }
+
+      if (hasFlags(["privileged_home_finance"])) {
+        return backgroundIntro + " 起点更阔，并不意味着更自由：资源常常和期待、面子与隐形契约绑在一起。";
       }
     }
 
