@@ -64,6 +64,12 @@
           <div id="inventory-container"></div>
         </section>
 
+        <section class="panel shop-entry-panel">
+          <h2>商店</h2>
+          <p id="shop-hint" class="muted shop-hint">开局并完成家庭背景后，16–55 岁可随时在此购物（与随机事件「街边购物」商品一致）。</p>
+          <button type="button" id="shop-open-btn" class="ghost-button shop-open-button">进入商店</button>
+        </section>
+
         <section class="panel">
           <h2>家庭与子女</h2>
           <div id="family-life-container"></div>
@@ -75,6 +81,18 @@
         </section>
       </aside>
     </main>
+  </div>
+
+  <div id="shop-modal" class="shop-modal" hidden>
+    <div class="shop-modal-backdrop" id="shop-modal-backdrop" aria-hidden="true"></div>
+    <div class="shop-modal-card panel" role="dialog" aria-modal="true" aria-labelledby="shop-modal-title">
+      <div class="shop-modal-head">
+        <h2 id="shop-modal-title">商店</h2>
+        <button type="button" id="shop-modal-close" class="ghost-button shop-modal-close" aria-label="关闭商店">关闭</button>
+      </div>
+      <p class="muted shop-modal-intro">每件商品下方为购买后的属性变化说明；标有「可送人」的会进入物品栏，可在关系合适时送给当前选中对象。</p>
+      <div id="shop-items-container" class="shop-items-container"></div>
+    </div>
   </div>
 
   <script defer src="data/relationships.js"></script>

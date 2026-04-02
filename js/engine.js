@@ -4536,6 +4536,88 @@
     return getState();
   }
 
+  /** 与 data/life-systems.js 中 life_shop_street 一致 */
+  const MANUAL_SHOP_MIN_AGE = 16;
+  const MANUAL_SHOP_MAX_AGE = 55;
+
+  /** 与 life_gift_moment 的 activeRelationshipStatuses 一致 */
+  const MANUAL_GIFT_ALLOWED_STATUSES = [
+    "ambiguous",
+    "close",
+    "dating",
+    "passionate",
+    "steady",
+    "mutual_crush",
+    "long_distance_dating"
+  ];
+
+  function canPurchaseShopItem(itemId) {
+    const id = typeof itemId === "string" ? itemId.trim() : "";
+    if (
+      !id ||
+      !gameState.gameStarted ||
+      gameState.gameOver ||
+      gameState.setupStep ||
+      gameState.age < MANUAL_SHOP_MIN_AGE ||
+      gameState.age > MANUAL_SHOP_MAX_AGE
+    ) {
+      return false;
+    }
+    const item = shopItemMap.get(id);
+    if (!item) {
+      return false;
+    }
+    const price = typeof item.price === "number" ? item.price : 0;
+    return (gameState.stats.money || 0) >= price;
+  }
+
+  function purchaseShopItem(itemId) {
+    const id = typeof itemId === "string" ? itemId.trim() : "";
+    if (!canPurchaseShopItem(id)) {
+      return getState();
+    }
+    applyMutationBlock({
+      customAction: "shop_purchase",
+      customPayload: { itemId: id }
+    });
+    return getState();
+  }
+
+  function canGiveGiftFromInventory(itemId) {
+    const id = typeof itemId === "string" ? itemId.trim() : "";
+    if (
+      !id ||
+      !gameState.gameStarted ||
+      gameState.gameOver ||
+      gameState.setupStep ||
+      gameState.age < 16 ||
+      getInventoryItemCount(gameState, id) < 1
+    ) {
+      return false;
+    }
+    const activeId = gameState.activeRelationshipId || "";
+    if (!activeId) {
+      return false;
+    }
+    const relationship = getRelationshipRecord(gameState, activeId);
+    if (!relationship || !MANUAL_GIFT_ALLOWED_STATUSES.includes(relationship.status)) {
+      return false;
+    }
+    return Boolean(lifeGiftEffects[id]);
+  }
+
+  function giveGiftFromInventory(itemId) {
+    const id = typeof itemId === "string" ? itemId.trim() : "";
+    if (!canGiveGiftFromInventory(id)) {
+      return getState();
+    }
+    applyMutationBlock({
+      customAction: "give_relationship_gift",
+      customPayload: { itemId: id, targetId: "$active" }
+    });
+    return getState();
+  }
+
   window.LifeGameEngine = {
     getState,
     getCurrentEvent,
@@ -4549,6 +4631,10 @@
     matchesRequirement: matchesConditions,
     hasFlags,
     setActiveRelationship,
-    clearActiveRelationship
+    clearActiveRelationship,
+    canPurchaseShopItem,
+    purchaseShopItem,
+    canGiveGiftFromInventory,
+    giveGiftFromInventory
   };
 })();

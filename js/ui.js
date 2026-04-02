@@ -25,6 +25,12 @@
     elements.familyLifeContainer = document.getElementById("family-life-container");
     elements.storySection = document.getElementById("story-section");
     elements.restartButton = document.getElementById("restart-btn");
+    elements.shopOpenBtn = document.getElementById("shop-open-btn");
+    elements.shopHint = document.getElementById("shop-hint");
+    elements.shopModal = document.getElementById("shop-modal");
+    elements.shopModalBackdrop = document.getElementById("shop-modal-backdrop");
+    elements.shopModalClose = document.getElementById("shop-modal-close");
+    elements.shopItemsContainer = document.getElementById("shop-items-container");
   }
 
   function createParagraphs(container, text) {
@@ -522,6 +528,150 @@
     });
   }
 
+  function getGiftItemIdsFromCatalog() {
+    const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
+    const ids = new Set();
+    shopItems.forEach((item) => {
+      if (item && item.grantInventory && typeof item.grantInventory.itemId === "string") {
+        ids.add(item.grantInventory.itemId);
+      }
+    });
+    return ids;
+  }
+
+  function describeShopPurchaseEffects(item) {
+    const lines = [];
+    const price = typeof item.price === "number" ? item.price : 0;
+    lines.push("需支付：" + price + " " + stateApi.STAT_LABELS.money);
+
+    const stats = item.effects && item.effects.stats ? item.effects.stats : {};
+    Object.entries(stats).forEach(([key, delta]) => {
+      if (typeof delta !== "number" || delta === 0) {
+        return;
+      }
+      const label = stateApi.STAT_LABELS[key] || key;
+      const sign = delta > 0 ? "+" : "";
+      lines.push(label + " " + sign + delta);
+    });
+
+    if (item.grantInventory && typeof item.grantInventory.itemId === "string") {
+      const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
+      const meta = shopItems.find((row) => row && row.id === item.id);
+      const giftName = (meta && meta.name) || item.grantInventory.itemId;
+      lines.push("获得「" + giftName + "」进入物品栏（可送给当前选中对象）");
+    }
+
+    return lines;
+  }
+
+  function isShopAvailableForState(state) {
+    return Boolean(
+      state &&
+        state.gameStarted &&
+        !state.gameOver &&
+        !state.setupStep &&
+        state.age >= 16 &&
+        state.age <= 55
+    );
+  }
+
+  function setShopModalOpen(open) {
+    if (!elements.shopModal) {
+      return;
+    }
+    if (open) {
+      elements.shopModal.removeAttribute("hidden");
+      document.body.style.overflow = "hidden";
+    } else {
+      elements.shopModal.setAttribute("hidden", "");
+      document.body.style.overflow = "";
+    }
+  }
+
+  function populateShopItems(state) {
+    if (!elements.shopItemsContainer) {
+      return;
+    }
+    elements.shopItemsContainer.innerHTML = "";
+    const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
+    const canUse = isShopAvailableForState(state);
+
+    shopItems.forEach((item) => {
+      if (!item || !item.id) {
+        return;
+      }
+
+      const card = document.createElement("article");
+      card.className = "shop-item-card";
+
+      const top = document.createElement("div");
+      top.className = "shop-item-top";
+
+      const name = document.createElement("h3");
+      name.className = "shop-item-name";
+      name.textContent = item.name || item.id;
+
+      const cat = document.createElement("span");
+      cat.className = "shop-item-category";
+      cat.textContent = item.category || "商品";
+
+      top.appendChild(name);
+      top.appendChild(cat);
+      card.appendChild(top);
+
+      const ul = document.createElement("ul");
+      ul.className = "shop-item-effects";
+      describeShopPurchaseEffects(item).forEach((line) => {
+        const li = document.createElement("li");
+        li.textContent = line;
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+
+      const buy = document.createElement("button");
+      buy.type = "button";
+      buy.className = "shop-item-buy";
+      const affordable = engine.canPurchaseShopItem(item.id);
+      buy.disabled = !canUse || !affordable;
+      buy.textContent = !canUse
+        ? "当前年龄或阶段不可购买"
+        : !affordable
+          ? "积蓄不足"
+          : "购买（" + (typeof item.price === "number" ? item.price : 0) + "）";
+
+      buy.addEventListener("click", function () {
+        engine.purchaseShopItem(item.id);
+        render();
+      });
+
+      card.appendChild(buy);
+      elements.shopItemsContainer.appendChild(card);
+    });
+  }
+
+  function renderShopEntry(state) {
+    if (!elements.shopOpenBtn || !elements.shopHint) {
+      return;
+    }
+    const canUse = isShopAvailableForState(state);
+    elements.shopOpenBtn.disabled = !state.gameStarted || state.gameOver || Boolean(state.setupStep);
+    if (!state.gameStarted || state.gameOver) {
+      elements.shopHint.textContent = "开始人生后，在 16–55 岁可打开商店购物。";
+    } else if (state.setupStep) {
+      elements.shopHint.textContent = "完成家庭背景选择后即可使用商店。";
+    } else if (!canUse) {
+      elements.shopHint.textContent =
+        state.age < 16
+          ? "年满 16 岁后商店开放；也可等待随机事件「街边的店」。"
+          : "55 岁后此处不再开放购物（仍可回顾人生与关系）。";
+    } else {
+      elements.shopHint.textContent =
+        "当前积蓄：" +
+        (state.stats && typeof state.stats.money === "number" ? state.stats.money : 0) +
+        "。商品与随机事件「街边的店，总在你心软的时候招手」一致。";
+    }
+  }
+
   function renderInventory(state) {
     if (!elements.inventoryContainer) {
       return;
@@ -530,25 +680,64 @@
     const bag = (state && state.inventory) || {};
     const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
     const labelMap = new Map(shopItems.map((item) => [item.id, item.name || item.id]));
+    const giftIds = getGiftItemIdsFromCatalog();
     const entries = Object.keys(bag).filter((id) => (bag[id] || 0) > 0);
 
     if (!entries.length) {
       const empty = document.createElement("p");
       empty.className = "empty-state";
-      empty.textContent = "暂无持有物品（购物后礼物会出现在这里，可触发送礼事件）。";
+      empty.textContent =
+        "暂无持有物品。可在侧栏「商店」购买礼物；送给对象：在「人际 / 恋爱」里选中对方，且关系处于暧昧/恋爱等阶段时，点物品旁的「送给 Ta」。";
       elements.inventoryContainer.appendChild(empty);
       return;
     }
 
-    const list = document.createElement("ul");
-    list.className = "inventory-list";
+    const wrap = document.createElement("div");
+    wrap.className = "inventory-wrap";
+
     entries.forEach((id) => {
-      const li = document.createElement("li");
-      li.className = "inventory-item";
-      li.textContent = (labelMap.get(id) || id) + " × " + bag[id];
-      list.appendChild(li);
+      const row = document.createElement("div");
+      row.className = "inventory-row";
+
+      const label = document.createElement("span");
+      label.className = "inventory-label";
+      label.textContent = (labelMap.get(id) || id) + " × " + bag[id];
+      row.appendChild(label);
+
+      if (giftIds.has(id)) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "inventory-gift-btn";
+        const canGive = engine.canGiveGiftFromInventory(id);
+        btn.disabled = !canGive;
+        btn.textContent = "送给 Ta";
+        if (!state.activeRelationshipId) {
+          btn.title = "请先在「人际 / 恋爱」卡片上选中一位对象";
+        } else if (!canGive) {
+          btn.title =
+            "需选中对象，且关系为暧昧/熟悉升温/恋爱等阶段（与事件「把礼物递出去」条件一致）";
+        } else {
+          btn.title = "送给当前选中的对象，消耗 1 件";
+        }
+        btn.addEventListener("click", function () {
+          engine.giveGiftFromInventory(id);
+          render();
+        });
+        row.appendChild(btn);
+      }
+
+      wrap.appendChild(row);
     });
-    elements.inventoryContainer.appendChild(list);
+
+    const note = document.createElement("p");
+    note.className = "muted";
+    note.style.fontSize = "0.85rem";
+    note.style.marginTop = "0.65rem";
+    note.textContent =
+      "说明：随机事件里也会出现「把礼物递出去」选项；此处方便你主动送礼。";
+    wrap.appendChild(note);
+
+    elements.inventoryContainer.appendChild(wrap);
   }
 
   function renderFamilyLife(state) {
@@ -925,15 +1114,49 @@
     renderRoutes(state);
     renderRelationships(state);
     renderInventory(state);
+    renderShopEntry(state);
     renderFamilyLife(state);
     renderStory(state, event);
     renderHistory(state);
+
+    if (elements.shopModal && !elements.shopModal.hasAttribute("hidden")) {
+      populateShopItems(state);
+    }
   }
 
   function bindEvents() {
     elements.restartButton.addEventListener("click", function () {
       engine.restart();
       render();
+    });
+
+    if (elements.shopOpenBtn) {
+      elements.shopOpenBtn.addEventListener("click", function () {
+        const state = engine.getState();
+        if (!isShopAvailableForState(state)) {
+          return;
+        }
+        setShopModalOpen(true);
+        populateShopItems(state);
+      });
+    }
+
+    function closeShop() {
+      setShopModalOpen(false);
+    }
+
+    if (elements.shopModalClose) {
+      elements.shopModalClose.addEventListener("click", closeShop);
+    }
+
+    if (elements.shopModalBackdrop) {
+      elements.shopModalBackdrop.addEventListener("click", closeShop);
+    }
+
+    document.addEventListener("keydown", function (ev) {
+      if (ev.key === "Escape" && elements.shopModal && !elements.shopModal.hasAttribute("hidden")) {
+        closeShop();
+      }
     });
   }
 
