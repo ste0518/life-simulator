@@ -166,8 +166,8 @@
   window.LIFE_GAOKAO_CONFIG = {
     totalScore: 750,
     baseScore: {
-      minimum: 285,
-      maximum: 660,
+      minimum: 320,
+      maximum: 685,
       statWeights: {
         intelligence: 0.54,
         discipline: 0.16,
@@ -205,16 +205,16 @@
       ]
     },
     trajectoryBonuses: [
-      { conditions: { someFlags: ["mentor_support", "resilient_under_pressure"] }, add: 16 },
-      { conditions: { someFlags: ["study_system_built", "structured_growth"] }, add: 12 },
-      { conditions: { someFlags: ["exam_anxiety", "emotional_shutdown"] }, add: -14 },
-      { conditions: { someFlags: ["caregiver_role", "burnout_seed"] }, add: -10 }
+      { conditions: { someFlags: ["mentor_support", "resilient_under_pressure"] }, add: 22 },
+      { conditions: { someFlags: ["study_system_built", "structured_growth"] }, add: 16 },
+      { conditions: { someFlags: ["exam_anxiety", "emotional_shutdown"] }, add: -8 },
+      { conditions: { someFlags: ["caregiver_role", "burnout_seed"] }, add: -6 }
     ],
     performanceProfiles: {
       normal: {
-        probability: 0.6,
+        probability: 0.68,
         label: "正常发挥",
-        offsetRange: [-20, 24],
+        offsetRange: [-8, 32],
         fallbackText: "考场里没有神奇逆转，也没有突然失控。你只是把自己平时能写出来的那部分，尽量稳稳写了出来。",
         narratives: [
           {
@@ -230,9 +230,9 @@
         ]
       },
       underperform: {
-        probability: 0.2,
+        probability: 0.12,
         label: "发挥失常",
-        offsetRange: [-115, -38],
+        offsetRange: [-72, -20],
         fallbackText: "题目并没有难到离谱，可你的节奏被某个环节打乱了。真正拖垮人的，往往是心态、睡眠和身体没有一起站在你这边。",
         narratives: [
           {
@@ -250,7 +250,7 @@
       overperform: {
         probability: 0.2,
         label: "超常发挥",
-        offsetRange: [36, 108],
+        offsetRange: [28, 118],
         fallbackText: "不是所有题都会，但你在最关键的两天里，把情绪、记忆和手感都接到了一个比平时更高的位置。",
         narratives: [
           {

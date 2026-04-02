@@ -49,6 +49,40 @@
     window.LIFE_OVERSEAS_ROUTE_CONFIG && typeof window.LIFE_OVERSEAS_ROUTE_CONFIG === "object"
       ? window.LIFE_OVERSEAS_ROUTE_CONFIG
       : {};
+  const OVERSEAS_PHASE_LABELS = {
+    arrival: "初到适应期",
+    settling: "初步融入期",
+    parallel: "学业与社交并行期",
+    independent: "独立生活期",
+    complex: "关系复杂化阶段",
+    decision: "毕业去向选择期"
+  };
+  const OVERSEAS_PHASE_FLAGS = Object.keys(OVERSEAS_PHASE_LABELS).map((phaseId) => "overseas_phase_" + phaseId);
+  const OVERSEAS_FOCUS_LABELS = {
+    academic: "学业导向",
+    social: "社交扩张",
+    career: "实习 / 事业导向",
+    survival: "节省生存",
+    romance: "情感纠葛",
+    isolation: "失衡 / 孤立"
+  };
+  const OVERSEAS_FOCUS_FLAGS = Object.keys(OVERSEAS_FOCUS_LABELS).map((focusId) => "overseas_focus_" + focusId);
+  const OVERSEAS_DERIVED_FLAGS = [
+    "overseas_finance_high",
+    "overseas_finance_breathing_room",
+    "overseas_lonely",
+    "overseas_settled",
+    "overseas_isolated",
+    "overseas_burnout_risk",
+    "overseas_academically_stable",
+    "overseas_academic_overload",
+    "overseas_culture_gap_high",
+    "overseas_independent_strong",
+    "overseas_career_clear",
+    "overseas_visa_anxiety",
+    "overseas_stay_bias",
+    "overseas_return_bias"
+  ];
   const OPTION_TEXT_REWRITES = new Map([
     ["你决定慢慢接纳自己，不再总和别人比较。", "慢慢接纳自己，不再总和别人比较。"],
     ["你去了寄宿学校，很多事开始只能自己消化。", "把自己放进寄宿生活，很多事开始只能自己消化。"],
@@ -712,8 +746,17 @@
       return;
     }
 
+    let appliedDelta = delta;
+    if ((key === "intelligence" || key === "discipline") && gameState.age <= 20) {
+      if (delta > 0) {
+        appliedDelta += 1;
+      } else if (delta < 0) {
+        appliedDelta = Math.min(0, delta + 1);
+      }
+    }
+
     const currentValue = gameState.stats[key] || 0;
-    gameState.stats[key] = clampStat(key, currentValue + delta);
+    gameState.stats[key] = clampStat(key, currentValue + appliedDelta);
   }
 
   function getRelationshipSnapshot(state, relationshipId) {
@@ -787,7 +830,7 @@
       addChange("mental", -1);
     }
 
-    if (gameState.stats.discipline >= 72 && gameState.stats.stress <= 55) {
+    if (gameState.stats.discipline >= 60 && gameState.stats.stress <= 65) {
       addChange("intelligence", 1);
     }
 
@@ -991,10 +1034,18 @@
     const strongestRelationship = getStrongestRelationship(gameState);
     const gaokaoState = gameState.gaokao || {};
     const overseasState = gameState.overseas || {};
-    const domesticConnectionNames = (overseasState.domesticConnectionIds || [])
-      .map((id) => getRelationshipSnapshot(gameState, id))
-      .filter(Boolean)
-      .map((relationship) => relationship.name);
+    const domesticConnectionNames = getNamedRelationships(overseasState.domesticConnectionIds);
+    const supportNetworkNames = getNamedRelationships(overseasState.supportNetworkIds);
+    const mentorNames = getNamedRelationships(overseasState.mentorIds);
+    const branchSummary = normalizeStringArray(overseasState.branchFocuses)
+      .map((focusId) => OVERSEAS_FOCUS_LABELS[focusId] || focusId)
+      .join("、");
+    const futurePull =
+      (overseasState.stayScore || 0) - (overseasState.returnScore || 0) >= 12
+        ? "你越来越像会把路继续留在国外。"
+        : (overseasState.returnScore || 0) - (overseasState.stayScore || 0) >= 12
+          ? "你心里其实已经越来越偏向回国。"
+          : "你还在“留下还是回去”之间来回比较。";
     const replacements = {
       name: gameState.playerName || "你",
       playerGender: getPlayerGenderLabel(gameState.playerGender),
@@ -1033,7 +1084,18 @@
             "，经济压力 " +
             String(overseasState.financePressure || 0)
           : "海外生活尚未开始",
-      overseasDomesticSummary: domesticConnectionNames.length ? domesticConnectionNames.join("、") : "国内还没有需要硬撑着维系的人"
+      overseasDomesticSummary: domesticConnectionNames.length ? domesticConnectionNames.join("、") : "国内还没有需要硬撑着维系的人",
+      overseasPhaseLabel: OVERSEAS_PHASE_LABELS[overseasState.phase] || "海外阶段未定",
+      overseasBranchSummary: branchSummary || "你的海外生活还没有明显偏向哪一种活法",
+      overseasBelongingSummary:
+        (overseasState.belonging || 0) >= 66
+          ? "你已经开始在这里长出明确的归属感。"
+          : (overseasState.belonging || 0) <= 30
+            ? "你仍然经常觉得自己像临时停靠的人。"
+            : "你在适应，但归属感还没有真正稳定下来。",
+      overseasFuturePull: futurePull,
+      overseasSupportSummary: supportNetworkNames.length ? supportNetworkNames.join("、") : "目前还没有真正稳住你的海外支持网",
+      overseasMentorSummary: mentorNames.length ? mentorNames.join("、") : "你还没有遇到真正愿意托你一把的导师型人物"
     };
 
     return String(text || "").replace(/\{(\w+)\}/g, function (_, key) {
@@ -1142,13 +1204,31 @@
       routeName: typeof gameState.overseas.routeName === "string" ? gameState.overseas.routeName : "",
       destination: typeof gameState.overseas.destination === "string" ? gameState.overseas.destination : "",
       supportLevel: typeof gameState.overseas.supportLevel === "string" ? gameState.overseas.supportLevel : "",
+      phase: typeof gameState.overseas.phase === "string" ? gameState.overseas.phase : "",
+      housingType: typeof gameState.overseas.housingType === "string" ? gameState.overseas.housingType : "",
+      budgetMode: typeof gameState.overseas.budgetMode === "string" ? gameState.overseas.budgetMode : "",
       languagePressure: typeof gameState.overseas.languagePressure === "number" ? gameState.overseas.languagePressure : 0,
       loneliness: typeof gameState.overseas.loneliness === "number" ? gameState.overseas.loneliness : 0,
       financePressure: typeof gameState.overseas.financePressure === "number" ? gameState.overseas.financePressure : 0,
+      academicPressure: typeof gameState.overseas.academicPressure === "number" ? gameState.overseas.academicPressure : 0,
+      culturalStress: typeof gameState.overseas.culturalStress === "number" ? gameState.overseas.culturalStress : 0,
+      homesickness: typeof gameState.overseas.homesickness === "number" ? gameState.overseas.homesickness : 0,
+      socialComfort: typeof gameState.overseas.socialComfort === "number" ? gameState.overseas.socialComfort : 0,
+      belonging: typeof gameState.overseas.belonging === "number" ? gameState.overseas.belonging : 0,
+      independence: typeof gameState.overseas.independence === "number" ? gameState.overseas.independence : 0,
+      burnout: typeof gameState.overseas.burnout === "number" ? gameState.overseas.burnout : 0,
+      careerClarity: typeof gameState.overseas.careerClarity === "number" ? gameState.overseas.careerClarity : 0,
+      visaPressure: typeof gameState.overseas.visaPressure === "number" ? gameState.overseas.visaPressure : 0,
+      identityShift: typeof gameState.overseas.identityShift === "number" ? gameState.overseas.identityShift : 0,
+      stayScore: typeof gameState.overseas.stayScore === "number" ? gameState.overseas.stayScore : 0,
+      returnScore: typeof gameState.overseas.returnScore === "number" ? gameState.overseas.returnScore : 0,
       domesticConnectionIds: Array.isArray(gameState.overseas.domesticConnectionIds)
         ? gameState.overseas.domesticConnectionIds
         : [],
       newConnectionIds: Array.isArray(gameState.overseas.newConnectionIds) ? gameState.overseas.newConnectionIds : [],
+      supportNetworkIds: Array.isArray(gameState.overseas.supportNetworkIds) ? gameState.overseas.supportNetworkIds : [],
+      mentorIds: Array.isArray(gameState.overseas.mentorIds) ? gameState.overseas.mentorIds : [],
+      branchFocuses: Array.isArray(gameState.overseas.branchFocuses) ? gameState.overseas.branchFocuses : [],
       doubleTrack: Boolean(gameState.overseas.doubleTrack),
       exposureRisk: typeof gameState.overseas.exposureRisk === "number" ? gameState.overseas.exposureRisk : 0,
       academicIndex: typeof gameState.overseas.academicIndex === "number" ? gameState.overseas.academicIndex : null,
@@ -1160,6 +1240,132 @@
     });
 
     return gameState.overseas;
+  }
+
+  function getNamedRelationships(ids) {
+    return normalizeStringArray(ids)
+      .map((id) => getRelationshipSnapshot(gameState, id))
+      .filter(Boolean)
+      .map((relationship) => relationship.name);
+  }
+
+  function setOverseasPhase(phaseId) {
+    const overseasState = ensureOverseasState();
+    const normalizedPhase = typeof phaseId === "string" ? phaseId.trim() : "";
+    if (!normalizedPhase) {
+      return;
+    }
+
+    overseasState.phase = normalizedPhase;
+    removeGameFlags(OVERSEAS_PHASE_FLAGS);
+    addGameFlags(["overseas_phase_" + normalizedPhase]);
+  }
+
+  function syncOverseasDerivedFlags() {
+    const overseasState = ensureOverseasState();
+    removeGameFlags(OVERSEAS_DERIVED_FLAGS.concat(OVERSEAS_FOCUS_FLAGS));
+
+    normalizeStringArray(overseasState.branchFocuses).forEach((focusId) => {
+      if (OVERSEAS_FOCUS_LABELS[focusId]) {
+        addGameFlags(["overseas_focus_" + focusId]);
+      }
+    });
+
+    if ((overseasState.financePressure || 0) >= 62) {
+      addGameFlags(["overseas_finance_high"]);
+    } else if ((overseasState.financePressure || 0) <= 34) {
+      addGameFlags(["overseas_finance_breathing_room"]);
+    }
+
+    if ((overseasState.loneliness || 0) >= 60 || (overseasState.homesickness || 0) >= 58) {
+      addGameFlags(["overseas_lonely"]);
+    }
+
+    if ((overseasState.belonging || 0) >= 66 && (overseasState.socialComfort || 0) >= 52) {
+      addGameFlags(["overseas_settled"]);
+    }
+
+    if ((overseasState.belonging || 0) <= 30 && (overseasState.loneliness || 0) >= 55) {
+      addGameFlags(["overseas_isolated"]);
+    }
+
+    if ((overseasState.burnout || 0) >= 60 || (overseasState.academicPressure || 0) >= 70) {
+      addGameFlags(["overseas_burnout_risk"]);
+    }
+
+    if ((overseasState.academicPressure || 0) >= 62) {
+      addGameFlags(["overseas_academic_overload"]);
+    } else if ((overseasState.academicPressure || 0) <= 38) {
+      addGameFlags(["overseas_academically_stable"]);
+    }
+
+    if ((overseasState.culturalStress || 0) >= 58) {
+      addGameFlags(["overseas_culture_gap_high"]);
+    }
+
+    if ((overseasState.independence || 0) >= 64) {
+      addGameFlags(["overseas_independent_strong"]);
+    }
+
+    if ((overseasState.careerClarity || 0) >= 62) {
+      addGameFlags(["overseas_career_clear"]);
+    }
+
+    if ((overseasState.visaPressure || 0) >= 56) {
+      addGameFlags(["overseas_visa_anxiety"]);
+    }
+
+    if ((overseasState.stayScore || 0) - (overseasState.returnScore || 0) >= 12) {
+      addGameFlags(["overseas_stay_bias"]);
+    }
+
+    if ((overseasState.returnScore || 0) - (overseasState.stayScore || 0) >= 12) {
+      addGameFlags(["overseas_return_bias"]);
+    }
+  }
+
+  function applyOverseasProfileUpdate(data) {
+    const overseasState = ensureOverseasState();
+    const payload = data && typeof data === "object" ? data : {};
+    const metrics = payload.metrics && typeof payload.metrics === "object" ? payload.metrics : {};
+
+    if (typeof payload.phase === "string" && payload.phase.trim()) {
+      setOverseasPhase(payload.phase);
+    }
+
+    if (typeof payload.destination === "string" && payload.destination.trim()) {
+      overseasState.destination = payload.destination.trim();
+    }
+
+    if (typeof payload.housingType === "string" && payload.housingType.trim()) {
+      overseasState.housingType = payload.housingType.trim();
+    }
+
+    if (typeof payload.budgetMode === "string" && payload.budgetMode.trim()) {
+      overseasState.budgetMode = payload.budgetMode.trim();
+    }
+
+    if (typeof payload.supportLevel === "string" && payload.supportLevel.trim()) {
+      overseasState.supportLevel = payload.supportLevel.trim();
+    }
+
+    addUniqueItems(overseasState.branchFocuses, normalizeStringArray(payload.addFocuses));
+    if (Array.isArray(payload.removeFocuses) && payload.removeFocuses.length) {
+      overseasState.branchFocuses = removeItems(overseasState.branchFocuses, normalizeStringArray(payload.removeFocuses));
+    }
+
+    addUniqueItems(overseasState.supportNetworkIds, normalizeStringArray(payload.addSupportNetworkIds));
+    addUniqueItems(overseasState.mentorIds, normalizeStringArray(payload.addMentorIds));
+
+    Object.entries(metrics).forEach(([key, delta]) => {
+      if (typeof delta !== "number" || !Number.isFinite(delta) || typeof overseasState[key] !== "number") {
+        return;
+      }
+
+      overseasState[key] = clampRelationshipMetric((overseasState[key] || 0) + delta);
+    });
+
+    syncOverseasDerivedFlags();
   }
 
   function addGameFlags(flags) {
@@ -1397,8 +1603,17 @@
   }
 
   function getDomesticUniversityCandidates(tierId) {
-    const pool = realDomesticUniversities && typeof realDomesticUniversities === "object" ? realDomesticUniversities[tierId] : [];
-    return Array.isArray(pool) ? pool : [];
+    const source = realDomesticUniversities && typeof realDomesticUniversities === "object" ? realDomesticUniversities : {};
+    const pool = source[tierId];
+    if (Array.isArray(pool) && pool.length) {
+      return pool;
+    }
+
+    if (tierId === "fail") {
+      return Array.isArray(source.vocational) ? source.vocational : [];
+    }
+
+    return [];
   }
 
   function getOverseasUniversityCandidates(qsBandId) {
@@ -1439,6 +1654,18 @@
     return selected;
   }
 
+  function sortEntriesByWeight(entries) {
+    return (Array.isArray(entries) ? entries : []).slice().sort((left, right) => {
+      const rightWeight = typeof right.weight === "number" ? right.weight : 0;
+      const leftWeight = typeof left.weight === "number" ? left.weight : 0;
+      if (rightWeight !== leftWeight) {
+        return rightWeight - leftWeight;
+      }
+
+      return String(left.name || left.id || "").localeCompare(String(right.name || right.id || ""), "zh-CN");
+    });
+  }
+
   function getFirstMatchingTag(tags, preferredTags) {
     const sourceTags = normalizeStringArray(tags);
     const priorities = normalizeStringArray(preferredTags);
@@ -1460,7 +1687,7 @@
     return fallbackText;
   }
 
-  function buildDomesticUniversityRecommendations(tierId, preference) {
+  function getDomesticPreferredTags(preference) {
     const source = preference && typeof preference === "object" ? preference : {};
     const preferredTags = [];
     if (source.majorPreference) {
@@ -1471,7 +1698,12 @@
       preferredTags.push(source.familyPreference);
     }
 
-    const candidates = getDomesticUniversityCandidates(tierId).map((school) => {
+    return preferredTags;
+  }
+
+  function buildDomesticUniversityRecommendationCandidates(tierId, preference) {
+    const preferredTags = getDomesticPreferredTags(preference);
+    return getDomesticUniversityCandidates(tierId).map((school) => {
       const tags = normalizeStringArray(school.tags);
       let weight = 1;
       preferredTags.forEach((tag) => {
@@ -1485,8 +1717,10 @@
         weight
       };
     });
+  }
 
-    return pickUniqueWeightedEntries(candidates, 4).map((school) => ({
+  function mapDomesticUniversityRecommendations(candidates, preferredTags) {
+    return (Array.isArray(candidates) ? candidates : []).map((school) => ({
       name: school.name,
       location: school.city || "国内",
       categoryLabel: "全国近似参考 · " + (school.type || "大学"),
@@ -1496,6 +1730,45 @@
         "这所学校和你当前的成绩区间、去向取向相对更接近。"
       )
     }));
+  }
+
+  function buildDomesticUniversityRecommendations(tierId, preference) {
+    const preferredTags = getDomesticPreferredTags(preference);
+    const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
+    return mapDomesticUniversityRecommendations(pickUniqueWeightedEntries(candidates, 4), preferredTags);
+  }
+
+  function buildDomesticUniversityPreviewRecommendations(tierId, preference) {
+    const preferredTags = getDomesticPreferredTags(preference);
+    const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
+    return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 3), preferredTags);
+  }
+
+  function getOverseasPreferredTags(routeId) {
+    return routeId === "overseas_research_path"
+      ? ["research", "academic", "engineering", "ambition"]
+      : routeId === "overseas_practical_path"
+        ? ["practical", "balanced", "city", "cost"]
+        : ["city", "balanced", "academic", "stable"];
+  }
+
+  function buildOverseasUniversityRecommendationCandidates(routeId, qsBand) {
+    const preferredTags = getOverseasPreferredTags(routeId);
+    const bandId = qsBand && qsBand.id ? qsBand.id : "";
+    return getOverseasUniversityCandidates(bandId).map((school) => {
+      const tags = normalizeStringArray(school.tags);
+      let weight = 1;
+      preferredTags.forEach((tag) => {
+        if (tag && tags.includes(tag)) {
+          weight += 2;
+        }
+      });
+
+      return {
+        ...school,
+        weight
+      };
+    });
   }
 
   function calculateOverseasAcademicIndex(routeId) {
@@ -1542,28 +1815,10 @@
   }
 
   function buildOverseasUniversityRecommendations(routeId, qsBand) {
-    const preferredTags =
-      routeId === "overseas_research_path"
-        ? ["research", "academic", "engineering", "ambition"]
-        : routeId === "overseas_practical_path"
-          ? ["practical", "balanced", "city", "cost"]
-          : ["city", "balanced", "academic", "stable"];
+    const preferredTags = getOverseasPreferredTags(routeId);
     const bandId = qsBand && qsBand.id ? qsBand.id : "";
     const bandLabel = qsBand && qsBand.label ? qsBand.label : "QS 档位未定";
-    const candidates = getOverseasUniversityCandidates(bandId).map((school) => {
-      const tags = normalizeStringArray(school.tags);
-      let weight = 1;
-      preferredTags.forEach((tag) => {
-        if (tag && tags.includes(tag)) {
-          weight += 2;
-        }
-      });
-
-      return {
-        ...school,
-        weight
-      };
-    });
+    const candidates = buildOverseasUniversityRecommendationCandidates(routeId, qsBand);
 
     return pickUniqueWeightedEntries(candidates, 4).map((school) => ({
       name: school.name,
@@ -1575,6 +1830,62 @@
         "这所学校和你当前的学业能力、路线取向相对更接近。"
       )
     }));
+  }
+
+  function buildOverseasUniversityPreviewRecommendations(routeId, qsBand) {
+    const preferredTags = getOverseasPreferredTags(routeId);
+    const bandLabel = qsBand && qsBand.label ? qsBand.label : "QS 档位未定";
+    const candidates = buildOverseasUniversityRecommendationCandidates(routeId, qsBand);
+
+    return sortEntriesByWeight(candidates)
+      .slice(0, 3)
+      .map((school) => ({
+      name: school.name,
+      location: school.country || "海外",
+      categoryLabel: bandLabel + " · " + (school.country || "海外"),
+      reason: resolveRecommendationReason(
+        school.fitNotes,
+        preferredTags,
+        "这所学校和你当前的学业能力、路线取向相对更接近。"
+      )
+    }));
+  }
+
+  function getOptionRecommendationPreview(option) {
+    if (!option || typeof option !== "object") {
+      return null;
+    }
+
+    if (option.customAction === "resolve_gaokao_destination") {
+      const gaokaoState = ensureGaokaoState();
+      if (!gaokaoState.tierId) {
+        return null;
+      }
+
+      const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
+      return {
+        kind: "domestic",
+        summary: "按你当前分数，预计仍落在“" + (gaokaoState.tierLabel || "区间未定") + "”的全国近似参考带。",
+        universities: buildDomesticUniversityPreviewRecommendations(gaokaoState.tierId, payload)
+      };
+    }
+
+    if (option.customAction === "start_overseas_route") {
+      const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
+      const routeId = typeof payload.routeId === "string" ? payload.routeId : "";
+      const academicIndex = calculateOverseasAcademicIndex(routeId);
+      const qsBand = determineOverseasQsBand(academicIndex);
+      return {
+        kind: "overseas",
+        summary:
+          "按你当前学业能力，这条路大致会匹配到“" +
+          (qsBand && qsBand.label ? qsBand.label : "QS 档位未定") +
+          "”。",
+        universities: buildOverseasUniversityPreviewRecommendations(routeId, qsBand)
+      };
+    }
+
+    return null;
   }
 
   function pickUniversityDestination(tierId, payload) {
@@ -1781,6 +2092,9 @@
       overseasState.routeName = typeof data.routeName === "string" ? data.routeName : overseasState.routeName;
       overseasState.destination = typeof data.destination === "string" ? data.destination : overseasState.destination;
       overseasState.supportLevel = typeof data.supportLevel === "string" ? data.supportLevel : overseasState.supportLevel;
+      overseasState.phase = "arrival";
+      overseasState.housingType = typeof data.housingType === "string" ? data.housingType : overseasState.housingType;
+      overseasState.budgetMode = typeof data.budgetMode === "string" ? data.budgetMode : overseasState.budgetMode;
       overseasState.languagePressure = clampRelationshipMetric(
         (overseasState.languagePressure || 0) + (typeof data.languagePressure === "number" ? data.languagePressure : 0)
       );
@@ -1790,10 +2104,41 @@
       overseasState.financePressure = clampRelationshipMetric(
         (overseasState.financePressure || 0) + (typeof data.financePressure === "number" ? data.financePressure : 0)
       );
+      overseasState.academicPressure = clampRelationshipMetric(
+        typeof data.academicPressure === "number"
+          ? data.academicPressure
+          : overseasState.routeId === "overseas_research_path"
+            ? 56
+            : overseasState.routeId === "overseas_practical_path"
+              ? 46
+              : 52
+      );
+      overseasState.culturalStress = clampRelationshipMetric(
+        typeof data.culturalStress === "number" ? data.culturalStress : 48
+      );
+      overseasState.homesickness = clampRelationshipMetric(typeof data.homesickness === "number" ? data.homesickness : 42);
+      overseasState.socialComfort = clampRelationshipMetric(typeof data.socialComfort === "number" ? data.socialComfort : 28);
+      overseasState.belonging = clampRelationshipMetric(typeof data.belonging === "number" ? data.belonging : 18);
+      overseasState.independence = clampRelationshipMetric(typeof data.independence === "number" ? data.independence : 24);
+      overseasState.burnout = clampRelationshipMetric(typeof data.burnout === "number" ? data.burnout : 18);
+      overseasState.careerClarity = clampRelationshipMetric(typeof data.careerClarity === "number" ? data.careerClarity : 16);
+      overseasState.visaPressure = clampRelationshipMetric(typeof data.visaPressure === "number" ? data.visaPressure : 10);
+      overseasState.identityShift = clampRelationshipMetric(typeof data.identityShift === "number" ? data.identityShift : 22);
+      overseasState.stayScore = clampRelationshipMetric(typeof data.stayScore === "number" ? data.stayScore : 24);
+      overseasState.returnScore = clampRelationshipMetric(typeof data.returnScore === "number" ? data.returnScore : 18);
       overseasState.exposureRisk = clampRelationshipMetric(
         (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 0)
       );
       addGameFlags(["life_path_overseas"]);
+      setOverseasPhase("arrival");
+      overseasState.branchFocuses = [];
+      if (overseasState.routeId === "overseas_research_path") {
+        addUniqueItems(overseasState.branchFocuses, ["academic"]);
+      } else if (overseasState.routeId === "overseas_practical_path") {
+        addUniqueItems(overseasState.branchFocuses, ["survival", "career"]);
+      } else if (overseasState.routeId === "overseas_art_path") {
+        addUniqueItems(overseasState.branchFocuses, ["social", "romance"]);
+      }
       if (typeof data.routeId === "string" && data.routeId) {
         applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
       }
@@ -1803,6 +2148,7 @@
       overseasState.qsBandLabel = qsBand && qsBand.label ? qsBand.label : "";
       overseasState.recommendedUniversities = buildOverseasUniversityRecommendations(overseasState.routeId, qsBand);
       convertDomesticRelationshipsToDistance();
+      syncOverseasDerivedFlags();
       addHistory(
         "你把生活连根拔起，开始准备去" +
           (overseasState.destination || "国外") +
@@ -1825,6 +2171,12 @@
       overseasState.exposureRisk = clampRelationshipMetric(
         (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 0)
       );
+      syncOverseasDerivedFlags();
+      return;
+    }
+
+    if (action === "update_overseas_profile") {
+      applyOverseasProfileUpdate(data);
       return;
     }
 
@@ -3624,6 +3976,7 @@
     restart,
     formatText,
     formatOptionText,
+    getOptionRecommendationPreview,
     matchesRequirement: matchesConditions,
     hasFlags,
     setActiveRelationship,

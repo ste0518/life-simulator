@@ -113,6 +113,45 @@
     container.appendChild(section);
   }
 
+  function appendOptionPreview(container, preview) {
+    if (!preview || !Array.isArray(preview.universities) || !preview.universities.length) {
+      return;
+    }
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "option-preview";
+
+    if (preview.summary) {
+      const summary = document.createElement("p");
+      summary.className = "option-preview-summary";
+      summary.textContent = preview.summary;
+      wrapper.appendChild(summary);
+    }
+
+    const list = document.createElement("div");
+    list.className = "option-preview-list";
+
+    preview.universities.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "option-preview-item";
+
+      const name = document.createElement("strong");
+      name.className = "option-preview-name";
+      name.textContent = item.name || "学校待定";
+      card.appendChild(name);
+
+      const meta = document.createElement("div");
+      meta.className = "option-preview-meta";
+      meta.textContent = [item.location || "", item.categoryLabel || ""].filter(Boolean).join(" · ");
+      card.appendChild(meta);
+
+      list.appendChild(card);
+    });
+
+    wrapper.appendChild(list);
+    container.appendChild(wrapper);
+  }
+
   function renderEndingAnalysis(container, analysis) {
     if (!analysis) {
       return;
@@ -362,6 +401,29 @@
     }
 
     if (state.overseas && state.overseas.active) {
+      const focusLabels = Array.isArray(state.overseas.branchFocuses)
+        ? state.overseas.branchFocuses
+            .map((focusId) =>
+              ({
+                academic: "学业导向",
+                social: "社交扩张",
+                career: "实习 / 事业导向",
+                survival: "节省生存",
+                romance: "情感纠葛",
+                isolation: "失衡 / 孤立"
+              })[focusId] || focusId
+            )
+            .filter(Boolean)
+        : [];
+      const phaseLabel =
+        ({
+          arrival: "初到适应期",
+          settling: "初步融入期",
+          parallel: "学业与社交并行期",
+          independent: "独立生活期",
+          complex: "关系复杂化阶段",
+          decision: "毕业去向选择期"
+        })[state.overseas.phase] || "海外阶段未定";
       const card = document.createElement("article");
       card.className = "route-card";
 
@@ -378,6 +440,8 @@
       const summary = document.createElement("p");
       summary.className = "route-summary";
       summary.textContent =
+        phaseLabel +
+        " · " +
         (state.overseas.supportLevel || "支持方式未定") +
         (state.overseas.qsBandLabel ? "，学业匹配约落在 " + state.overseas.qsBandLabel : "") +
         "，语言压力 " +
@@ -392,6 +456,37 @@
       const details = document.createElement("ul");
       details.className = "route-details";
       [
+        focusLabels.length ? "当前分支倾向：" + focusLabels.join("、") : "",
+        state.overseas.housingType ? "居住状态：" + state.overseas.housingType : "",
+        state.overseas.budgetMode ? "生活策略：" + state.overseas.budgetMode : "",
+        "归属感 " +
+          (state.overseas.belonging || 0) +
+          "，独立度 " +
+          (state.overseas.independence || 0) +
+          "，学业压力 " +
+          (state.overseas.academicPressure || 0) +
+          "，职业清晰度 " +
+          (state.overseas.careerClarity || 0),
+        "文化冲击 " +
+          (state.overseas.culturalStress || 0) +
+          "，想家程度 " +
+          (state.overseas.homesickness || 0) +
+          "，签证 / 去向压力 " +
+          (state.overseas.visaPressure || 0) +
+          "，失衡风险 " +
+          (state.overseas.burnout || 0),
+        Array.isArray(state.overseas.supportNetworkIds) && state.overseas.supportNetworkIds.length
+          ? "海外支持网：" +
+            state.overseas.supportNetworkIds
+              .map((id) => (state.relationships && state.relationships[id] ? state.relationships[id].name : id))
+              .join("、")
+          : "",
+        Array.isArray(state.overseas.mentorIds) && state.overseas.mentorIds.length
+          ? "导师 / 前辈：" +
+            state.overseas.mentorIds
+              .map((id) => (state.relationships && state.relationships[id] ? state.relationships[id].name : id))
+              .join("、")
+          : "",
         state.overseas.domesticConnectionIds && state.overseas.domesticConnectionIds.length
           ? "仍在维系的国内关系：" +
             state.overseas.domesticConnectionIds
@@ -404,6 +499,11 @@
               .map((id) => (state.relationships && state.relationships[id] ? state.relationships[id].name : id))
               .join("、")
           : "",
+        Math.abs((state.overseas.stayScore || 0) - (state.overseas.returnScore || 0)) >= 12
+          ? (state.overseas.stayScore || 0) > (state.overseas.returnScore || 0)
+            ? "当前更偏向留在国外继续发展。"
+            : "当前更偏向回国重新落地。"
+          : "留下还是回国，目前仍在拉扯。",
         state.overseas.doubleTrack ? "当前存在双线关系拉扯，暴露风险更高。" : ""
       ]
         .filter(Boolean)
@@ -773,6 +873,8 @@
 
         content.appendChild(hintRow);
       }
+
+      appendOptionPreview(content, engine.getOptionRecommendationPreview(option));
 
       button.appendChild(content);
       button.addEventListener("click", function () {
