@@ -1739,14 +1739,66 @@
 
   function buildDomesticUniversityRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
+    const selectedUniversityName =
+      preference && typeof preference.selectedUniversityName === "string" ? preference.selectedUniversityName : "";
+    if (selectedUniversityName) {
+      const selectedSchool = getDomesticUniversityCandidates(tierId).find((school) => school && school.name === selectedUniversityName);
+      if (selectedSchool) {
+        return mapDomesticUniversityRecommendations([selectedSchool], preferredTags);
+      }
+    }
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
     return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 1), preferredTags);
   }
 
   function buildDomesticUniversityPreviewRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
+    const selectedUniversityName =
+      preference && typeof preference.selectedUniversityName === "string" ? preference.selectedUniversityName : "";
+    if (selectedUniversityName) {
+      const selectedSchool = getDomesticUniversityCandidates(tierId).find((school) => school && school.name === selectedUniversityName);
+      if (selectedSchool) {
+        return mapDomesticUniversityRecommendations([selectedSchool], preferredTags);
+      }
+    }
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
     return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 1), preferredTags);
+  }
+
+  function scoreDomesticSchoolForPreference(preference, schoolTags) {
+    const preferredTags = getDomesticPreferredTags(preference);
+    let score = 0;
+    preferredTags.forEach((tag, index) => {
+      if (tag && schoolTags.includes(tag)) {
+        score += Math.max(1, preferredTags.length - index);
+      }
+    });
+    return score;
+  }
+
+  function pickDomesticRouteChoiceForSchool(routeChoices, school) {
+    const choices = Array.isArray(routeChoices) ? routeChoices : [];
+    const schoolTags = normalizeStringArray(school && school.tags);
+    let bestChoice = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    choices.forEach((choice, index) => {
+      const payload = choice && choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
+      const score = scoreDomesticSchoolForPreference(payload, schoolTags) * 10 - index;
+      if (score > bestScore) {
+        bestScore = score;
+        bestChoice = choice;
+      }
+    });
+
+    return bestChoice;
+  }
+
+  function buildDomesticSchoolOptionText(school, tierLabel) {
+    const schoolName = school && school.name ? school.name : "国内大学";
+    const city = school && school.city ? school.city : "国内";
+    const label = tierLabel || "分数区间未定";
+    return "去 " + schoolName + "（" + city + " · " + label + "）";
   }
 
   function getOverseasPreferredTags(routeId) {
@@ -1944,6 +1996,51 @@
       .filter(Boolean);
   }
 
+  function buildDomesticSchoolOptions(event) {
+    if (!event || !Array.isArray(event.choices)) {
+      return [];
+    }
+
+    const gaokaoState = ensureGaokaoState();
+    if (!gaokaoState.tierId) {
+      return [];
+    }
+
+    const routeChoices = event.choices.filter((choice) => {
+      return choice && choice.customAction === "resolve_gaokao_destination" && matchesConditions(choice.conditions, gameState);
+    });
+    if (!routeChoices.length) {
+      return [];
+    }
+
+    const candidates = getDomesticUniversityCandidates(gaokaoState.tierId).slice(0, 4);
+
+    return candidates
+      .map((school, index) => {
+        const matchedChoice = pickDomesticRouteChoiceForSchool(routeChoices, school) || routeChoices[0];
+        if (!matchedChoice) {
+          return null;
+        }
+
+        const payload =
+          matchedChoice.customPayload && typeof matchedChoice.customPayload === "object"
+            ? { ...matchedChoice.customPayload }
+            : {};
+        payload.selectedUniversityName = school.name || "";
+        payload.selectedUniversityCity = school.city || "国内";
+        payload.selectedUniversityType = school.type || "大学";
+
+        return {
+          ...matchedChoice,
+          text: buildDomesticSchoolOptionText(school, gaokaoState.tierLabel),
+          customPayload: payload,
+          previewDisabled: true,
+          index
+        };
+      })
+      .filter(Boolean);
+  }
+
   function getOptionRecommendationPreview(option) {
     if (!option || typeof option !== "object") {
       return null;
@@ -2132,6 +2229,8 @@
       const willingnessToLeaveHome = Boolean(data.willingnessToLeaveHome);
       const majorPreference = typeof data.majorPreference === "string" ? data.majorPreference : "";
       const familyPreference = typeof data.familyPreference === "string" ? data.familyPreference : "";
+      const selectedUniversityName = typeof data.selectedUniversityName === "string" ? data.selectedUniversityName : "";
+      const selectedUniversityCity = typeof data.selectedUniversityCity === "string" ? data.selectedUniversityCity : "";
       const destination = pickUniversityDestination(gaokaoState.tierId, {
         willingnessToLeaveHome,
         majorPreference,
@@ -2147,12 +2246,17 @@
         gaokaoState.recommendedUniversities = buildDomesticUniversityRecommendations(gaokaoState.tierId, {
           willingnessToLeaveHome,
           majorPreference,
-          familyPreference
+          familyPreference,
+          selectedUniversityName
         });
         addHistory(
-          "最后去向没有被一条固定分数线写死。结合地区、成绩、家里条件和你的取向，你走进了“" +
-            gaokaoState.destinationLabel +
-            "”。"
+          selectedUniversityName
+            ? "最后你把志愿落到了 " +
+                selectedUniversityName +
+                (selectedUniversityCity ? "，去向也因此走进了“" + gaokaoState.destinationLabel + "”。" : "。")
+            : "最后去向没有被一条固定分数线写死。结合成绩、家里条件和你的取向，你走进了“" +
+                gaokaoState.destinationLabel +
+                "”。"
         );
         applyRouteDefinition(educationRouteMap.get(destination.routeId) || null);
         addGameFlags(normalizeStringArray(destination.addFlags));
@@ -3803,6 +3907,10 @@
   function getVisibleOptions(event) {
     if (!event || !Array.isArray(event.choices)) {
       return [];
+    }
+
+    if (event.id === "gaokao_result") {
+      return buildDomesticSchoolOptions(event);
     }
 
     if (event.id === "overseas_departure") {

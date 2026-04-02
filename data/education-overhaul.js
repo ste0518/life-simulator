@@ -1462,7 +1462,7 @@
       id: "gaokao_result",
       stage: "transition",
       title: "分数出来以后，你开始真正看见那些可能去的学校",
-      text: "基础实力约落在 {gaokaoBaseScore} 分，实际结算为 {gaokaoScore} 分，对应“{gaokaoTierLabel}”。\n\n这次属于：{gaokaoPerformanceLabel}\n\n{gaokaoPerformanceText}\n\n这一次不会直接给你一张唯一正确答案。系统会按你当前分数段，列出这一档更接近现实的可选学校，并按高到低往下看。",
+      text: "基础实力约落在 {gaokaoBaseScore} 分，实际结算为 {gaokaoScore} 分，对应“{gaokaoTierLabel}”。\n\n这次属于：{gaokaoPerformanceLabel}\n\n{gaokaoPerformanceText}\n\n这一次不会直接给你一张唯一正确答案。系统会按你当前分数段，直接列出 4 所更接近现实的可选学校，并按高到低往下看。",
       minAge: 18,
       maxAge: 21,
       weight: 100,
