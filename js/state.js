@@ -89,7 +89,15 @@
     broken: "分手 / 已经分开",
     reconnect: "重逢 / 尝试修复",
     reconnected: "重逢后重新靠近",
-    missed: "错过了"
+    missed: "错过了",
+    long_distance_ambiguous: "远距离暧昧",
+    cross_border_ambiguous: "跨国暧昧",
+    long_distance_dating: "异国恋维系中",
+    distance_cooling: "异地后逐渐降温",
+    triangle: "两段关系拉扯中",
+    hidden_double_track: "双线隐瞒中",
+    exposed_double_track: "双线关系曝光",
+    rebuilding_distance: "异地后尝试修复"
   };
 
   function normalizeStringArray(value) {
@@ -221,6 +229,39 @@
       pendingFamilyBackgroundId: null,
       educationRoute: null,
       careerRoute: null,
+      lifePath: null,
+      gaokao: {
+        regionId: "",
+        regionName: "",
+        totalScore: 750,
+        attempted: false,
+        score: null,
+        baseScore: null,
+        performance: "",
+        performanceLabel: "",
+        performanceNarrative: "",
+        tierId: "",
+        tierLabel: "",
+        destinationPoolId: "",
+        destinationLabel: "",
+        willingnessToLeaveHome: null,
+        majorPreference: "",
+        notes: []
+      },
+      overseas: {
+        active: false,
+        routeId: "",
+        routeName: "",
+        destination: "",
+        supportLevel: "",
+        languagePressure: 0,
+        loneliness: 0,
+        financePressure: 0,
+        domesticConnectionIds: [],
+        newConnectionIds: [],
+        doubleTrack: false,
+        exposureRisk: 0
+      },
       setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,

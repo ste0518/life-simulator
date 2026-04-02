@@ -25,6 +25,21 @@
   const educationRouteMap = new Map(allEducationRoutes.map((route) => [route.id, route]));
   const allCareerRoutes = normalizeRouteList(window.LIFE_CAREER_ROUTES || [], "career");
   const careerRouteMap = new Map(allCareerRoutes.map((route) => [route.id, route]));
+  const gaokaoConfig =
+    window.LIFE_GAOKAO_CONFIG && typeof window.LIFE_GAOKAO_CONFIG === "object" ? window.LIFE_GAOKAO_CONFIG : {};
+  const gaokaoRegions = Array.isArray(window.LIFE_GAOKAO_REGIONS) ? window.LIFE_GAOKAO_REGIONS : [];
+  const universityPools =
+    window.LIFE_UNIVERSITY_POOLS && typeof window.LIFE_UNIVERSITY_POOLS === "object"
+      ? window.LIFE_UNIVERSITY_POOLS
+      : {};
+  const nonGaokaoRouteConfig =
+    window.LIFE_NON_GAOKAO_ROUTES && typeof window.LIFE_NON_GAOKAO_ROUTES === "object"
+      ? window.LIFE_NON_GAOKAO_ROUTES
+      : {};
+  const overseasRouteConfig =
+    window.LIFE_OVERSEAS_ROUTE_CONFIG && typeof window.LIFE_OVERSEAS_ROUTE_CONFIG === "object"
+      ? window.LIFE_OVERSEAS_ROUTE_CONFIG
+      : {};
   const OPTION_TEXT_REWRITES = new Map([
     ["你决定慢慢接纳自己，不再总和别人比较。", "慢慢接纳自己，不再总和别人比较。"],
     ["你去了寄宿学校，很多事开始只能自己消化。", "把自己放进寄宿生活，很多事开始只能自己消化。"],
@@ -130,6 +145,14 @@
     return result;
   }
 
+  function cloneLooseObject(value) {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    return JSON.parse(JSON.stringify(value));
+  }
+
   function normalizeEffectsObject(value) {
     const source = value && typeof value === "object" ? value : {};
     const result = {
@@ -190,7 +213,8 @@
       weight: typeof source.weight === "number" ? source.weight : 1,
       conditions: normalizeConditionObject(source.conditions || {}),
       apply: normalizeMutationBlock(source.apply),
-      details: normalizeStringArray(source.details)
+      details: normalizeStringArray(source.details),
+      meta: cloneLooseObject(source.meta) || {}
     };
   }
 
@@ -365,7 +389,9 @@
       setEducationRoute,
       setCareerRoute,
       clearActiveRelationship: Boolean(source.clearActiveRelationship),
-      log: typeof source.log === "string" ? source.log : ""
+      log: typeof source.log === "string" ? source.log : "",
+      customAction: typeof source.customAction === "string" ? source.customAction.trim() : "",
+      customPayload: cloneLooseObject(source.customPayload)
     };
   }
 
@@ -540,7 +566,21 @@
   }
 
   function isPartnerStatus(status) {
-    return ["dating", "passionate", "cooling", "conflict", "steady", "married", "reconnect", "reconnected"].includes(status);
+    return [
+      "dating",
+      "passionate",
+      "cooling",
+      "conflict",
+      "steady",
+      "married",
+      "reconnect",
+      "reconnected",
+      "long_distance_dating",
+      "distance_cooling",
+      "hidden_double_track",
+      "exposed_double_track",
+      "rebuilding_distance"
+    ].includes(status);
   }
 
   function refreshRelationshipAffection(relationship) {
@@ -913,7 +953,8 @@
       category: route.category,
       summary: route.summary,
       description: route.description,
-      details: route.details.slice()
+      details: route.details.slice(),
+      meta: cloneLooseObject(route.meta) || {}
     };
   }
 
@@ -939,6 +980,12 @@
   function formatText(text) {
     const activeRelationship = getActiveRelationship();
     const strongestRelationship = getStrongestRelationship(gameState);
+    const gaokaoState = gameState.gaokao || {};
+    const overseasState = gameState.overseas || {};
+    const domesticConnectionNames = (overseasState.domesticConnectionIds || [])
+      .map((id) => getRelationshipSnapshot(gameState, id))
+      .filter(Boolean)
+      .map((relationship) => relationship.name);
     const replacements = {
       name: gameState.playerName || "你",
       playerGender: getPlayerGenderLabel(gameState.playerGender),
@@ -946,7 +993,38 @@
       strongestLoveName: strongestRelationship ? strongestRelationship.name : "那个人",
       familyBackgroundName: gameState.familyBackground ? gameState.familyBackground.name : "普通家庭",
       educationRouteName: gameState.educationRoute ? gameState.educationRoute.name : "未定去向",
-      careerRouteName: gameState.careerRoute ? gameState.careerRoute.name : "尚未定型的工作路线"
+      careerRouteName: gameState.careerRoute ? gameState.careerRoute.name : "尚未定型的工作路线",
+      lifePathName:
+        gameState.lifePath === "gaokao"
+          ? "参加高考"
+          : gameState.lifePath === "non_gaokao"
+            ? "不参加高考"
+            : gameState.lifePath === "overseas"
+              ? "去国外念书"
+              : "尚未决定",
+      gaokaoRegionName: gaokaoState.regionName || "你的高考地区",
+      gaokaoScore:
+        typeof gaokaoState.score === "number" && Number.isFinite(gaokaoState.score) ? String(gaokaoState.score) : "未出分",
+      gaokaoBaseScore:
+        typeof gaokaoState.baseScore === "number" && Number.isFinite(gaokaoState.baseScore)
+          ? String(gaokaoState.baseScore)
+          : "未计算",
+      gaokaoPerformanceLabel: gaokaoState.performanceLabel || "发挥未定",
+      gaokaoPerformanceText: gaokaoState.performanceNarrative || "这一场考试还没有真正结算。",
+      gaokaoTierLabel: gaokaoState.tierLabel || "区间未定",
+      gaokaoDestinationLabel: gaokaoState.destinationLabel || "去向待定",
+      overseasRouteName: overseasState.routeName || "海外路线未定",
+      overseasCity: overseasState.destination || "陌生城市",
+      overseasPressureSummary:
+        overseasState.active
+          ? "语言压力 " +
+            String(overseasState.languagePressure || 0) +
+            "，孤独感 " +
+            String(overseasState.loneliness || 0) +
+            "，经济压力 " +
+            String(overseasState.financePressure || 0)
+          : "海外生活尚未开始",
+      overseasDomesticSummary: domesticConnectionNames.length ? domesticConnectionNames.join("、") : "国内还没有需要硬撑着维系的人"
     };
 
     return String(text || "").replace(/\{(\w+)\}/g, function (_, key) {
@@ -984,6 +1062,623 @@
       age: gameState.age,
       text: formatText(text)
     });
+  }
+
+  function clampNumber(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function addUniqueItems(list, items) {
+    (items || []).forEach((item) => {
+      if (!list.includes(item)) {
+        list.push(item);
+      }
+    });
+  }
+
+  function removeItems(list, items) {
+    if (!Array.isArray(items) || !items.length) {
+      return list;
+    }
+
+    return list.filter((item) => !items.includes(item));
+  }
+
+  function ensureGaokaoState() {
+    if (!gameState.gaokao || typeof gameState.gaokao !== "object") {
+      gameState.gaokao = {};
+    }
+
+    Object.assign(gameState.gaokao, {
+      regionId: typeof gameState.gaokao.regionId === "string" ? gameState.gaokao.regionId : "",
+      regionName: typeof gameState.gaokao.regionName === "string" ? gameState.gaokao.regionName : "",
+      totalScore:
+        typeof gameState.gaokao.totalScore === "number"
+          ? gameState.gaokao.totalScore
+          : typeof gaokaoConfig.totalScore === "number"
+            ? gaokaoConfig.totalScore
+            : 750,
+      attempted: Boolean(gameState.gaokao.attempted),
+      score: typeof gameState.gaokao.score === "number" ? gameState.gaokao.score : null,
+      baseScore: typeof gameState.gaokao.baseScore === "number" ? gameState.gaokao.baseScore : null,
+      performance: typeof gameState.gaokao.performance === "string" ? gameState.gaokao.performance : "",
+      performanceLabel: typeof gameState.gaokao.performanceLabel === "string" ? gameState.gaokao.performanceLabel : "",
+      performanceNarrative:
+        typeof gameState.gaokao.performanceNarrative === "string" ? gameState.gaokao.performanceNarrative : "",
+      tierId: typeof gameState.gaokao.tierId === "string" ? gameState.gaokao.tierId : "",
+      tierLabel: typeof gameState.gaokao.tierLabel === "string" ? gameState.gaokao.tierLabel : "",
+      destinationPoolId:
+        typeof gameState.gaokao.destinationPoolId === "string" ? gameState.gaokao.destinationPoolId : "",
+      destinationLabel: typeof gameState.gaokao.destinationLabel === "string" ? gameState.gaokao.destinationLabel : "",
+      willingnessToLeaveHome:
+        typeof gameState.gaokao.willingnessToLeaveHome === "boolean" ? gameState.gaokao.willingnessToLeaveHome : null,
+      majorPreference: typeof gameState.gaokao.majorPreference === "string" ? gameState.gaokao.majorPreference : "",
+      notes: Array.isArray(gameState.gaokao.notes) ? gameState.gaokao.notes : []
+    });
+
+    return gameState.gaokao;
+  }
+
+  function ensureOverseasState() {
+    if (!gameState.overseas || typeof gameState.overseas !== "object") {
+      gameState.overseas = {};
+    }
+
+    Object.assign(gameState.overseas, {
+      active: Boolean(gameState.overseas.active),
+      routeId: typeof gameState.overseas.routeId === "string" ? gameState.overseas.routeId : "",
+      routeName: typeof gameState.overseas.routeName === "string" ? gameState.overseas.routeName : "",
+      destination: typeof gameState.overseas.destination === "string" ? gameState.overseas.destination : "",
+      supportLevel: typeof gameState.overseas.supportLevel === "string" ? gameState.overseas.supportLevel : "",
+      languagePressure: typeof gameState.overseas.languagePressure === "number" ? gameState.overseas.languagePressure : 0,
+      loneliness: typeof gameState.overseas.loneliness === "number" ? gameState.overseas.loneliness : 0,
+      financePressure: typeof gameState.overseas.financePressure === "number" ? gameState.overseas.financePressure : 0,
+      domesticConnectionIds: Array.isArray(gameState.overseas.domesticConnectionIds)
+        ? gameState.overseas.domesticConnectionIds
+        : [],
+      newConnectionIds: Array.isArray(gameState.overseas.newConnectionIds) ? gameState.overseas.newConnectionIds : [],
+      doubleTrack: Boolean(gameState.overseas.doubleTrack),
+      exposureRisk: typeof gameState.overseas.exposureRisk === "number" ? gameState.overseas.exposureRisk : 0
+    });
+
+    return gameState.overseas;
+  }
+
+  function addGameFlags(flags) {
+    (flags || []).forEach((flag) => {
+      if (!gameState.flags.includes(flag)) {
+        gameState.flags.push(flag);
+      }
+    });
+  }
+
+  function removeGameFlags(flags) {
+    if (!Array.isArray(flags) || !flags.length) {
+      return;
+    }
+
+    gameState.flags = gameState.flags.filter((flag) => !flags.includes(flag));
+  }
+
+  function addGameTags(tags) {
+    (tags || []).forEach((tag) => {
+      if (!gameState.tags.includes(tag)) {
+        gameState.tags.push(tag);
+      }
+    });
+  }
+
+  function getWeightedModifierScore(modifiers, state) {
+    return (Array.isArray(modifiers) ? modifiers : []).reduce((sum, modifier) => {
+      if (!modifier || typeof modifier !== "object") {
+        return sum;
+      }
+
+      return matchesConditions(modifier.conditions || {}, state) ? sum + (modifier.add || 0) : sum;
+    }, 0);
+  }
+
+  function pickWeightedEntry(entries) {
+    const candidates = (Array.isArray(entries) ? entries : [])
+      .map((entry) => {
+        const baseWeight = typeof entry.weight === "number" ? entry.weight : 1;
+        return {
+          entry,
+          weight: Math.max(0, baseWeight + getWeightedModifierScore(entry.modifiers, gameState))
+        };
+      })
+      .filter((item) => item.weight > 0);
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    const totalWeight = candidates.reduce((sum, item) => sum + item.weight, 0);
+    let cursor = Math.random() * totalWeight;
+
+    for (const item of candidates) {
+      cursor -= item.weight;
+      if (cursor <= 0) {
+        return item.entry;
+      }
+    }
+
+    return candidates[candidates.length - 1].entry;
+  }
+
+  function getGaokaoRegionById(regionId) {
+    const id = String(regionId || "").trim();
+    if (!id) {
+      return null;
+    }
+
+    return gaokaoRegions.find((region) => region && region.id === id) || null;
+  }
+
+  function selectGaokaoRegion() {
+    const gaokaoState = ensureGaokaoState();
+    const cachedRegion = getGaokaoRegionById(gaokaoState.regionId);
+    if (cachedRegion) {
+      gaokaoState.regionName = cachedRegion.name || gaokaoState.regionName;
+      return cachedRegion;
+    }
+
+    const regionSelection =
+      gaokaoConfig.regionSelection && typeof gaokaoConfig.regionSelection === "object"
+        ? gaokaoConfig.regionSelection
+        : {};
+    const weightedRegion = pickWeightedEntry(regionSelection.weightedRegions);
+    let region =
+      (weightedRegion && getGaokaoRegionById(weightedRegion.id)) ||
+      getGaokaoRegionById(regionSelection.defaultRegionId) ||
+      gaokaoRegions[0] ||
+      null;
+
+    if (!region) {
+      return null;
+    }
+
+    gaokaoState.regionId = region.id;
+    gaokaoState.regionName = region.name || region.id;
+    addGameFlags(["gaokao_region_" + region.id]);
+    return region;
+  }
+
+  function getTrajectoryBonus(trajectoryBonuses) {
+    return (Array.isArray(trajectoryBonuses) ? trajectoryBonuses : []).reduce((sum, item) => {
+      if (!item || typeof item !== "object") {
+        return sum;
+      }
+
+      return matchesConditions(item.conditions || {}, gameState) ? sum + (item.add || 0) : sum;
+    }, 0);
+  }
+
+  function randomInRange(range) {
+    const source = Array.isArray(range) ? range : [0, 0];
+    const min = typeof source[0] === "number" ? source[0] : 0;
+    const max = typeof source[1] === "number" ? source[1] : min;
+    return Math.round(min + Math.random() * (max - min));
+  }
+
+  function pickNarrativeFromPool(pool, fallbackText) {
+    const items = (Array.isArray(pool) ? pool : []).filter((item) => matchesConditions(item.conditions || {}, gameState));
+    const selected = pickWeightedEntry(items);
+    return selected && typeof selected.text === "string" ? selected.text : fallbackText;
+  }
+
+  function determineGaokaoTier(region, score) {
+    const bands = region && Array.isArray(region.scoreBands) ? region.scoreBands : [];
+    for (const band of bands) {
+      if (typeof band.min === "number" && score >= band.min) {
+        return band;
+      }
+    }
+
+    return bands[bands.length - 1] || null;
+  }
+
+  function setRelationshipStatus(relationshipId, status, historyText) {
+    const relationship = getRelationshipRecord(gameState, relationshipId);
+    if (!relationship) {
+      return;
+    }
+
+    relationship.met = true;
+    relationship.status = status;
+    syncRelationshipStage(relationship);
+
+    if (historyText) {
+      addRelationshipHistory(relationshipId, historyText);
+    }
+  }
+
+  function getDistanceReadyRelationships() {
+    return Object.values(gameState.relationships || {})
+      .filter((relationship) => {
+        if (!relationship || !relationship.met) {
+          return false;
+        }
+
+        if (
+          [
+            "ambiguous",
+            "confessed",
+            "short_dating",
+            "dating",
+            "passionate",
+            "cooling",
+            "conflict",
+            "steady",
+            "reconnected",
+            "mutual_crush",
+            "close"
+          ].includes(relationship.status)
+        ) {
+          return true;
+        }
+
+        return (
+          relationship.affection >= 42 ||
+          ((relationship.playerInterest || 0) >= 38 && (relationship.theirInterest || 0) >= 34)
+        );
+      })
+      .sort((left, right) => {
+        const leftScore = (left.affection || 0) + (left.commitment || 0) * 0.5 + (left.continuity || 0) * 0.4;
+        const rightScore = (right.affection || 0) + (right.commitment || 0) * 0.5 + (right.continuity || 0) * 0.4;
+        return rightScore - leftScore;
+      });
+  }
+
+  function convertDomesticRelationshipsToDistance() {
+    const overseasState = ensureOverseasState();
+    const candidates = getDistanceReadyRelationships().slice(0, 2);
+    if (!candidates.length) {
+      overseasState.domesticConnectionIds = [];
+      return;
+    }
+
+    overseasState.domesticConnectionIds = candidates.map((relationship) => relationship.id);
+    candidates.forEach((relationship) => {
+      const longDistanceStatus =
+        ["dating", "passionate", "steady", "cooling", "conflict", "reconnected"].includes(relationship.status)
+          ? "long_distance_dating"
+          : "cross_border_ambiguous";
+      relationship.status = longDistanceStatus;
+      relationship.met = true;
+      relationship.continuity = clampRelationshipMetric((relationship.continuity || 0) + 8);
+      relationship.commitment = clampRelationshipMetric((relationship.commitment || 0) + 6);
+      relationship.tension = clampRelationshipMetric((relationship.tension || 0) + 6);
+      addUniqueItems(relationship.flags, ["distance_mode", "domestic_anchor"]);
+      addUniqueItems(relationship.sharedHistory, ["distance_started"]);
+      syncRelationshipStage(relationship);
+      addRelationshipHistory(
+        relationship.id,
+        relationship.name + "没有从你的生活里消失，只是被一起推到了时差、视频和见不到面的日常里。"
+      );
+    });
+
+    if (candidates[0]) {
+      gameState.activeRelationshipId = candidates[0].id;
+    }
+  }
+
+  function registerOverseasConnection(relationshipId) {
+    const overseasState = ensureOverseasState();
+    const normalizedId = String(relationshipId || "").trim();
+    if (!normalizedId) {
+      return;
+    }
+
+    addUniqueItems(overseasState.newConnectionIds, [normalizedId]);
+  }
+
+  function getUniversityPoolCandidates(tierId) {
+    const pool = universityPools && typeof universityPools === "object" ? universityPools[tierId] : [];
+    return Array.isArray(pool) ? pool : [];
+  }
+
+  function pickUniversityDestination(tierId, payload) {
+    const preference = payload && typeof payload === "object" ? payload : {};
+    const willingnessToLeaveHome = Boolean(preference.willingnessToLeaveHome);
+    const majorPreference = typeof preference.majorPreference === "string" ? preference.majorPreference : "";
+    const familyPreference = typeof preference.familyPreference === "string" ? preference.familyPreference : "";
+    const candidates = getUniversityPoolCandidates(tierId)
+      .filter((candidate) => matchesConditions(candidate.conditions || {}, gameState))
+      .map((candidate) => {
+        let weight = typeof candidate.weight === "number" ? candidate.weight : 1;
+        const tags = normalizeStringArray(candidate.preferenceTags);
+
+        if (majorPreference && tags.includes(majorPreference)) {
+          weight += 3;
+        }
+        if (willingnessToLeaveHome && tags.includes("leave_home")) {
+          weight += 3;
+        }
+        if (!willingnessToLeaveHome && tags.includes("stay_close")) {
+          weight += 3;
+        }
+        if (familyPreference && tags.includes(familyPreference)) {
+          weight += 2;
+        }
+
+        weight += getWeightedModifierScore(candidate.modifiers, gameState);
+
+        return {
+          ...candidate,
+          weight
+        };
+      });
+
+    return pickWeightedEntry(candidates);
+  }
+
+  function performCustomAction(actionName, payload) {
+    const action = String(actionName || "").trim();
+    const data = payload && typeof payload === "object" ? payload : {};
+
+    if (!action) {
+      return;
+    }
+
+    if (action === "set_life_path") {
+      gameState.lifePath = typeof data.lifePath === "string" ? data.lifePath : gameState.lifePath;
+      addGameFlags(normalizeStringArray(data.addFlags));
+      removeGameFlags(normalizeStringArray(data.removeFlags));
+      return;
+    }
+
+    if (action === "assign_gaokao_region") {
+      selectGaokaoRegion();
+      return;
+    }
+
+    if (action === "simulate_gaokao") {
+      const gaokaoState = ensureGaokaoState();
+      const region = selectGaokaoRegion();
+      const scoreRule =
+        gaokaoConfig.baseScore && typeof gaokaoConfig.baseScore === "object" ? gaokaoConfig.baseScore : {};
+      const statWeights =
+        scoreRule.statWeights && typeof scoreRule.statWeights === "object"
+          ? scoreRule.statWeights
+          : {
+              intelligence: 0.54,
+              discipline: 0.16,
+              mental: 0.08,
+              health: 0.06,
+              familySupport: 0.04,
+              social: 0.02,
+              stressResistance: 0.1
+            };
+      const weightedScore =
+        (gameState.stats.intelligence || 0) * (statWeights.intelligence || 0) +
+        (gameState.stats.discipline || 0) * (statWeights.discipline || 0) +
+        (gameState.stats.mental || 0) * (statWeights.mental || 0) +
+        (gameState.stats.health || 0) * (statWeights.health || 0) +
+        (gameState.stats.familySupport || 0) * (statWeights.familySupport || 0) +
+        (gameState.stats.social || 0) * (statWeights.social || 0) +
+        (100 - (gameState.stats.stress || 0)) * (statWeights.stressResistance || 0);
+      const minBase = typeof scoreRule.minimum === "number" ? scoreRule.minimum : 280;
+      const maxBase = typeof scoreRule.maximum === "number" ? scoreRule.maximum : 655;
+      const baseScore = Math.round(minBase + clampNumber(weightedScore, 0, 100) / 100 * (maxBase - minBase));
+      const trajectoryBonus = getTrajectoryBonus(gaokaoConfig.trajectoryBonuses);
+      const performanceProfiles =
+        gaokaoConfig.performanceProfiles && typeof gaokaoConfig.performanceProfiles === "object"
+          ? gaokaoConfig.performanceProfiles
+          : {};
+      const roll = Math.random();
+      let performanceId = "normal";
+      let running = 0;
+
+      Object.entries(performanceProfiles).forEach(([profileId, profile]) => {
+        if (running < 1 && roll >= running && roll < running + (profile.probability || 0)) {
+          performanceId = profileId;
+        }
+        running += profile.probability || 0;
+      });
+
+      const selectedProfile = performanceProfiles[performanceId] || performanceProfiles.normal || {};
+      const performanceDelta = randomInRange(selectedProfile.offsetRange);
+      const finalScore = clampNumber(
+        Math.round(baseScore + trajectoryBonus + performanceDelta),
+        0,
+        typeof gaokaoState.totalScore === "number" ? gaokaoState.totalScore : 750
+      );
+      const tier = determineGaokaoTier(region, finalScore);
+      const narrative = pickNarrativeFromPool(
+        selectedProfile.narratives,
+        typeof selectedProfile.fallbackText === "string" ? selectedProfile.fallbackText : "你走完了那几场最重要的考试。"
+      );
+
+      gaokaoState.attempted = true;
+      gaokaoState.baseScore = clampNumber(Math.round(baseScore + trajectoryBonus), 0, gaokaoState.totalScore);
+      gaokaoState.score = finalScore;
+      gaokaoState.performance = performanceId;
+      gaokaoState.performanceLabel = selectedProfile.label || performanceId;
+      gaokaoState.performanceNarrative = narrative;
+      gaokaoState.tierId = tier && tier.id ? tier.id : "";
+      gaokaoState.tierLabel = tier && tier.label ? tier.label : "去向待定";
+      gaokaoState.notes = normalizeStringArray([
+        region && region.summary ? region.summary : "",
+        typeof narrative === "string" ? narrative : ""
+      ]);
+
+      addGameFlags([
+        "life_path_gaokao",
+        "gaokao_taken",
+        "gaokao_performance_" + performanceId,
+        gaokaoState.tierId ? "gaokao_tier_" + gaokaoState.tierId : ""
+      ]);
+      addHistory(
+        "高考成绩出来了：在" +
+          (gaokaoState.regionName || "你的地区") +
+          "参考下，你拿到了 " +
+          finalScore +
+          " 分，落在“" +
+          gaokaoState.tierLabel +
+          "”。"
+      );
+      addHistory(narrative);
+      return;
+    }
+
+    if (action === "resolve_gaokao_destination") {
+      const gaokaoState = ensureGaokaoState();
+      const willingnessToLeaveHome = Boolean(data.willingnessToLeaveHome);
+      const majorPreference = typeof data.majorPreference === "string" ? data.majorPreference : "";
+      const familyPreference = typeof data.familyPreference === "string" ? data.familyPreference : "";
+      const destination = pickUniversityDestination(gaokaoState.tierId, {
+        willingnessToLeaveHome,
+        majorPreference,
+        familyPreference
+      });
+
+      gaokaoState.willingnessToLeaveHome = willingnessToLeaveHome;
+      gaokaoState.majorPreference = majorPreference;
+
+      if (destination && destination.routeId) {
+        gaokaoState.destinationPoolId = destination.id || "";
+        gaokaoState.destinationLabel = destination.label || destination.routeId;
+        addHistory(
+          "最后去向没有被一条固定分数线写死。结合地区、成绩、家里条件和你的取向，你走进了“" +
+            gaokaoState.destinationLabel +
+            "”。"
+        );
+        applyRouteDefinition(educationRouteMap.get(destination.routeId) || null);
+        addGameFlags(normalizeStringArray(destination.addFlags));
+        addGameTags(normalizeStringArray(destination.addTags));
+        return;
+      }
+
+      if (typeof data.fallbackRouteId === "string" && data.fallbackRouteId) {
+        gaokaoState.destinationLabel = data.fallbackLabel || "重新规划";
+        applyRouteDefinition(educationRouteMap.get(data.fallbackRouteId) || null);
+      }
+      return;
+    }
+
+    if (action === "take_non_gaokao_route") {
+      gameState.lifePath = "non_gaokao";
+      addGameFlags(["life_path_non_gaokao"]);
+      if (typeof data.routeId === "string" && data.routeId) {
+        applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
+      }
+      if (typeof data.log === "string" && data.log) {
+        addHistory(data.log);
+      }
+      return;
+    }
+
+    if (action === "start_overseas_route") {
+      const overseasState = ensureOverseasState();
+      gameState.lifePath = "overseas";
+      overseasState.active = true;
+      overseasState.routeId = typeof data.routeId === "string" ? data.routeId : overseasState.routeId;
+      overseasState.routeName = typeof data.routeName === "string" ? data.routeName : overseasState.routeName;
+      overseasState.destination = typeof data.destination === "string" ? data.destination : overseasState.destination;
+      overseasState.supportLevel = typeof data.supportLevel === "string" ? data.supportLevel : overseasState.supportLevel;
+      overseasState.languagePressure = clampRelationshipMetric(
+        (overseasState.languagePressure || 0) + (typeof data.languagePressure === "number" ? data.languagePressure : 0)
+      );
+      overseasState.loneliness = clampRelationshipMetric(
+        (overseasState.loneliness || 0) + (typeof data.loneliness === "number" ? data.loneliness : 0)
+      );
+      overseasState.financePressure = clampRelationshipMetric(
+        (overseasState.financePressure || 0) + (typeof data.financePressure === "number" ? data.financePressure : 0)
+      );
+      overseasState.exposureRisk = clampRelationshipMetric(
+        (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 0)
+      );
+      addGameFlags(["life_path_overseas"]);
+      if (typeof data.routeId === "string" && data.routeId) {
+        applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
+      }
+      convertDomesticRelationshipsToDistance();
+      addHistory(
+        "你把生活连根拔起，开始准备去" +
+          (overseasState.destination || "国外") +
+          "念书。新的语言环境、经济账和孤独感，都会一起进场。"
+      );
+      return;
+    }
+
+    if (action === "adjust_overseas_pressures") {
+      const overseasState = ensureOverseasState();
+      overseasState.languagePressure = clampRelationshipMetric(
+        (overseasState.languagePressure || 0) + (typeof data.languagePressure === "number" ? data.languagePressure : 0)
+      );
+      overseasState.loneliness = clampRelationshipMetric(
+        (overseasState.loneliness || 0) + (typeof data.loneliness === "number" ? data.loneliness : 0)
+      );
+      overseasState.financePressure = clampRelationshipMetric(
+        (overseasState.financePressure || 0) + (typeof data.financePressure === "number" ? data.financePressure : 0)
+      );
+      overseasState.exposureRisk = clampRelationshipMetric(
+        (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 0)
+      );
+      return;
+    }
+
+    if (action === "register_overseas_connection") {
+      registerOverseasConnection(data.relationshipId);
+      return;
+    }
+
+    if (action === "activate_double_track") {
+      const overseasState = ensureOverseasState();
+      const domesticId = overseasState.domesticConnectionIds[0] || "";
+      const overseasId = typeof data.relationshipId === "string" ? data.relationshipId : overseasState.newConnectionIds[0] || "";
+      overseasState.doubleTrack = true;
+      overseasState.exposureRisk = clampRelationshipMetric(
+        (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 18)
+      );
+      addGameFlags(["overseas_double_track"]);
+
+      if (domesticId) {
+        setRelationshipStatus(
+          domesticId,
+          data.domesticStatus || "triangle",
+          typeof data.domesticHistory === "string"
+            ? data.domesticHistory
+            : "隔着时差和屏幕，这段关系开始出现你没敢正面承认的裂缝。"
+        );
+      }
+
+      if (overseasId) {
+        registerOverseasConnection(overseasId);
+        setRelationshipStatus(
+          overseasId,
+          data.overseasStatus || "hidden_double_track",
+          typeof data.overseasHistory === "string"
+            ? data.overseasHistory
+            : "新的心动来得并不干净，因为旧关系并没有真正结束。"
+        );
+        gameState.activeRelationshipId = overseasId;
+      }
+      return;
+    }
+
+    if (action === "resolve_double_track") {
+      const overseasState = ensureOverseasState();
+      const domesticId = overseasState.domesticConnectionIds[0] || "";
+      const overseasId = overseasState.newConnectionIds[0] || "";
+      overseasState.doubleTrack = false;
+      overseasState.exposureRisk = clampRelationshipMetric(
+        (overseasState.exposureRisk || 0) + (typeof data.exposureRisk === "number" ? data.exposureRisk : 0)
+      );
+
+      if (domesticId && data.domesticStatus) {
+        setRelationshipStatus(domesticId, data.domesticStatus, data.domesticHistory);
+      }
+      if (overseasId && data.overseasStatus) {
+        setRelationshipStatus(overseasId, data.overseasStatus, data.overseasHistory);
+      }
+
+      if (data.clearFlag !== false) {
+        removeGameFlags(["overseas_double_track"]);
+      }
+      return;
+    }
   }
 
   function matchesConditions(conditions, state, event) {
@@ -1599,6 +2294,16 @@
       return gameState.activeRelationshipId || "";
     }
 
+    if (normalizedId === "$domestic_anchor") {
+      const overseasState = ensureOverseasState();
+      return overseasState.domesticConnectionIds[0] || "";
+    }
+
+    if (normalizedId === "$overseas_flame") {
+      const overseasState = ensureOverseasState();
+      return overseasState.newConnectionIds[0] || "";
+    }
+
     return normalizedId;
   }
 
@@ -1742,6 +2447,10 @@
 
     if (typeof block.setCareerRoute === "string" && block.setCareerRoute) {
       applyRouteDefinition(careerRouteMap.get(block.setCareerRoute) || null);
+    }
+
+    if (block.customAction) {
+      performCustomAction(block.customAction, block.customPayload);
     }
 
     if (block.clearActiveRelationship) {

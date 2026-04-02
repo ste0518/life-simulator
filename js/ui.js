@@ -273,6 +273,101 @@
 
       elements.routeContainer.appendChild(card);
     });
+
+    if (state.gaokao && typeof state.gaokao.score === "number") {
+      const card = document.createElement("article");
+      card.className = "route-card";
+
+      const label = document.createElement("strong");
+      label.className = "route-label";
+      label.textContent = "高考结算";
+      card.appendChild(label);
+
+      const title = document.createElement("p");
+      title.className = "route-title";
+      title.textContent = (state.gaokao.regionName || "地区未定") + " · " + state.gaokao.score + " 分";
+      card.appendChild(title);
+
+      const summary = document.createElement("p");
+      summary.className = "route-summary";
+      summary.textContent =
+        (state.gaokao.performanceLabel || "发挥未定") + "，当前落在“" + (state.gaokao.tierLabel || "区间未定") + "”。";
+      card.appendChild(summary);
+
+      const details = document.createElement("ul");
+      details.className = "route-details";
+      [
+        "基础实力约 " + (state.gaokao.baseScore || 0) + " 分",
+        state.gaokao.destinationLabel ? "当前去向池：" + state.gaokao.destinationLabel : "",
+        state.gaokao.performanceNarrative || ""
+      ]
+        .filter(Boolean)
+        .forEach((detail) => {
+          const item = document.createElement("li");
+          item.textContent = detail;
+          details.appendChild(item);
+        });
+      card.appendChild(details);
+
+      elements.routeContainer.appendChild(card);
+    }
+
+    if (state.overseas && state.overseas.active) {
+      const card = document.createElement("article");
+      card.className = "route-card";
+
+      const label = document.createElement("strong");
+      label.className = "route-label";
+      label.textContent = "海外生活";
+      card.appendChild(label);
+
+      const title = document.createElement("p");
+      title.className = "route-title";
+      title.textContent = (state.overseas.routeName || "海外路线") + " · " + (state.overseas.destination || "海外城市");
+      card.appendChild(title);
+
+      const summary = document.createElement("p");
+      summary.className = "route-summary";
+      summary.textContent =
+        (state.overseas.supportLevel || "支持方式未定") +
+        "，语言压力 " +
+        (state.overseas.languagePressure || 0) +
+        "，孤独感 " +
+        (state.overseas.loneliness || 0) +
+        "，经济压力 " +
+        (state.overseas.financePressure || 0) +
+        "。";
+      card.appendChild(summary);
+
+      const details = document.createElement("ul");
+      details.className = "route-details";
+      [
+        state.overseas.domesticConnectionIds && state.overseas.domesticConnectionIds.length
+          ? "仍在维系的国内关系：" +
+            state.overseas.domesticConnectionIds
+              .map((id) => (state.relationships && state.relationships[id] ? state.relationships[id].name : id))
+              .join("、")
+          : "",
+        state.overseas.newConnectionIds && state.overseas.newConnectionIds.length
+          ? "海外新关系对象：" +
+            state.overseas.newConnectionIds
+              .map((id) => (state.relationships && state.relationships[id] ? state.relationships[id].name : id))
+              .join("、")
+          : "",
+        state.overseas.doubleTrack ? "当前存在双线关系拉扯，暴露风险更高。" : ""
+      ]
+        .filter(Boolean)
+        .forEach((detail) => {
+          const item = document.createElement("li");
+          item.textContent = detail;
+          details.appendChild(item);
+        });
+      if (details.childNodes.length) {
+        card.appendChild(details);
+      }
+
+      elements.routeContainer.appendChild(card);
+    }
   }
 
   function renderHistory(state) {
@@ -545,6 +640,22 @@
 
     if (option.setCareerRoute) {
       addHint(hints, "确定职业路线");
+    }
+
+    if (option.customAction === "simulate_gaokao") {
+      addHint(hints, "结算高考分数");
+    }
+
+    if (option.customAction === "resolve_gaokao_destination") {
+      addHint(hints, "按区间结算去向");
+    }
+
+    if (option.customAction === "start_overseas_route") {
+      addHint(hints, "开启海外路线");
+    }
+
+    if (option.customAction === "take_non_gaokao_route") {
+      addHint(hints, "确定不高考去向");
     }
 
     if (
