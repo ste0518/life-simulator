@@ -1100,7 +1100,7 @@
     }
 
     elements.stageValue.textContent = stateApi.getStageLabel(event.stage);
-    elements.eventTitle.textContent = event.title;
+    elements.eventTitle.textContent = engine.formatText(event.title);
     createParagraphs(elements.storyText, event.text);
     renderOptions(event, state);
   }
