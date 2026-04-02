@@ -39,6 +39,68 @@
     });
   }
 
+  function appendInsightSection(container, titleText, items, className) {
+    if (!Array.isArray(items) || !items.length) {
+      return;
+    }
+
+    const section = document.createElement("section");
+    section.className = className;
+
+    const title = document.createElement("strong");
+    title.className = className + "-title";
+    title.textContent = titleText;
+    section.appendChild(title);
+
+    const list = document.createElement("ul");
+    list.className = className + "-list";
+
+    items.forEach((item) => {
+      const row = document.createElement("li");
+      row.textContent = item;
+      list.appendChild(row);
+    });
+
+    section.appendChild(list);
+    container.appendChild(section);
+  }
+
+  function renderEndingAnalysis(container, analysis) {
+    if (!analysis) {
+      return;
+    }
+
+    const wrapper = document.createElement("section");
+    wrapper.className = "ending-analysis";
+
+    const title = document.createElement("strong");
+    title.className = "ending-analysis-title";
+    title.textContent = "为什么会走到这里";
+    wrapper.appendChild(title);
+
+    const weight = document.createElement("p");
+    weight.className = "ending-analysis-weight";
+    weight.textContent = "基础权重 " + analysis.baseWeight + "，最终命中权重 " + analysis.totalWeight;
+    wrapper.appendChild(weight);
+
+    if (analysis.baseReasons && analysis.baseReasons.length) {
+      const baseList = document.createElement("ul");
+      baseList.className = "ending-analysis-list";
+      analysis.baseReasons.forEach((reason) => {
+        const item = document.createElement("li");
+        item.textContent = reason;
+        baseList.appendChild(item);
+      });
+      wrapper.appendChild(baseList);
+    }
+
+    if (analysis.matchedModifiers && analysis.matchedModifiers.length) {
+      appendInsightSection(wrapper, "额外加权来源", analysis.matchedModifiers, "ending-bonus");
+    }
+
+    container.appendChild(wrapper);
+  }
+
   function getGenderLabel(gender) {
     if (gender === "male") {
       return "男";
@@ -413,7 +475,110 @@
     });
   }
 
-  function renderOptions(event) {
+  function addHint(hints, text) {
+    if (!text || hints.includes(text)) {
+      return;
+    }
+
+    hints.push(text);
+  }
+
+  function getOptionHints(option, state) {
+    const hints = [];
+    const stats = option && option.effects && option.effects.stats ? option.effects.stats : {};
+    const relationshipEffects = Array.isArray(option.relationshipEffects) ? option.relationshipEffects : [];
+    const activeRelationship =
+      state && state.activeRelationshipId && state.relationships
+        ? state.relationships[state.activeRelationshipId] || null
+        : null;
+
+    if ((stats.career || 0) + (stats.intelligence || 0) >= 4) {
+      addHint(hints, "偏成长 / 事业");
+    } else if ((stats.career || 0) > 0 || (stats.intelligence || 0) > 0) {
+      addHint(hints, "成长推进");
+    }
+
+    if ((stats.money || 0) >= 3) {
+      addHint(hints, "财富提升");
+    }
+
+    if ((stats.stress || 0) >= 3) {
+      addHint(hints, "压力上升");
+    } else if ((stats.stress || 0) <= -2) {
+      addHint(hints, "压力缓解");
+    }
+
+    if ((stats.health || 0) + (stats.mental || 0) + (stats.happiness || 0) >= 4) {
+      addHint(hints, "状态回升");
+    } else if ((stats.health || 0) + (stats.mental || 0) + (stats.happiness || 0) <= -4) {
+      addHint(hints, "身心消耗");
+    }
+
+    if ((stats.social || 0) >= 3) {
+      addHint(hints, "社交推进");
+    }
+
+    if (Array.isArray(option.addTags)) {
+      if (option.addTags.includes("stability")) {
+        addHint(hints, "更偏稳定");
+      }
+      if (option.addTags.includes("family")) {
+        addHint(hints, "更偏家庭");
+      }
+      if (option.addTags.includes("ambition")) {
+        addHint(hints, "更偏野心");
+      }
+      if (option.addTags.includes("risk")) {
+        addHint(hints, "风险更高");
+      }
+      if (option.addTags.includes("selfhood")) {
+        addHint(hints, "更偏自我探索");
+      }
+      if (option.addTags.includes("craft")) {
+        addHint(hints, "创作投入");
+      }
+    }
+
+    if (option.setEducationRoute) {
+      addHint(hints, "确定升学路线");
+    }
+
+    if (option.setCareerRoute) {
+      addHint(hints, "确定职业路线");
+    }
+
+    if (
+      relationshipEffects.some((effect) =>
+        (effect.affection || 0) > 0 ||
+        (effect.familiarity || 0) > 0 ||
+        (effect.trust || 0) > 0 ||
+        (effect.playerInterest || 0) > 0 ||
+        (effect.theirInterest || 0) > 0 ||
+        (effect.commitment || 0) > 0 ||
+        (effect.continuity || 0) > 0 ||
+        effect.setActive
+      )
+    ) {
+      addHint(hints, activeRelationship ? "推进当前关系" : "关系升温");
+    }
+
+    if (
+      option.clearActiveRelationship ||
+      relationshipEffects.some((effect) =>
+        (effect.affection || 0) < 0 ||
+        (effect.trust || 0) < 0 ||
+        (effect.commitment || 0) < 0 ||
+        (effect.tension || 0) > 0 ||
+        effect.clearActive
+      )
+    ) {
+      addHint(hints, activeRelationship ? "当前关系更易拉扯" : "关系拉扯");
+    }
+
+    return hints.slice(0, 4);
+  }
+
+  function renderOptions(event, state) {
     elements.optionsContainer.innerHTML = "";
 
     const visibleOptions = engine.getVisibleOptions(event);
@@ -422,7 +587,31 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "option-button";
-      button.textContent = engine.formatOptionText(option.text);
+
+      const content = document.createElement("div");
+      content.className = "option-button-content";
+
+      const text = document.createElement("span");
+      text.className = "option-main-text";
+      text.textContent = engine.formatOptionText(option.text);
+      content.appendChild(text);
+
+      const hints = getOptionHints(option, state);
+      if (hints.length) {
+        const hintRow = document.createElement("div");
+        hintRow.className = "option-hints";
+
+        hints.forEach((hint) => {
+          const badge = document.createElement("span");
+          badge.className = "option-hint";
+          badge.textContent = hint;
+          hintRow.appendChild(badge);
+        });
+
+        content.appendChild(hintRow);
+      }
+
+      button.appendChild(content);
       button.addEventListener("click", function () {
         engine.chooseOption(option.index);
         render();
@@ -532,6 +721,7 @@
       elements.stageValue.textContent = "人生总结";
       elements.eventTitle.textContent = engine.formatText(state.ending.title);
       createParagraphs(elements.storyText, state.ending.text);
+      renderEndingAnalysis(elements.storyText, state.ending.analysis);
       elements.optionsContainer.innerHTML = "";
 
       const restart = document.createElement("button");
@@ -559,7 +749,7 @@
     elements.stageValue.textContent = stateApi.getStageLabel(event.stage);
     elements.eventTitle.textContent = event.title;
     createParagraphs(elements.storyText, event.text);
-    renderOptions(event);
+    renderOptions(event, state);
   }
 
   function render() {

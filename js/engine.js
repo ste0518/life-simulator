@@ -1810,6 +1810,417 @@
     return candidates[candidates.length - 1].ending;
   }
 
+  function getAgeStageFocus(age) {
+    if (age <= 5) {
+      return {
+        primary: ["childhood", "school"],
+        secondary: ["misc"]
+      };
+    }
+
+    if (age <= 11) {
+      return {
+        primary: ["school", "adolescence"],
+        secondary: ["childhood", "misc"]
+      };
+    }
+
+    if (age <= 15) {
+      return {
+        primary: ["adolescence", "highschool"],
+        secondary: ["school", "transition", "misc"]
+      };
+    }
+
+    if (age <= 19) {
+      return {
+        primary: ["highschool", "transition", "college"],
+        secondary: ["adolescence", "young_adult", "misc"]
+      };
+    }
+
+    if (age <= 26) {
+      return {
+        primary: ["college", "young_adult", "career"],
+        secondary: ["transition", "family", "misc"]
+      };
+    }
+
+    if (age <= 39) {
+      return {
+        primary: ["career", "family"],
+        secondary: ["young_adult", "midlife", "misc"]
+      };
+    }
+
+    if (age <= 55) {
+      return {
+        primary: ["family", "midlife", "career"],
+        secondary: ["later_life", "misc"]
+      };
+    }
+
+    return {
+      primary: ["later_life", "midlife", "family"],
+      secondary: ["career", "misc"]
+    };
+  }
+
+  function usesActiveRelationshipAlias(rule) {
+    if (!rule) {
+      return false;
+    }
+
+    return (
+      (Array.isArray(rule.activeRelationshipIds) && rule.activeRelationshipIds.length > 0) ||
+      (Array.isArray(rule.activeRelationshipStatuses) && rule.activeRelationshipStatuses.length > 0) ||
+      typeof rule.activeRelationshipMinAffection === "number" ||
+      typeof rule.activeRelationshipMaxAffection === "number" ||
+      typeof rule.activeRelationshipMinFamiliarity === "number" ||
+      typeof rule.activeRelationshipMinTrust === "number" ||
+      typeof rule.activeRelationshipMinPlayerInterest === "number" ||
+      typeof rule.activeRelationshipMinTheirInterest === "number" ||
+      typeof rule.activeRelationshipMaxTension === "number" ||
+      typeof rule.activeRelationshipMinCommitment === "number" ||
+      typeof rule.activeRelationshipMinContinuity === "number" ||
+      typeof rule.activeRelationshipMinInteractionCount === "number" ||
+      (Array.isArray(rule.requiredActiveRelationshipFlags) && rule.requiredActiveRelationshipFlags.length > 0) ||
+      (Array.isArray(rule.excludedActiveRelationshipFlags) && rule.excludedActiveRelationshipFlags.length > 0) ||
+      (Array.isArray(rule.activeRelationshipRequiredSharedHistory) && rule.activeRelationshipRequiredSharedHistory.length > 0) ||
+      (Array.isArray(rule.activeRelationshipExcludedSharedHistory) && rule.activeRelationshipExcludedSharedHistory.length > 0)
+    );
+  }
+
+  function getRelationshipRuleScore(rule, relationshipId, state) {
+    if (!rule || !relationshipId) {
+      return 0;
+    }
+
+    const mapKeys = [
+      "relationshipStatuses",
+      "excludedRelationshipStatuses",
+      "requiredRelationshipFlags",
+      "excludedRelationshipFlags",
+      "requiredSharedHistory",
+      "excludedSharedHistory",
+      "minAffection",
+      "maxAffection",
+      "minFamiliarity",
+      "minTrust",
+      "minAmbiguity",
+      "minPlayerInterest",
+      "minTheirInterest",
+      "maxTension",
+      "minCommitment",
+      "minContinuity",
+      "minInteractionCount"
+    ];
+
+    if (Array.isArray(rule.activeRelationshipIds) && rule.activeRelationshipIds.includes(relationshipId)) {
+      return 2;
+    }
+
+    if (
+      (Array.isArray(rule.knownRelationships) && rule.knownRelationships.includes(relationshipId)) ||
+      (Array.isArray(rule.unknownRelationships) && rule.unknownRelationships.includes(relationshipId))
+    ) {
+      return 1;
+    }
+
+    if (
+      mapKeys.some((key) => rule[key] && Object.prototype.hasOwnProperty.call(rule[key], relationshipId))
+    ) {
+      return 2;
+    }
+
+    if (
+      state &&
+      state.activeRelationshipId === relationshipId &&
+      usesActiveRelationshipAlias(rule)
+    ) {
+      return 2;
+    }
+
+    return 0;
+  }
+
+  function mutationTargetsRelationship(block, relationshipId, activeRelationshipId) {
+    if (!block || !relationshipId) {
+      return 0;
+    }
+
+    let score = 0;
+
+    if (typeof block.setActiveRelationship === "string" && block.setActiveRelationship === relationshipId) {
+      score = Math.max(score, 2);
+    }
+
+    (block.relationshipEffects || []).forEach((effect) => {
+      if (!effect) {
+        return;
+      }
+
+      if (effect.targetId === relationshipId) {
+        score = Math.max(score, 2);
+      }
+
+      if (effect.targetId === "$active" && activeRelationshipId === relationshipId) {
+        score = Math.max(score, 2);
+      }
+    });
+
+    return score;
+  }
+
+  function getEventRelationshipFocusScore(event, relationshipId, state) {
+    if (!event || !relationshipId) {
+      return 0;
+    }
+
+    const relationship = getRelationshipSnapshot(state, relationshipId);
+    const arcDefinition = relationshipArcMap.get(relationshipId) || null;
+
+    if (
+      arcDefinition &&
+      Array.isArray(arcDefinition.exclusiveEvents) &&
+      arcDefinition.exclusiveEvents.includes(event.id)
+    ) {
+      return 3;
+    }
+
+    let score = getRelationshipRuleScore(event.conditions, relationshipId, state);
+    score = Math.max(score, mutationTargetsRelationship(event.effectsOnEnter, relationshipId, state.activeRelationshipId));
+
+    (event.choices || []).forEach((choice) => {
+      score = Math.max(score, getRelationshipRuleScore(choice.conditions, relationshipId, state));
+      score = Math.max(score, mutationTargetsRelationship(choice, relationshipId, state.activeRelationshipId));
+    });
+
+    if (relationship && relationship.met && (relationship.affection || 0) >= 40 && event.stage === "family") {
+      score = Math.max(score, 1);
+    }
+
+    return score;
+  }
+
+  function calculateEventSelectionWeight(event, state) {
+    const currentState = state || gameState;
+    let weight = Math.max(0, event.weight || 0);
+    const routeIds = [
+      currentState.educationRoute && currentState.educationRoute.id ? currentState.educationRoute.id : "",
+      currentState.careerRoute && currentState.careerRoute.id ? currentState.careerRoute.id : ""
+    ].filter(Boolean);
+    const stageFocus = getAgeStageFocus(currentState.age);
+    const visitCount =
+      currentState.eventVisitCounts && currentState.eventVisitCounts[event.id]
+        ? currentState.eventVisitCounts[event.id]
+        : 0;
+    const currentPartner = getCurrentPartner(currentState);
+    const strongestRelationship = getStrongestRelationship(currentState);
+
+    if (weight <= 0) {
+      return 0;
+    }
+
+    if (stageFocus.primary.includes(event.stage)) {
+      weight += 6;
+    } else if (stageFocus.secondary.includes(event.stage)) {
+      weight += 2;
+    }
+
+    if (!event.repeatable && visitCount === 0) {
+      weight += 5;
+    }
+
+    if (event.repeatable) {
+      weight = Math.max(1, weight - 2);
+    }
+
+    if (routeIds.some((id) => (event.conditions.educationRouteIds || []).includes(id))) {
+      weight += 8;
+    }
+
+    if (routeIds.some((id) => (event.conditions.careerRouteIds || []).includes(id))) {
+      weight += 8;
+    }
+
+    if (currentState.familyBackground && (event.conditions.familyBackgroundIds || []).includes(currentState.familyBackground.id)) {
+      weight += 4;
+    }
+
+    if (Array.isArray(event.tags) && event.tags.length) {
+      const matchedTags = event.tags.filter((tag) => currentState.tags.includes(tag));
+      weight += Math.min(6, matchedTags.length * 2);
+    }
+
+    if (currentState.activeRelationshipId) {
+      const activeScore = getEventRelationshipFocusScore(event, currentState.activeRelationshipId, currentState);
+      if (activeScore === 3) {
+        weight += 18;
+      } else if (activeScore === 2) {
+        weight += 12;
+      } else if (activeScore === 1) {
+        weight += 5;
+      }
+    }
+
+    if (currentPartner && currentPartner.id !== currentState.activeRelationshipId) {
+      const partnerScore = getEventRelationshipFocusScore(event, currentPartner.id, currentState);
+      if (partnerScore >= 2) {
+        weight += 6;
+      } else if (partnerScore === 1) {
+        weight += 3;
+      }
+    }
+
+    if (
+      strongestRelationship &&
+      strongestRelationship.id !== currentState.activeRelationshipId &&
+      (!currentPartner || strongestRelationship.id !== currentPartner.id)
+    ) {
+      const strongestScore = getEventRelationshipFocusScore(event, strongestRelationship.id, currentState);
+      if (strongestScore >= 2) {
+        weight += 4;
+      }
+    }
+
+    return Math.max(0, weight);
+  }
+
+  function pickWeightedEventWithNarrativeBias(events, state) {
+    const candidates = (events || [])
+      .map((event) => ({
+        event,
+        weight: calculateEventSelectionWeight(event, state)
+      }))
+      .filter((item) => item.weight > 0);
+
+    if (!candidates.length) {
+      return null;
+    }
+
+    const topWeight = candidates.reduce((highest, item) => Math.max(highest, item.weight), 0);
+    const focusPool = candidates.filter((item) => item.weight >= topWeight - 4);
+    const selectionPool = focusPool.length >= 2 ? focusPool : candidates;
+    const totalWeight = selectionPool.reduce((sum, item) => sum + item.weight, 0);
+    let cursor = Math.random() * totalWeight;
+
+    for (const item of selectionPool) {
+      cursor -= item.weight;
+      if (cursor <= 0) {
+        return item.event;
+      }
+    }
+
+    return selectionPool[selectionPool.length - 1].event;
+  }
+
+  function buildRequirementHighlights(rule, state) {
+    const highlights = [];
+    const seen = new Set();
+
+    function push(text) {
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      highlights.push(text);
+    }
+
+    Object.entries(rule.minStats || {}).forEach(([key, value]) => {
+      const current = state.stats[key] || 0;
+      push(stateApi.STAT_LABELS[key] + "达到 " + current + "（要求至少 " + value + "）");
+    });
+
+    Object.entries(rule.maxStats || {}).forEach(([key, value]) => {
+      const current = state.stats[key] || 0;
+      push(stateApi.STAT_LABELS[key] + "压在 " + current + "（要求不高于 " + value + "）");
+    });
+
+    if (rule.requiredTags.length) {
+      push("人生倾向命中：" + rule.requiredTags.join(" / "));
+    }
+
+    if (rule.someFlags.length) {
+      const matchedFlags = rule.someFlags.filter((flag) => state.flags.includes(flag));
+      if (matchedFlags.length) {
+        push("关键经历命中：" + matchedFlags.join(" / "));
+      }
+    }
+
+    if (rule.requiredFlags.length) {
+      push("长期状态命中：" + rule.requiredFlags.join(" / "));
+    }
+
+    if (rule.educationRouteIds.length && state.educationRoute) {
+      push("升学路线命中：" + state.educationRoute.name);
+    }
+
+    if (rule.careerRouteIds.length && state.careerRoute) {
+      push("职业路线命中：" + state.careerRoute.name);
+    }
+
+    if (rule.anyRelationshipStatuses.length) {
+      const matchedRelationship = Object.values(state.relationships || {}).find((relationship) =>
+        rule.anyRelationshipStatuses.includes(relationship.status)
+      );
+      if (matchedRelationship) {
+        push(
+          "关系状态命中：" +
+            matchedRelationship.name +
+            "处于“" +
+            (stateApi.RELATIONSHIP_STATUS_LABELS[matchedRelationship.status] || matchedRelationship.status) +
+            "”"
+        );
+      }
+    }
+
+    if (typeof rule.anyRelationshipMinAffection === "number") {
+      const matchedRelationship = Object.values(state.relationships || {}).find(
+        (relationship) => relationship.affection >= rule.anyRelationshipMinAffection
+      );
+      if (matchedRelationship) {
+        push(
+          matchedRelationship.name +
+            "的好感达到 " +
+            matchedRelationship.affection +
+            "（要求至少 " +
+            rule.anyRelationshipMinAffection +
+            "）"
+        );
+      }
+    }
+
+    if (rule.noCurrentPartner) {
+      push("当前没有稳定伴侣关系");
+    }
+
+    return highlights;
+  }
+
+  function analyzeEndingSelection(ending, state) {
+    const currentState = state || gameState;
+    const matchedModifiers = ending.weightModifiers
+      .filter((modifier) => matchesConditions(modifier.when, currentState))
+      .map((modifier) => ({
+        weight: modifier.weight,
+        reasons: buildRequirementHighlights(modifier.when, currentState)
+      }));
+    const baseReasons = buildRequirementHighlights(ending.require, currentState);
+
+    return {
+      baseWeight: Math.max(0, ending.baseWeight || 0),
+      totalWeight: calculateEndingWeight(ending, currentState),
+      baseReasons: baseReasons.slice(0, 5),
+      matchedModifiers: matchedModifiers
+        .map((item) => {
+          const label = item.reasons[0] || "命中了额外的人生倾向";
+          return label + "（额外 +" + item.weight + "）";
+        })
+        .slice(0, 4)
+    };
+  }
+
   function describeChildhood() {
     if (gameState.familyBackground && gameState.familyBackground.name) {
       const backgroundIntro = "你人生最初的起点，是“" + gameState.familyBackground.name + "”这样的家庭。";
@@ -1946,7 +2357,8 @@
     gameState.ending = ending
       ? {
           ...ending,
-          text: buildEndingText(ending)
+          text: buildEndingText(ending),
+          analysis: analyzeEndingSelection(ending, gameState)
         }
       : null;
     setCurrentEvent(null);
@@ -1966,7 +2378,8 @@
 
     gameState.ending = {
       ...instantEnding,
-      text: buildEndingText(instantEnding)
+      text: buildEndingText(instantEnding),
+      analysis: analyzeEndingSelection(instantEnding, gameState)
     };
     setCurrentEvent(null);
     gameState.gameOver = true;
@@ -2069,7 +2482,7 @@
       addHistory("日子继续往前推，你在不知不觉间长到了 " + nextAge + " 岁。");
     }
 
-    return pickWeightedEvent(sameAgeEvents);
+    return pickWeightedEventWithNarrativeBias(sameAgeEvents);
   }
 
   function fastForwardToSpecificAge(targetAge, message) {
@@ -2186,7 +2599,7 @@
       return;
     }
 
-    let fallbackEvent = pickWeightedEvent(getEligibleFallbackEvents());
+    let fallbackEvent = pickWeightedEventWithNarrativeBias(getEligibleFallbackEvents());
 
     if (!fallbackEvent) {
       fallbackEvent = fastForwardToNextEligibleAge();

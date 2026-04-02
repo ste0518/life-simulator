@@ -223,6 +223,35 @@ button {
   box-shadow: 0 10px 24px rgba(139, 94, 52, 0.24);
 }
 
+.option-button-content {
+  display: grid;
+  gap: 10px;
+}
+
+.option-main-text {
+  display: block;
+  line-height: 1.7;
+}
+
+.option-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option-hint {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(255, 250, 244, 0.18);
+  border: 1px solid rgba(255, 250, 244, 0.22);
+  color: #fff7ef;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .option-button:hover,
 .ghost-button:hover {
   transform: translateY(-1px);
@@ -243,6 +272,43 @@ button {
 .ending-card {
   border-left: 5px solid var(--accent);
   background: #fff6e7;
+}
+
+.ending-analysis {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(139, 94, 52, 0.18);
+  border-radius: 14px;
+  background: rgba(255, 249, 238, 0.92);
+}
+
+.ending-analysis-title,
+.ending-bonus-title {
+  display: block;
+  color: var(--accent-dark);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ending-analysis-weight {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 0.9rem;
+}
+
+.ending-analysis-list,
+.ending-bonus-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.ending-bonus {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(139, 94, 52, 0.18);
 }
 
 .stats-grid {
