@@ -1740,23 +1740,13 @@
   function buildDomesticUniversityRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
-    return mapDomesticUniversityRecommendations(candidates, preferredTags);
+    return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 1), preferredTags);
   }
 
   function buildDomesticUniversityPreviewRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
-    return mapDomesticUniversityRecommendations(
-      candidates
-        .slice()
-        .sort((left, right) => {
-          const leftOrder = typeof left.scoreOrder === "number" ? left.scoreOrder : Number.MAX_SAFE_INTEGER;
-          const rightOrder = typeof right.scoreOrder === "number" ? right.scoreOrder : Number.MAX_SAFE_INTEGER;
-          return leftOrder - rightOrder;
-        })
-        .slice(0, 3),
-      preferredTags
-    );
+    return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 1), preferredTags);
   }
 
   function getOverseasPreferredTags(routeId) {
