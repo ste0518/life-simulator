@@ -722,6 +722,31 @@ button {
   color: var(--danger);
 }
 
+.inventory-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.92rem;
+}
+
+.inventory-item {
+  margin-bottom: 0.35rem;
+}
+
+.family-life-summary p {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.family-life-summary .muted {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.family-life-summary .loan-note {
+  color: var(--danger);
+  font-size: 0.88rem;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;

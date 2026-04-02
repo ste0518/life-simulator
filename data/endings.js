@@ -260,7 +260,9 @@
         ...LATE_GAME_REQUIREMENT
       }),
       weightModifiers: [
-        modifier({ weight: 8, when: { minStats: { happiness: 50 } } })
+        modifier({ weight: 8, when: { minStats: { happiness: 50 } } }),
+        modifier({ weight: 6, when: { requiredFlags: ["overseas_study_loan", "study_abroad_debt"] } }),
+        modifier({ weight: 5, when: { requiredFlags: ["has_child", "parent_active"] } })
       ]
     })
   ];

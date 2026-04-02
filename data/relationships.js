@@ -1149,6 +1149,112 @@
           minStats: { career: 24, discipline: 28 }
         }
       }
+    }),
+    relationship({
+      id: "lin_xiaonan",
+      name: "林小楠",
+      gender: "female",
+      identity: "理科班里草稿纸永远比课本厚的人，讲题时耐心，被起哄时会先愣一下再装作没听见。",
+      stageTags: ["adolescence", "highschool", "college", "young_adult"],
+      roleTags: ["理科强项", "慢热型"],
+      traitTags: ["理性", "克制", "细腻"],
+      contactStyle: "吃细节和稳定陪伴，不喜欢被当众架在尴尬里。",
+      conflictStyle: "会冷处理，但心里记得很清楚，需要被认真道歉而不是糊弄过去。",
+      appearance: {
+        minAge: 14,
+        firstStage: "adolescence",
+        contexts: ["晚自习", "竞赛小组", "操场边对答案"],
+        sceneHooks: {
+          notice: "讲台上订正试卷时她举手问得很具体的样子",
+          contact: "借过几次笔记以后，她开始会主动把易错点标出来给你",
+          repeated: "晚自习、竞赛辅导和放学路上那几句不咸不淡的日常",
+          bond: "你发现她会把你的粗心记得比你自己还清楚",
+          special: "班里有人起哄你们「讲题讲出感情」时，她耳朵先红",
+          distance: "分班、志愿和城市把见面频率一下拉断",
+          reunion: "考研自习室、行业交流会或老家商场里偶然撞上"
+        },
+        introductionText: "你真正注意到林小楠，是在几次考试成绩贴出来以后——她从不炫耀分数，却总能把错题整理得像一份小型报告。",
+        rumorText: "后来班里有人开玩笑，说她给你讲题讲得比老师还细，她一边否认一边把笔攥得很紧。"
+      },
+      availability: {
+        spansStages: ["adolescence", "highschool", "college", "young_adult"],
+        reconnectAges: [22, 27],
+        continuityBias: "steady"
+      },
+      romanceProfile: {
+        arcType: "slow_burn",
+        futureFocus: "更在意被认真对待和长期稳定，不吃花言巧语。",
+        longTermPotential: 82,
+        volatility: 30,
+        fitTags: ["stability", "growth", "literature"],
+        theirInterestConditions: {
+          minStats: { discipline: 20, mental: 38 }
+        },
+        warmingConditions: {
+          minStats: { happiness: 32 }
+        },
+        breakupConditions: {
+          minStats: { stress: 56 },
+          someFlags: ["trust_break"]
+        },
+        canReconnect: true,
+        reconnectConditions: {
+          minStats: { mental: 40, trust: 40 }
+        }
+      }
+    }),
+    relationship({
+      id: "zhou_mingyue",
+      name: "周明玥",
+      gender: "female",
+      identity: "广播站常驻，嘴快、笑点低，敢在人群里把话说满，也敢当面问你「你是不是有话想说」。",
+      stageTags: ["highschool", "college", "young_adult"],
+      roleTags: ["社团", "表达力强"],
+      traitTags: ["外向", "锋利", "直球"],
+      contactStyle: "喜欢被接住、被回应，讨厌拖泥带水和冷战。",
+      conflictStyle: "吵得大声，但也愿意当场吵完；最怕对方躲。",
+      appearance: {
+        minAge: 15,
+        firstStage: "highschool",
+        contexts: ["广播站", "社团招新", "校运会", "群聊"],
+        sceneHooks: {
+          notice: "午休广播里那个念错一个字会自己笑场的人",
+          contact: "社团表里你们被分在同一栏任务里",
+          repeated: "群聊、排练、校运会和无数次「顺手帮你占座」",
+          bond: "她开始把你的玩笑当真接回去",
+          special: "有人在背后议论你们关系时，她直接当众怼回去",
+          distance: "异地、志愿落差或社交圈重写让直球也变难",
+          reunion: "同城演出、短视频合作或朋友婚礼上撞见"
+        },
+        introductionText: "周明玥的声音比人先被你记住。真正认识以后才发现，她线下比线上更锋利，也更会把人逼到必须表态的位置。",
+        rumorText: "关于你们的传言从来不少，她从不否认得很干净，只会在人多的时候把你的名字说得很自然。"
+      },
+      availability: {
+        spansStages: ["highschool", "college", "young_adult"],
+        reconnectAges: [23, 29],
+        continuityBias: "volatile"
+      },
+      romanceProfile: {
+        arcType: "volatile",
+        futureFocus: "要热烈，也要被明确选择；异地恋是硬关卡。",
+        longTermPotential: 74,
+        volatility: 48,
+        fitTags: ["selfhood", "social", "risk"],
+        theirInterestConditions: {
+          minStats: { social: 26, happiness: 30 }
+        },
+        warmingConditions: {
+          minStats: { social: 24 }
+        },
+        breakupConditions: {
+          minStats: { stress: 52 },
+          someFlags: ["emotionally_guarded"]
+        },
+        canReconnect: true,
+        reconnectConditions: {
+          minStats: { social: 30, mental: 38 }
+        }
+      }
     })
   ];
 })();

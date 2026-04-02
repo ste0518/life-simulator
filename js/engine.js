@@ -49,6 +49,12 @@
     window.LIFE_OVERSEAS_ROUTE_CONFIG && typeof window.LIFE_OVERSEAS_ROUTE_CONFIG === "object"
       ? window.LIFE_OVERSEAS_ROUTE_CONFIG
       : {};
+  const lifeShopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
+  const shopItemMap = new Map(lifeShopItems.map((item) => [item.id, item]));
+  const lifeGiftEffects =
+    window.LIFE_GIFT_EFFECTS && typeof window.LIFE_GIFT_EFFECTS === "object" ? window.LIFE_GIFT_EFFECTS : {};
+  const lifeOverseasFinance =
+    window.LIFE_OVERSEAS_FINANCE && typeof window.LIFE_OVERSEAS_FINANCE === "object" ? window.LIFE_OVERSEAS_FINANCE : {};
   const OVERSEAS_PHASE_LABELS = {
     arrival: "初到适应期",
     settling: "初步融入期",
@@ -68,6 +74,7 @@
   };
   const OVERSEAS_FOCUS_FLAGS = Object.keys(OVERSEAS_FOCUS_LABELS).map((focusId) => "overseas_focus_" + focusId);
   const OVERSEAS_DERIVED_FLAGS = [
+    "overseas_study_loan_strain",
     "overseas_finance_high",
     "overseas_finance_breathing_room",
     "overseas_lonely",
@@ -394,7 +401,12 @@
         typeof conditions.activeRelationshipMinInteractionCount === "number"
           ? conditions.activeRelationshipMinInteractionCount
           : null,
-      noCurrentPartner: Boolean(conditions.noCurrentPartner)
+      noCurrentPartner: Boolean(conditions.noCurrentPartner),
+      minChildCount:
+        typeof conditions.minChildCount === "number" ? conditions.minChildCount : null,
+      maxChildCount:
+        typeof conditions.maxChildCount === "number" ? conditions.maxChildCount : null,
+      inventoryMin: normalizeNumberMap(conditions.inventoryMin)
     };
   }
 
@@ -606,6 +618,76 @@
 
   function clampRelationshipMetric(value) {
     return Math.max(0, Math.min(100, value));
+  }
+
+  function getChildCount(state) {
+    const c = state && state.children;
+    return c && typeof c.count === "number" ? Math.max(0, c.count) : 0;
+  }
+
+  function ensureInventoryBag(state) {
+    if (!state.inventory || typeof state.inventory !== "object") {
+      state.inventory = {};
+    }
+    return state.inventory;
+  }
+
+  function getInventoryItemCount(state, itemId) {
+    const bag = ensureInventoryBag(state);
+    return Math.max(0, bag[itemId] || 0);
+  }
+
+  function effectiveOverseasCashThreshold(state) {
+    const cfg = lifeOverseasFinance.overseasCostConfig || {};
+    let threshold = typeof cfg.cashLiquidityMin === "number" ? cfg.cashLiquidityMin : 50;
+    const fs = (state.stats && state.stats.familySupport) || 0;
+    const discountUnit =
+      typeof cfg.familySupportThresholdDiscountPer5 === "number" ? cfg.familySupportThresholdDiscountPer5 : 1;
+    threshold -= Math.floor(Math.max(0, fs - 25) / 5) * discountUnit;
+    const wealthy = normalizeStringArray(cfg.wealthyHomeFlags || []);
+    const bonus = typeof cfg.wealthyHomeThresholdBonus === "number" ? cfg.wealthyHomeThresholdBonus : 0;
+    if (wealthy.some((f) => state.flags.includes(f))) {
+      threshold -= bonus;
+    }
+    const floor = typeof cfg.absoluteCashFloor === "number" ? cfg.absoluteCashFloor : 38;
+    return Math.max(floor, threshold);
+  }
+
+  function meetsStudyLoanEligibility(state) {
+    const cfg = lifeOverseasFinance.loanConfig || {};
+    const stats = state.stats || {};
+    const fam = stats.familySupport || 0;
+    let minFam = typeof cfg.minFamilySupport === "number" ? cfg.minFamilySupport : 20;
+    const bypass = normalizeStringArray(cfg.familySupportBypassFlags || []);
+    if (bypass.some((f) => state.flags.includes(f))) {
+      minFam = typeof cfg.minFamilySupportWithBypass === "number" ? cfg.minFamilySupportWithBypass : 15;
+    }
+    const minI = typeof cfg.minIntelligence === "number" ? cfg.minIntelligence : 24;
+    const minD = typeof cfg.minDiscipline === "number" ? cfg.minDiscipline : 18;
+    if ((stats.intelligence || 0) < minI) {
+      return false;
+    }
+    if ((stats.discipline || 0) < minD) {
+      return false;
+    }
+    if (fam < minFam) {
+      return false;
+    }
+    return true;
+  }
+
+  function resolveOverseasFunding(state) {
+    const costCfg = lifeOverseasFinance.overseasCostConfig || {};
+    const money = (state.stats && state.stats.money) || 0;
+    const tuition = typeof costCfg.tuitionCost === "number" ? costCfg.tuitionCost : 30;
+    const needCash = effectiveOverseasCashThreshold(state);
+    if (money >= needCash && money >= tuition) {
+      return { ok: true, mode: "cash" };
+    }
+    if (meetsStudyLoanEligibility(state)) {
+      return { ok: true, mode: "loan" };
+    }
+    return { ok: false, mode: null };
   }
 
   function isPartnerStatus(status) {
@@ -1095,7 +1177,32 @@
             : "你在适应，但归属感还没有真正稳定下来。",
       overseasFuturePull: futurePull,
       overseasSupportSummary: supportNetworkNames.length ? supportNetworkNames.join("、") : "目前还没有真正稳住你的海外支持网",
-      overseasMentorSummary: mentorNames.length ? mentorNames.join("、") : "你还没有遇到真正愿意托你一把的导师型人物"
+      overseasMentorSummary: mentorNames.length ? mentorNames.join("、") : "你还没有遇到真正愿意托你一把的导师型人物",
+      studyLoanSummary: (() => {
+        const os = gameState.overseas || {};
+        if (os.studyLoanActive) {
+          return "你背着留学贷款，海外账本比同龄人更紧，每一笔开销都像在跟未来对账。";
+        }
+        if (gameState.flags.includes("overseas_paid_cash_tuition")) {
+          return "出国首期是用真金白银砸出去的，至少不欠银行那一头。";
+        }
+        return "留学这块的经济账，你还没真正押下去。";
+      })(),
+      childSummary: (() => {
+        const n = getChildCount(gameState);
+        if (n <= 0) {
+          return "你还没有把「孩子」接进日常生活里。";
+        }
+        return "家里有孩子以后，时间和钱的算法都换了一套。";
+      })(),
+      inventorySummary: (() => {
+        const bag = gameState.inventory || {};
+        const keys = Object.keys(bag).filter((k) => (bag[k] || 0) > 0);
+        if (!keys.length) {
+          return "你身上没有特别值得一提的「可送人的存货」。";
+        }
+        return "你手头还留着几件能送出去或自己用掉的东西。";
+      })()
     };
 
     return String(text || "").replace(/\{(\w+)\}/g, function (_, key) {
@@ -1242,7 +1349,11 @@
       qsBandLabel: typeof gameState.overseas.qsBandLabel === "string" ? gameState.overseas.qsBandLabel : "",
       recommendedUniversities: Array.isArray(gameState.overseas.recommendedUniversities)
         ? gameState.overseas.recommendedUniversities
-        : []
+        : [],
+      studyLoanActive: Boolean(gameState.overseas.studyLoanActive),
+      studyLoanBalance:
+        typeof gameState.overseas.studyLoanBalance === "number" ? gameState.overseas.studyLoanBalance : 0,
+      fundingMode: typeof gameState.overseas.fundingMode === "string" ? gameState.overseas.fundingMode : ""
     });
 
     return gameState.overseas;
@@ -1276,6 +1387,10 @@
         addGameFlags(["overseas_focus_" + focusId]);
       }
     });
+
+    if (overseasState.studyLoanActive) {
+      addGameFlags(["overseas_study_loan_strain"]);
+    }
 
     if ((overseasState.financePressure || 0) >= 62) {
       addGameFlags(["overseas_finance_high"]);
@@ -1958,8 +2073,14 @@
       return [];
     }
 
+    const funding = resolveOverseasFunding(gameState);
     const routeChoices = event.choices.filter((choice) => {
-      return choice && choice.customAction === "start_overseas_route" && matchesConditions(choice.conditions, gameState);
+      return (
+        choice &&
+        choice.customAction === "start_overseas_route" &&
+        matchesConditions(choice.conditions, gameState) &&
+        funding.ok
+      );
     });
     if (!routeChoices.length) {
       return [];
@@ -2283,7 +2404,180 @@
       return;
     }
 
+    if (action === "shop_purchase") {
+      const itemId = typeof data.itemId === "string" ? data.itemId : "";
+      const item = shopItemMap.get(itemId);
+      if (!item) {
+        return;
+      }
+      const price = typeof item.price === "number" ? item.price : 0;
+      if ((gameState.stats.money || 0) < price) {
+        return;
+      }
+      adjustStat("money", -price);
+      if (item.effects && item.effects.stats) {
+        Object.entries(item.effects.stats).forEach(([key, delta]) => {
+          adjustStat(key, delta);
+        });
+      }
+      if (item.grantInventory && typeof item.grantInventory.itemId === "string") {
+        const bag = ensureInventoryBag(gameState);
+        const addCount = typeof item.grantInventory.count === "number" ? item.grantInventory.count : 1;
+        const key = item.grantInventory.itemId;
+        bag[key] = (bag[key] || 0) + addCount;
+      }
+      if (typeof item.log === "string" && item.log) {
+        addHistory(item.log);
+      }
+      return;
+    }
+
+    if (action === "give_relationship_gift") {
+      const itemId = typeof data.itemId === "string" ? data.itemId : "";
+      const targetRaw = typeof data.targetId === "string" && data.targetId.trim() ? data.targetId : "$active";
+      const targetId = resolveRelationshipTargetId(targetRaw);
+      if (!itemId || !targetId || getInventoryItemCount(gameState, itemId) < 1) {
+        return;
+      }
+      const bag = ensureInventoryBag(gameState);
+      bag[itemId] = (bag[itemId] || 1) - 1;
+      if (bag[itemId] <= 0) {
+        delete bag[itemId];
+      }
+
+      const relationship = getRelationshipRecord(gameState, targetId);
+      const rule = lifeGiftEffects[itemId] || {};
+      const itemMeta = shopItemMap.get(itemId) || {};
+      const price = typeof itemMeta.price === "number" ? itemMeta.price : 0;
+      const traits = relationship ? normalizeStringArray(relationship.traitTags) : [];
+      const fitTags = normalizeStringArray(rule.fitTraitTags);
+      const fit = !fitTags.length || fitTags.some((tag) => traits.includes(tag));
+      const shallowStatuses = [
+        "unknown",
+        "noticed",
+        "acquaintance",
+        "noticed_by_them",
+        "familiar",
+        "crush"
+      ];
+      const shallow = relationship && shallowStatuses.includes(relationship.status);
+      const expensiveThreshold = typeof rule.expensiveThreshold === "number" ? rule.expensiveThreshold : 999;
+      const expensive = price >= expensiveThreshold;
+
+      let pack = rule.neutralBonus || { affection: 2, familiarity: 2 };
+      if (expensive && shallow) {
+        pack = rule.expensiveEarlyPenalty || pack;
+      } else if (!fit && fitTags.length) {
+        pack = rule.mismatchPenalty || pack;
+      } else if (fit && fitTags.length) {
+        pack = rule.goodBonus || pack;
+      }
+
+      applyRelationshipEffects([
+        {
+          targetId,
+          affection: typeof pack.affection === "number" ? pack.affection : 0,
+          trust: typeof pack.trust === "number" ? pack.trust : 0,
+          tension: typeof pack.tension === "number" ? pack.tension : 0,
+          theirInterest: typeof pack.theirInterest === "number" ? pack.theirInterest : 0,
+          commitment: typeof pack.commitment === "number" ? pack.commitment : 0,
+          familiarity: typeof pack.familiarity === "number" ? pack.familiarity : 0,
+          history:
+            typeof pack.history === "string"
+              ? pack.history
+              : "礼物递出去的那一刻，你们之间的关系也被轻轻推了一下。"
+        }
+      ]);
+      addHistory("你把礼物送出去，心里同时松了一口气，又悬起另一口气。");
+      return;
+    }
+
+    if (action === "child_path_decision") {
+      if (!gameState.children || typeof gameState.children !== "object") {
+        gameState.children = { count: 0, tags: [] };
+      }
+      if (!Array.isArray(gameState.children.tags)) {
+        gameState.children.tags = [];
+      }
+      const add = typeof data.addCount === "number" ? data.addCount : 0;
+      gameState.children.count = Math.max(0, (gameState.children.count || 0) + add);
+      normalizeStringArray(data.tags).forEach((tag) => {
+        if (!gameState.children.tags.includes(tag)) {
+          gameState.children.tags.push(tag);
+        }
+      });
+      if (add > 0) {
+        addGameFlags(["has_child", "parent_active"]);
+        adjustStat("stress", 5);
+        adjustStat("money", -4);
+        adjustStat("happiness", 2);
+        addHistory("家里多了一个需要被接住的生命，你的时间表和钱包同时被改写。");
+      }
+      return;
+    }
+
+    if (action === "abandon_overseas_for_domestic") {
+      removeGameFlags(["life_path_overseas"]);
+      const target = typeof data.targetLifePath === "string" ? data.targetLifePath : "gaokao";
+      gameState.lifePath = target;
+      if (target === "gaokao") {
+        addGameFlags(["life_path_gaokao"]);
+      } else if (target === "non_gaokao") {
+        addGameFlags(["life_path_non_gaokao"]);
+      }
+      addGameFlags(["overseas_blocked_finance"]);
+      const os = ensureOverseasState();
+      os.active = false;
+      os.studyLoanActive = false;
+      os.studyLoanBalance = 0;
+      os.fundingMode = "";
+      addHistory(
+        typeof data.log === "string" && data.log
+          ? data.log
+          : "你把「出国」从当下的人生里先拿下来，承认这一次现实比愿望更硬。"
+      );
+      return;
+    }
+
     if (action === "start_overseas_route") {
+      const funding = resolveOverseasFunding(gameState);
+      let financeExtraFromLoan = 0;
+      let budgetLoanNote = "";
+
+      if (!funding.ok) {
+        addHistory("你想出国，但手里的现金接不住首期开销，贷款条件也凑不齐。现实先把这扇门按住了。");
+        return;
+      }
+
+      const loanCfg = lifeOverseasFinance.loanConfig || {};
+      const costCfg = lifeOverseasFinance.overseasCostConfig || {};
+      const tuition = typeof costCfg.tuitionCost === "number" ? costCfg.tuitionCost : 30;
+
+      if (funding.mode === "cash") {
+        adjustStat("money", -tuition);
+        addGameFlags(["overseas_paid_cash_tuition"]);
+        const os = ensureOverseasState();
+        os.studyLoanActive = false;
+        os.studyLoanBalance = 0;
+        os.fundingMode = "cash";
+        addHistory("你用家里的积蓄和自己攒下的钱，先砸出一笔实打实的出国首期开销。");
+      } else if (funding.mode === "loan") {
+        const loanAmt = typeof loanCfg.loanAmount === "number" ? loanCfg.loanAmount : 30;
+        const debtAdd = typeof loanCfg.addDebtStat === "number" ? loanCfg.addDebtStat : loanAmt;
+        adjustStat("debt", debtAdd);
+        adjustStat("stress", typeof loanCfg.addStress === "number" ? loanCfg.addStress : 4);
+        addGameFlags(["overseas_study_loan", "study_abroad_debt"]);
+        financeExtraFromLoan = typeof loanCfg.financePressureBonus === "number" ? loanCfg.financePressureBonus : 28;
+        budgetLoanNote = "贷款后极度节省";
+        const os = ensureOverseasState();
+        os.studyLoanActive = true;
+        os.studyLoanBalance = loanAmt;
+        os.fundingMode = "loan";
+        addHistory(
+          "现金不够一次性押出去，你只能签下留学贷款。之后在国外，每一笔消费都会带着还款的回音。"
+        );
+      }
+
       const overseasState = ensureOverseasState();
       gameState.lifePath = "overseas";
       overseasState.active = true;
@@ -2299,7 +2593,8 @@
       overseasState.supportLevel = typeof data.supportLevel === "string" ? data.supportLevel : overseasState.supportLevel;
       overseasState.phase = "arrival";
       overseasState.housingType = typeof data.housingType === "string" ? data.housingType : overseasState.housingType;
-      overseasState.budgetMode = typeof data.budgetMode === "string" ? data.budgetMode : overseasState.budgetMode;
+      const baseBudget = typeof data.budgetMode === "string" ? data.budgetMode : overseasState.budgetMode;
+      overseasState.budgetMode = budgetLoanNote ? (baseBudget ? baseBudget + " · " + budgetLoanNote : budgetLoanNote) : baseBudget;
       overseasState.languagePressure = clampRelationshipMetric(
         (overseasState.languagePressure || 0) + (typeof data.languagePressure === "number" ? data.languagePressure : 0)
       );
@@ -2307,7 +2602,9 @@
         (overseasState.loneliness || 0) + (typeof data.loneliness === "number" ? data.loneliness : 0)
       );
       overseasState.financePressure = clampRelationshipMetric(
-        (overseasState.financePressure || 0) + (typeof data.financePressure === "number" ? data.financePressure : 0)
+        (overseasState.financePressure || 0) +
+          (typeof data.financePressure === "number" ? data.financePressure : 0) +
+          financeExtraFromLoan
       );
       overseasState.academicPressure = clampRelationshipMetric(
         typeof data.academicPressure === "number"
@@ -2343,6 +2640,9 @@
         addUniqueItems(overseasState.branchFocuses, ["survival", "career"]);
       } else if (overseasState.routeId === "overseas_art_path") {
         addUniqueItems(overseasState.branchFocuses, ["social", "romance"]);
+      }
+      if (funding.mode === "loan") {
+        addUniqueItems(overseasState.branchFocuses, ["survival"]);
       }
       if (typeof data.routeId === "string" && data.routeId) {
         applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
@@ -2865,6 +3165,20 @@
     for (const [relationshipId, amount] of Object.entries(rule.minInteractionCount)) {
       const relationship = getRelationshipSnapshot(state, relationshipId);
       if (!relationship || (relationship.interactionCount || 0) < amount) {
+        return false;
+      }
+    }
+
+    if (typeof rule.minChildCount === "number" && getChildCount(state) < rule.minChildCount) {
+      return false;
+    }
+
+    if (typeof rule.maxChildCount === "number" && getChildCount(state) > rule.maxChildCount) {
+      return false;
+    }
+
+    for (const [itemId, min] of Object.entries(rule.inventoryMin)) {
+      if (getInventoryItemCount(state, itemId) < min) {
         return false;
       }
     }
@@ -3904,6 +4218,15 @@
     return gameState.gameOver ? null : event;
   }
 
+  function choicePassesSpendGate(choice, state) {
+    if (choice.customAction === "shop_purchase") {
+      const payload = choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
+      const item = shopItemMap.get(payload.itemId);
+      return Boolean(item) && (state.stats.money || 0) >= (typeof item.price === "number" ? item.price : 0);
+    }
+    return true;
+  }
+
   function getVisibleOptions(event) {
     if (!event || !Array.isArray(event.choices)) {
       return [];
@@ -3914,11 +4237,24 @@
     }
 
     if (event.id === "overseas_departure") {
-      return buildOverseasSchoolOptions(event);
+      const overseasOptions = buildOverseasSchoolOptions(event);
+      if (overseasOptions.length) {
+        return overseasOptions;
+      }
+      return event.choices
+        .map((choice, index) => ({ ...choice, index }))
+        .filter((choice) => choicePassesSpendGate(choice, gameState))
+        .filter((choice) => {
+          if (choice.customAction === "start_overseas_route") {
+            return false;
+          }
+          return matchesConditions(choice.conditions, gameState);
+        });
     }
 
     return event.choices
       .map((choice, index) => ({ ...choice, index }))
+      .filter((choice) => choicePassesSpendGate(choice, gameState))
       .filter((choice) => matchesConditions(choice.conditions, gameState));
   }
 
@@ -4125,6 +4461,22 @@
     const option = getVisibleOptions(event).find((candidate) => candidate.index === optionIndex) || null;
     if (!option || !matchesConditions(option.conditions, gameState)) {
       return getState();
+    }
+
+    if (option.customAction === "shop_purchase") {
+      const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
+      const item = shopItemMap.get(payload.itemId);
+      if (!item || (gameState.stats.money || 0) < (typeof item.price === "number" ? item.price : 0)) {
+        return getState();
+      }
+    }
+
+    if (option.customAction === "give_relationship_gift") {
+      const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
+      const itemId = typeof payload.itemId === "string" ? payload.itemId : "";
+      if (!itemId || getInventoryItemCount(gameState, itemId) < 1) {
+        return getState();
+      }
     }
 
     rememberEvent(event.id);

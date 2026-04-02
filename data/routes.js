@@ -347,7 +347,13 @@
       optionText: "冲高压高薪路线，先抢速度和收入。",
       details: ["财富提升快", "职业资源更强", "更容易透支健康和关系"],
       conditions: {
-        someFlags: ["top_school", "big_city", "high_competition_campus", "ambition_realized"]
+        someFlags: ["top_school", "big_city", "high_competition_campus", "ambition_realized"],
+        excludedEducationRouteIds: [
+          "direct_work_route",
+          "gaokao_vocational_college",
+          "non_gaokao_skill_path",
+          "non_gaokao_gap_replan"
+        ]
       },
       apply: {
         effects: {
@@ -373,7 +379,8 @@
       optionText: "走体制内或更稳定的编制路线。",
       details: ["稳定度更高", "财富爆发性较弱", "家庭关系往往更容易稳定"],
       conditions: {
-        someFlags: ["safe_choice", "exam_path", "small_world_comfort", "parents_close"]
+        someFlags: ["safe_choice", "exam_path", "small_world_comfort", "parents_close"],
+        excludedEducationRouteIds: ["direct_work_route", "non_gaokao_skill_path", "gaokao_vocational_college"]
       },
       apply: {
         effects: {
@@ -479,7 +486,8 @@
       optionText: "继续深造，把时间再压给更高训练。",
       details: ["专业能力提升更明显", "短期收入较低", "圈层和城市机会可能升级"],
       conditions: {
-        someFlags: ["research_experience", "mentor_support", "top_school", "advanced_degree", "academic_grind"]
+        someFlags: ["research_experience", "mentor_support", "top_school", "advanced_degree", "academic_grind"],
+        excludedEducationRouteIds: ["direct_work_route", "non_gaokao_skill_path", "gaokao_vocational_college"]
       },
       apply: {
         effects: {
@@ -518,6 +526,84 @@
         addFlags: ["career_drift_route", "lost_period"],
         addTags: ["selfhood", "pressure"],
         log: "你没有立刻进入稳定轨道，这会让你更诚实地面对自己，也会让现实压力更快贴上来。"
+      }
+    }),
+    route({
+      id: "career_foreign_firm_or_return",
+      name: "外企 / 海归就业带",
+      category: "career",
+      summary: "海外或跨文化履历，把你送进另一种职场语法里。",
+      description: "语言、签证与身份会一起参与你的议价；回报更宽，也更依赖平台与节奏。",
+      optionText: "走外企、跨境团队或海归就业带。",
+      details: ["更依赖学历与海外经历", "收入结构更多元", "生活节奏更不确定"],
+      conditions: {
+        educationRouteIds: ["overseas_research_path", "overseas_practical_path", "overseas_art_path"]
+      },
+      apply: {
+        effects: {
+          stats: {
+            money: 10,
+            career: 8,
+            stress: 6,
+            social: 4,
+            health: -2
+          }
+        },
+        addFlags: ["career_foreign_track", "globalized_resume"],
+        addTags: ["ambition", "work"],
+        log: "你把简历放进了一套更国际化也更挑剔的筛选里。"
+      }
+    }),
+    route({
+      id: "career_vocational_trades",
+      name: "技术工 / 持证岗位路线",
+      category: "career",
+      summary: "用手艺和证书换稳定现金流，体面不一定耀眼。",
+      description: "职校与技能路线更容易把你送进看得见的岗位结构里，上升斜率更陡的是经验而不是头衔。",
+      optionText: "走技术工、持证岗或技能型就业。",
+      details: ["上手快", "身体消耗更直接", "长期看证书与经验"],
+      conditions: {
+        educationRouteIds: ["gaokao_vocational_college", "non_gaokao_skill_path"]
+      },
+      apply: {
+        effects: {
+          stats: {
+            money: 7,
+            career: 6,
+            health: -2,
+            stress: 3,
+            happiness: 2
+          }
+        },
+        addFlags: ["career_trades_route", "hands_on_livelihood"],
+        addTags: ["work", "stability"],
+        log: "你没有去拼抽象的头衔，而是把手艺先换成能活下去的结构。"
+      }
+    }),
+    route({
+      id: "career_early_labor_market",
+      name: "早入劳动力市场",
+      category: "career",
+      summary: "没有本科文凭托底，岗位更硬、更看体力与执行力。",
+      description: "你会更早看见钱，也更早看见天花板；转行成本高，每一步都要自己买单。",
+      optionText: "继续走早工作、早独立的岗位路线。",
+      details: ["现金流更早", "保障偏弱", "转型更难"],
+      conditions: {
+        educationRouteIds: ["direct_work_route"]
+      },
+      apply: {
+        effects: {
+          stats: {
+            money: 5,
+            career: 5,
+            stress: 5,
+            health: -3,
+            happiness: 1
+          }
+        },
+        addFlags: ["career_early_labor", "no_degree_ceiling_low"],
+        addTags: ["work", "pressure"],
+        log: "你的简历比同龄人短一截，只能用更硬的付出去换机会。"
       }
     })
   ];

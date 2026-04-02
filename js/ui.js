@@ -21,6 +21,8 @@
     elements.routeContainer = document.getElementById("route-container");
     elements.relationshipsContainer = document.getElementById("relationships-container");
     elements.historyContainer = document.getElementById("history-container");
+    elements.inventoryContainer = document.getElementById("inventory-container");
+    elements.familyLifeContainer = document.getElementById("family-life-container");
     elements.storySection = document.getElementById("story-section");
     elements.restartButton = document.getElementById("restart-btn");
   }
@@ -111,45 +113,6 @@
 
     section.appendChild(list);
     container.appendChild(section);
-  }
-
-  function appendOptionPreview(container, preview) {
-    if (!preview || !Array.isArray(preview.universities) || !preview.universities.length) {
-      return;
-    }
-
-    const wrapper = document.createElement("div");
-    wrapper.className = "option-preview";
-
-    if (preview.summary) {
-      const summary = document.createElement("p");
-      summary.className = "option-preview-summary";
-      summary.textContent = preview.summary;
-      wrapper.appendChild(summary);
-    }
-
-    const list = document.createElement("div");
-    list.className = "option-preview-list";
-
-    preview.universities.forEach((item) => {
-      const card = document.createElement("div");
-      card.className = "option-preview-item";
-
-      const name = document.createElement("strong");
-      name.className = "option-preview-name";
-      name.textContent = item.name || "学校待定";
-      card.appendChild(name);
-
-      const meta = document.createElement("div");
-      meta.className = "option-preview-meta";
-      meta.textContent = [item.location || "", item.categoryLabel || ""].filter(Boolean).join(" · ");
-      card.appendChild(meta);
-
-      list.appendChild(card);
-    });
-
-    wrapper.appendChild(list);
-    container.appendChild(wrapper);
   }
 
   function renderEndingAnalysis(container, analysis) {
@@ -559,6 +522,68 @@
     });
   }
 
+  function renderInventory(state) {
+    if (!elements.inventoryContainer) {
+      return;
+    }
+    elements.inventoryContainer.innerHTML = "";
+    const bag = (state && state.inventory) || {};
+    const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
+    const labelMap = new Map(shopItems.map((item) => [item.id, item.name || item.id]));
+    const entries = Object.keys(bag).filter((id) => (bag[id] || 0) > 0);
+
+    if (!entries.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "暂无持有物品（购物后礼物会出现在这里，可触发送礼事件）。";
+      elements.inventoryContainer.appendChild(empty);
+      return;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "inventory-list";
+    entries.forEach((id) => {
+      const li = document.createElement("li");
+      li.className = "inventory-item";
+      li.textContent = (labelMap.get(id) || id) + " × " + bag[id];
+      list.appendChild(li);
+    });
+    elements.inventoryContainer.appendChild(list);
+  }
+
+  function renderFamilyLife(state) {
+    if (!elements.familyLifeContainer) {
+      return;
+    }
+    elements.familyLifeContainer.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "family-life-summary";
+
+    const child = (state && state.children) || {};
+    const count = typeof child.count === "number" ? child.count : 0;
+    const p1 = document.createElement("p");
+    p1.textContent = "子女数量：" + count;
+    wrap.appendChild(p1);
+
+    if (Array.isArray(child.tags) && child.tags.length) {
+      const p2 = document.createElement("p");
+      p2.className = "muted";
+      p2.textContent = "家庭标签：" + child.tags.join("、");
+      wrap.appendChild(p2);
+    }
+
+    const overseas = (state && state.overseas) || {};
+    if (overseas.studyLoanActive) {
+      const loan = document.createElement("p");
+      loan.className = "loan-note";
+      loan.textContent =
+        "留学贷款未结清（负债与海外压力已写入系统，会影响消费类选项与结局权重）。";
+      wrap.appendChild(loan);
+    }
+
+    elements.familyLifeContainer.appendChild(wrap);
+  }
+
   function renderRelationships(state) {
     elements.relationshipsContainer.innerHTML = "";
 
@@ -730,125 +755,6 @@
     });
   }
 
-  function addHint(hints, text) {
-    if (!text || hints.includes(text)) {
-      return;
-    }
-
-    hints.push(text);
-  }
-
-  function getOptionHints(option, state) {
-    const hints = [];
-    const stats = option && option.effects && option.effects.stats ? option.effects.stats : {};
-    const relationshipEffects = Array.isArray(option.relationshipEffects) ? option.relationshipEffects : [];
-    const activeRelationship =
-      state && state.activeRelationshipId && state.relationships
-        ? state.relationships[state.activeRelationshipId] || null
-        : null;
-
-    if ((stats.career || 0) + (stats.intelligence || 0) >= 4) {
-      addHint(hints, "偏成长 / 事业");
-    } else if ((stats.career || 0) > 0 || (stats.intelligence || 0) > 0) {
-      addHint(hints, "成长推进");
-    }
-
-    if ((stats.money || 0) >= 3) {
-      addHint(hints, "财富提升");
-    }
-
-    if ((stats.stress || 0) >= 3) {
-      addHint(hints, "压力上升");
-    } else if ((stats.stress || 0) <= -2) {
-      addHint(hints, "压力缓解");
-    }
-
-    if ((stats.health || 0) + (stats.mental || 0) + (stats.happiness || 0) >= 4) {
-      addHint(hints, "状态回升");
-    } else if ((stats.health || 0) + (stats.mental || 0) + (stats.happiness || 0) <= -4) {
-      addHint(hints, "身心消耗");
-    }
-
-    if ((stats.social || 0) >= 3) {
-      addHint(hints, "社交推进");
-    }
-
-    if (Array.isArray(option.addTags)) {
-      if (option.addTags.includes("stability")) {
-        addHint(hints, "更偏稳定");
-      }
-      if (option.addTags.includes("family")) {
-        addHint(hints, "更偏家庭");
-      }
-      if (option.addTags.includes("ambition")) {
-        addHint(hints, "更偏野心");
-      }
-      if (option.addTags.includes("risk")) {
-        addHint(hints, "风险更高");
-      }
-      if (option.addTags.includes("selfhood")) {
-        addHint(hints, "更偏自我探索");
-      }
-      if (option.addTags.includes("craft")) {
-        addHint(hints, "创作投入");
-      }
-    }
-
-    if (option.setEducationRoute) {
-      addHint(hints, "确定升学路线");
-    }
-
-    if (option.setCareerRoute) {
-      addHint(hints, "确定职业路线");
-    }
-
-    if (option.customAction === "simulate_gaokao") {
-      addHint(hints, "结算高考分数");
-    }
-
-    if (option.customAction === "resolve_gaokao_destination") {
-      addHint(hints, "按区间结算去向");
-    }
-
-    if (option.customAction === "start_overseas_route") {
-      addHint(hints, "开启海外路线");
-    }
-
-    if (option.customAction === "take_non_gaokao_route") {
-      addHint(hints, "确定不高考去向");
-    }
-
-    if (
-      relationshipEffects.some((effect) =>
-        (effect.affection || 0) > 0 ||
-        (effect.familiarity || 0) > 0 ||
-        (effect.trust || 0) > 0 ||
-        (effect.playerInterest || 0) > 0 ||
-        (effect.theirInterest || 0) > 0 ||
-        (effect.commitment || 0) > 0 ||
-        (effect.continuity || 0) > 0 ||
-        effect.setActive
-      )
-    ) {
-      addHint(hints, activeRelationship ? "推进当前关系" : "关系升温");
-    }
-
-    if (
-      option.clearActiveRelationship ||
-      relationshipEffects.some((effect) =>
-        (effect.affection || 0) < 0 ||
-        (effect.trust || 0) < 0 ||
-        (effect.commitment || 0) < 0 ||
-        (effect.tension || 0) > 0 ||
-        effect.clearActive
-      )
-    ) {
-      addHint(hints, activeRelationship ? "当前关系更易拉扯" : "关系拉扯");
-    }
-
-    return hints.slice(0, 4);
-  }
-
   function renderOptions(event, state) {
     elements.optionsContainer.innerHTML = "";
 
@@ -866,23 +772,6 @@
       text.className = "option-main-text";
       text.textContent = engine.formatOptionText(option.text);
       content.appendChild(text);
-
-      const hints = getOptionHints(option, state);
-      if (hints.length) {
-        const hintRow = document.createElement("div");
-        hintRow.className = "option-hints";
-
-        hints.forEach((hint) => {
-          const badge = document.createElement("span");
-          badge.className = "option-hint";
-          badge.textContent = hint;
-          hintRow.appendChild(badge);
-        });
-
-        content.appendChild(hintRow);
-      }
-
-      appendOptionPreview(content, engine.getOptionRecommendationPreview(option));
 
       button.appendChild(content);
       button.addEventListener("click", function () {
@@ -1035,6 +924,8 @@
     renderFamilyBackground(state);
     renderRoutes(state);
     renderRelationships(state);
+    renderInventory(state);
+    renderFamilyLife(state);
     renderStory(state, event);
     renderHistory(state);
   }

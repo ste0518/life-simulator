@@ -285,7 +285,15 @@
         academicIndex: null,
         qsBandId: "",
         qsBandLabel: "",
-        recommendedUniversities: []
+        recommendedUniversities: [],
+        studyLoanActive: false,
+        studyLoanBalance: 0,
+        fundingMode: ""
+      },
+      inventory: {},
+      children: {
+        count: 0,
+        tags: []
       },
       setupStep: "naming",
       relationships: createInitialRelationships(),
