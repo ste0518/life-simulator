@@ -1580,8 +1580,8 @@
       text: "你没有把国外只过成一段履历。那些办手续、搬家、熬夜、小组作业、兼职、关系重排和无数次自己兜底的时刻，最后一起把你推到了一个真正能长期站住的位置。",
       baseWeight: 5,
       require: {
-        minAge: 56,
-        minChoices: 88,
+        minAge: 64,
+        minChoices: 118,
         someFlags: ["overseas_chose_stay", "overseas_settled", "overseas_independent_strong"],
         careerRouteIds: ["overseas_local_job_route", "overseas_global_research_route"]
       },
@@ -1597,8 +1597,8 @@
       text: "你最后还是回来了，但回来并不是把那几年撤销。国外生活让你对关系、边界、职业和自己能承受什么都有了新判断，于是熟悉的环境也被你活出了新的样子。",
       baseWeight: 5,
       require: {
-        minAge: 56,
-        minChoices: 88,
+        minAge: 64,
+        minChoices: 118,
         someFlags: ["overseas_chose_return", "returnee_identity"],
         careerRouteIds: ["overseas_returnee_route", "overseas_relationship_return_route"]
       },
@@ -1614,8 +1614,8 @@
       text: "你不是没努力适应，也不是没留下来过。只是语言、身份、关系和归属感始终没有真正并到一条线上。很多年以后回看，你会知道自己其实一直活在一种悬着的中间状态里。",
       baseWeight: 4,
       require: {
-        minAge: 56,
-        minChoices: 88,
+        minAge: 64,
+        minChoices: 118,
         someFlags: ["life_path_overseas", "overseas_isolated"],
         careerRouteIds: ["overseas_survival_extension_route", "overseas_local_job_route"]
       },
@@ -1631,8 +1631,8 @@
       text: "到最后，真正改变你去向的不是哪份 offer 更漂亮，而是你终于承认，有些关系已经足够重要，重要到会让城市、职业和未来排序都跟着改。",
       baseWeight: 4,
       require: {
-        minAge: 56,
-        minChoices: 88,
+        minAge: 64,
+        minChoices: 118,
         careerRouteIds: ["overseas_relationship_return_route"],
         anyRelationshipStatuses: ["steady", "married", "reconnected", "long_distance_dating"],
         anyRelationshipMinAffection: 62

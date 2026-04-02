@@ -300,6 +300,34 @@
     };
   }
 
+  function normalizeDebtToMoneyPrison(raw) {
+    if (!raw || typeof raw !== "object") {
+      return null;
+    }
+
+    const debtAbove =
+      typeof raw.debtAbove === "number" && Number.isFinite(raw.debtAbove) ? raw.debtAbove : null;
+    const moneyMultiple =
+      typeof raw.moneyMultiple === "number" && Number.isFinite(raw.moneyMultiple) ? raw.moneyMultiple : null;
+
+    if (debtAbove === null || moneyMultiple === null) {
+      return null;
+    }
+
+    return { debtAbove, moneyMultiple };
+  }
+
+  function matchesDebtToMoneyPrisonRule(rule, state) {
+    if (!rule || typeof rule.debtAbove !== "number" || typeof rule.moneyMultiple !== "number") {
+      return false;
+    }
+
+    const debt = state.stats.debt || 0;
+    const money = state.stats.money || 0;
+
+    return debt > rule.debtAbove && debt >= rule.moneyMultiple * money;
+  }
+
   function normalizeConditionObject(source, event) {
     const conditions = source || {};
 
@@ -406,7 +434,9 @@
         typeof conditions.minChildCount === "number" ? conditions.minChildCount : null,
       maxChildCount:
         typeof conditions.maxChildCount === "number" ? conditions.maxChildCount : null,
-      inventoryMin: normalizeNumberMap(conditions.inventoryMin)
+      inventoryMin: normalizeNumberMap(conditions.inventoryMin),
+      debtPrisonOrFlag: Boolean(conditions.debtPrisonOrFlag),
+      debtToMoneyPrison: normalizeDebtToMoneyPrison(conditions.debtToMoneyPrison)
     };
   }
 
@@ -2770,7 +2800,16 @@
       return false;
     }
 
-    if (rule.requiredFlags.length && !rule.requiredFlags.every((flag) => state.flags.includes(flag))) {
+    if (rule.debtPrisonOrFlag) {
+      const byFlag =
+        rule.requiredFlags.length > 0 &&
+        rule.requiredFlags.every((flag) => state.flags.includes(flag));
+      const byDebt =
+        rule.debtToMoneyPrison && matchesDebtToMoneyPrisonRule(rule.debtToMoneyPrison, state);
+      if (!byFlag && !byDebt) {
+        return false;
+      }
+    } else if (rule.requiredFlags.length && !rule.requiredFlags.every((flag) => state.flags.includes(flag))) {
       return false;
     }
 
@@ -3179,6 +3218,12 @@
 
     for (const [itemId, min] of Object.entries(rule.inventoryMin)) {
       if (getInventoryItemCount(state, itemId) < min) {
+        return false;
+      }
+    }
+
+    if (!rule.debtPrisonOrFlag && rule.debtToMoneyPrison) {
+      if (!matchesDebtToMoneyPrisonRule(rule.debtToMoneyPrison, state)) {
         return false;
       }
     }
@@ -3988,6 +4033,20 @@
       push("当前没有稳定伴侣关系");
     }
 
+    if (rule.debtToMoneyPrison && matchesDebtToMoneyPrisonRule(rule.debtToMoneyPrison, state)) {
+      push(
+        "负债入狱线：负债高于 " +
+          rule.debtToMoneyPrison.debtAbove +
+          " 且达到现金的 " +
+          rule.debtToMoneyPrison.moneyMultiple +
+          " 倍（当前 负债 " +
+          (state.stats.debt || 0) +
+          " / 现金 " +
+          (state.stats.money || 0) +
+          "）"
+      );
+    }
+
     return highlights;
   }
 
@@ -4139,7 +4198,7 @@
     if (!ending) {
       ending = pickWeightedEnding(false, {
         ...gameState,
-        choiceCount: Math.max(gameState.choiceCount || 0, 108),
+        choiceCount: Math.max(gameState.choiceCount || 0, 132),
       });
     }
 
@@ -4351,11 +4410,11 @@
     const eligibleEvents = getEligibleFallbackEvents();
     const nonRepeatableEvents = eligibleEvents.filter((event) => !event.repeatable);
 
-    if (gameState.age >= 68 && nonRepeatableEvents.length === 0 && eligibleEvents.length <= 2) {
+    if (gameState.age >= 80 && nonRepeatableEvents.length === 0 && eligibleEvents.length <= 2) {
       return true;
     }
 
-    if (gameState.age >= 76 && eligibleEvents.length <= 4) {
+    if (gameState.age >= 88 && eligibleEvents.length <= 5) {
       return true;
     }
 
@@ -4428,12 +4487,46 @@
       fallbackEvent = fastForwardToNextEligibleAge();
     }
 
+    if (!fallbackEvent && !shouldNaturallyConcludeLife() && gameState.age < 93) {
+      const paddingOrder =
+        gameState.age >= 60
+          ? [eventMap.get("life_flow_padding_later"), eventMap.get("life_flow_padding_adult")]
+          : [eventMap.get("life_flow_padding_adult"), eventMap.get("life_flow_padding_later")];
+      fallbackEvent = paddingOrder.filter(Boolean).find((candidate) => isEventEligible(candidate)) || null;
+    }
+
     if (!fallbackEvent && shouldNaturallyConcludeLife()) {
       setCurrentEvent(null);
       return;
     }
 
     setCurrentEvent(fallbackEvent ? fallbackEvent.id : null);
+  }
+
+  const PRISON_DEBT_GATE_EVENT_ID = "prison_debt_legal_endpoint";
+
+  function shouldDeferDebtPrisonForNarrative() {
+    if (!gameState.gameStarted || gameState.gameOver || gameState.setupStep) {
+      return false;
+    }
+
+    if (gameState.flags.includes("incarcerated")) {
+      return false;
+    }
+
+    if (gameState.visitedEvents.includes(PRISON_DEBT_GATE_EVENT_ID)) {
+      return false;
+    }
+
+    const debtProbe = normalizeConditionObject({
+      debtToMoneyPrison: { debtAbove: 50, moneyMultiple: 5 }
+    });
+
+    if (!debtProbe.debtToMoneyPrison || !matchesDebtToMoneyPrisonRule(debtProbe.debtToMoneyPrison, gameState)) {
+      return false;
+    }
+
+    return Boolean(eventMap.get(PRISON_DEBT_GATE_EVENT_ID));
   }
 
   function chooseOption(optionIndex) {
@@ -4500,6 +4593,11 @@
           }
         : option;
     applyMutationBlock(optionToApply);
+
+    if (shouldDeferDebtPrisonForNarrative()) {
+      setCurrentEvent(PRISON_DEBT_GATE_EVENT_ID);
+      return getState();
+    }
 
     if (checkInstantEnding()) {
       return getState();

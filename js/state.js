@@ -53,7 +53,7 @@
   };
 
   const DEFAULT_STATS = {
-    money: 20,
+    money: 22,
     debt: 0,
     health: 60,
     mental: 60,

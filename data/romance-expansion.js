@@ -182,7 +182,23 @@
         left.excludedActiveRelationshipFlags,
         right.excludedActiveRelationshipFlags
       ),
-      noCurrentPartner: Boolean(left.noCurrentPartner || right.noCurrentPartner)
+      noCurrentPartner: Boolean(left.noCurrentPartner || right.noCurrentPartner),
+      minChildCount:
+        typeof right.minChildCount === "number"
+          ? right.minChildCount
+          : typeof left.minChildCount === "number"
+            ? left.minChildCount
+            : null,
+      maxChildCount:
+        typeof right.maxChildCount === "number"
+          ? right.maxChildCount
+          : typeof left.maxChildCount === "number"
+            ? left.maxChildCount
+            : null,
+      inventoryMin: mergeNumberMaps(left.inventoryMin, right.inventoryMin),
+      minInteractionCount: mergeNumberMaps(left.minInteractionCount, right.minInteractionCount),
+      requiredSharedHistory: mergeRelationshipMaps(left.requiredSharedHistory, right.requiredSharedHistory),
+      excludedSharedHistory: mergeRelationshipMaps(left.excludedSharedHistory, right.excludedSharedHistory)
     };
   }
 
@@ -235,7 +251,9 @@
       setActiveRelationship:
         typeof source.setActiveRelationship === "string" ? source.setActiveRelationship : null,
       clearActiveRelationship: Boolean(source.clearActiveRelationship),
-      log: typeof source.log === "string" ? source.log : ""
+      log: typeof source.log === "string" ? source.log : "",
+      customAction: typeof source.customAction === "string" ? source.customAction : "",
+      customPayload: source.customPayload && typeof source.customPayload === "object" ? { ...source.customPayload } : null
     };
   }
 
@@ -256,6 +274,8 @@
       setActiveRelationship: normalized.setActiveRelationship,
       clearActiveRelationship: normalized.clearActiveRelationship,
       log: normalized.log,
+      customAction: normalized.customAction,
+      customPayload: normalized.customPayload,
       conditions: condition(source.conditions),
       next: Object.prototype.hasOwnProperty.call(source, "next") ? source.next : undefined
     };
@@ -1278,4 +1298,22 @@
     ...generatedEvents,
     buildGlobalRomancePressureEvent()
   ];
+
+  window.__LIFE_ROMANCE_FACTORY__ = {
+    mergeConditions,
+    condition,
+    relationshipEffect,
+    mutation,
+    choice,
+    event,
+    stageFromAge,
+    getSceneHooks,
+    getProgression,
+    getArcLabel,
+    pickText,
+    toList,
+    getHookSnippet,
+    relationshipReadyConditions,
+    buildEffect
+  };
 })();

@@ -581,9 +581,11 @@
     }
     if (open) {
       elements.shopModal.removeAttribute("hidden");
+      elements.shopModal.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
     } else {
       elements.shopModal.setAttribute("hidden", "");
+      elements.shopModal.setAttribute("aria-hidden", "true");
       document.body.style.overflow = "";
     }
   }
@@ -1133,15 +1135,15 @@
     if (elements.shopOpenBtn) {
       elements.shopOpenBtn.addEventListener("click", function () {
         const state = engine.getState();
-        if (!isShopAvailableForState(state)) {
-          return;
-        }
         setShopModalOpen(true);
         populateShopItems(state);
       });
     }
 
     function closeShop() {
+      if (elements.shopItemsContainer) {
+        elements.shopItemsContainer.innerHTML = "";
+      }
       setShopModalOpen(false);
     }
 

@@ -14,10 +14,10 @@
   const overseasCostConfig = {
     tuitionCost: 30,
     /** 可支配现金 ≥ 此值才允许「现款付首期留学开销」（会扣 tuitionCost） */
-    cashLiquidityMin: 50,
+    cashLiquidityMin: 46,
     /** 每 5 点家庭支持，阈值 -1，最低不低于 absoluteCashFloor */
     familySupportThresholdDiscountPer5: 1,
-    absoluteCashFloor: 38,
+    absoluteCashFloor: 34,
     /** 富裕家庭标签：再额外降低门槛 */
     wealthyHomeThresholdBonus: 8,
     wealthyHomeFlags: ["resource_rich_home", "family_wealth_high"]
@@ -61,7 +61,7 @@
   const giftEffects = {
     gift_snack_hamper: {
       label: "零食礼盒",
-      expensiveThreshold: 12,
+      expensiveThreshold: 10,
       fitTraitTags: [],
       mismatchPenalty: { affection: -2, tension: 6 },
       goodBonus: { affection: 5, trust: 3, theirInterest: 4 },
@@ -70,7 +70,7 @@
     },
     gift_book_literature: {
       label: "精装文集",
-      expensiveThreshold: 18,
+      expensiveThreshold: 14,
       fitTraitTags: ["细腻", "安静", "阅读"],
       mismatchPenalty: { affection: 0, tension: 3 },
       goodBonus: { affection: 7, trust: 5, theirInterest: 5 },
@@ -79,7 +79,7 @@
     },
     gift_necklace_modest: {
       label: "不算张扬的小项链",
-      expensiveThreshold: 22,
+      expensiveThreshold: 18,
       fitTraitTags: [],
       mismatchPenalty: { affection: -4, tension: 10 },
       goodBonus: { affection: 8, trust: 4, commitment: 6 },
@@ -93,7 +93,7 @@
       id: "daily_bento_upgrade",
       name: "好好吃一顿热便当",
       category: "日常用品",
-      price: 6,
+      price: 5,
       effects: { stats: { happiness: 2, health: 1, stress: -1 } },
       log: "你用一顿像样一点的饭，把自己从凑合里捞回来一小会儿。"
     },
@@ -101,7 +101,7 @@
       id: "study_desk_lamp",
       name: "护眼台灯",
       category: "学习用品",
-      price: 14,
+      price: 11,
       effects: { stats: { discipline: 2, intelligence: 1, money: -1 } },
       log: "你把学习环境收拾得更像样，熬夜时眼睛和心情都少受一点罪。"
     },
@@ -109,7 +109,7 @@
       id: "hoodie_basic",
       name: "基础款外套",
       category: "服饰",
-      price: 20,
+      price: 16,
       effects: { stats: { happiness: 2, social: 1, money: -2 } },
       log: "新衣服不解决所有问题，但至少让你在出门见人时少一分心虚。"
     },
@@ -117,7 +117,7 @@
       id: "gift_snack_hamper",
       name: "零食礼盒（可送人）",
       category: "礼物",
-      price: 16,
+      price: 9,
       grantInventory: { itemId: "gift_snack_hamper", count: 1 },
       effects: { stats: { happiness: 1 } },
       log: "你买下一份可以递到别人手里的甜。"
@@ -126,7 +126,7 @@
       id: "gift_book_literature",
       name: "精装文集（可送人）",
       category: "礼物",
-      price: 22,
+      price: 15,
       grantInventory: { itemId: "gift_book_literature", count: 1 },
       effects: { stats: { intelligence: 1, happiness: 1 } },
       log: "你挑了一本像话的书，准备在某个时刻送出去。"
@@ -135,7 +135,7 @@
       id: "gift_necklace_modest",
       name: "小项链（可送人）",
       category: "礼物",
-      price: 28,
+      price: 22,
       grantInventory: { itemId: "gift_necklace_modest", count: 1 },
       effects: { stats: { happiness: 1, stress: 1 } },
       log: "这件礼物不便宜，你清楚它自带分量。"
@@ -144,7 +144,7 @@
       id: "gym_month",
       name: "健身月卡",
       category: "健康",
-      price: 18,
+      price: 14,
       effects: { stats: { health: 4, stress: -2, money: -1 } },
       log: "你把身体重新登记进日程里，哪怕只是短期。"
     },
@@ -152,7 +152,7 @@
       id: "game_night_ticket",
       name: "演出 / 游戏之夜门票",
       category: "娱乐",
-      price: 12,
+      price: 9,
       effects: { stats: { happiness: 3, social: 2, stress: -1, money: -1 } },
       log: "你允许自己浪费一晚在热闹里，给情绪找个出口。"
     }
@@ -182,7 +182,7 @@
       text: "你路过商场、便利店和网店弹窗，钱包并不厚，但有时候一笔小钱就能换来一点像样的安慰、效率，或者一份可以送出去的礼物。\n\n当前积蓄大致还能支撑你挑几样不同的东西——真正要紧的是，别在情绪最差的时候用刷卡当止痛。",
       minAge: 16,
       maxAge: 55,
-      weight: 14,
+      weight: 20,
       repeatable: true,
       tags: ["shop", "money", "misc"],
       choices: shopItems
@@ -228,21 +228,21 @@
           customAction: "give_relationship_gift",
           customPayload: { itemId: "gift_snack_hamper" },
           conditions: { inventoryMin: { gift_snack_hamper: 1 } },
-          next: null
+          log: "礼物递出去的那一刻，你反而比收礼的人更先松了口气。"
         }),
         ch({
           text: "把精装文集送出去，说你觉得对方会读。",
           customAction: "give_relationship_gift",
           customPayload: { itemId: "gift_book_literature" },
           conditions: { inventoryMin: { gift_book_literature: 1 } },
-          next: null
+          log: "对方接过书时停顿的那一下，比任何节日贺词都更真实。"
         }),
         ch({
           text: "把小项链拿出来——你知道这很冒险。",
           customAction: "give_relationship_gift",
           customPayload: { itemId: "gift_necklace_modest" },
           conditions: { inventoryMin: { gift_necklace_modest: 1 } },
-          next: null
+          log: "这件礼物把话说得很重，你们都得面对它带来的分量。"
         }),
         ch({
           text: "最后还是把东西收回去，改天再说。",

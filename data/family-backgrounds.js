@@ -72,7 +72,7 @@
       apply: {
         effects: {
           stats: {
-            money: 18,
+            money: 34,
             intelligence: 8,
             discipline: 10,
             familySupport: 6,
@@ -108,7 +108,7 @@
       apply: {
         effects: {
           stats: {
-            money: 4,
+            money: 18,
             happiness: 10,
             mental: 10,
             social: 5,
@@ -144,7 +144,7 @@
       apply: {
         effects: {
           stats: {
-            money: -10,
+            money: -5,
             happiness: 2,
             mental: 2,
             familySupport: 10,
@@ -179,6 +179,7 @@
       apply: {
         effects: {
           stats: {
+            money: 3,
             happiness: -12,
             mental: -12,
             familySupport: -14,
@@ -213,6 +214,7 @@
       apply: {
         effects: {
           stats: {
+            money: 10,
             happiness: 4,
             social: 4,
             familySupport: -4,
@@ -248,7 +250,7 @@
       apply: {
         effects: {
           stats: {
-            money: -4,
+            money: 2,
             happiness: -6,
             mental: -6,
             familySupport: -10,
@@ -283,6 +285,7 @@
       apply: {
         effects: {
           stats: {
+            money: 14,
             intelligence: 7,
             discipline: 10,
             happiness: -6,
@@ -317,6 +320,7 @@
       apply: {
         effects: {
           stats: {
+            money: 12,
             happiness: 4,
             familySupport: 8,
             social: 3,
@@ -350,7 +354,7 @@
       apply: {
         effects: {
           stats: {
-            money: 8,
+            money: 20,
             discipline: 2,
             social: 4,
             stress: 6,
@@ -384,7 +388,7 @@
       apply: {
         effects: {
           stats: {
-            money: 8,
+            money: 22,
             intelligence: 4,
             discipline: 4,
             happiness: -4,

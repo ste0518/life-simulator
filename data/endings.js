@@ -57,7 +57,21 @@
         typeof source.activeRelationshipMaxAffection === "number" ? source.activeRelationshipMaxAffection : null,
       requiredActiveRelationshipFlags: toList(source.requiredActiveRelationshipFlags),
       excludedActiveRelationshipFlags: toList(source.excludedActiveRelationshipFlags),
-      noCurrentPartner: Boolean(source.noCurrentPartner)
+      noCurrentPartner: Boolean(source.noCurrentPartner),
+      debtPrisonOrFlag: Boolean(source.debtPrisonOrFlag),
+      debtToMoneyPrison:
+        source.debtToMoneyPrison && typeof source.debtToMoneyPrison === "object"
+          ? {
+              debtAbove:
+                typeof source.debtToMoneyPrison.debtAbove === "number"
+                  ? source.debtToMoneyPrison.debtAbove
+                  : 50,
+              moneyMultiple:
+                typeof source.debtToMoneyPrison.moneyMultiple === "number"
+                  ? source.debtToMoneyPrison.moneyMultiple
+                  : 5
+            }
+          : null
     };
   }
 
@@ -85,22 +99,54 @@
   }
 
   const LATE_GAME_REQUIREMENT = {
-    minAge: 56,
-    minChoices: 88
+    minAge: 64,
+    minChoices: 118
   };
 
   window.LIFE_ENDINGS = [
+    ending({
+      id: "terminal_health_zero",
+      title: "结局：身体这项硬指标，终于跌到尽头",
+      text: "不是某一天突然发生的意外，而是无数次「先顶过去」之后，身体再也没有给你下一次缓冲。到了这一步，年龄、计划和未完成的愿望都得让路——因为最底层的那一格血条，已经见底了。",
+      instant: true,
+      baseWeight: 520,
+      require: requirement({
+        maxStats: { health: 0 }
+      })
+    }),
+    ending({
+      id: "terminal_debt_collapse",
+      title: "结局：负债高到人生在现实里再也转不动",
+      text: "数字堆到某个临界点以后，就不再只是账面上的压力：它会接管你的选择、关系和自尊。你会发现自己连「先缓一缓」的空间都被收走，只能面对结构性的崩塌。",
+      instant: true,
+      baseWeight: 500,
+      require: requirement({
+        minStats: { debt: 94 },
+        maxStats: { money: 12 }
+      })
+    }),
+    ending({
+      id: "terminal_incarceration",
+      title: "结局：高墙之内，人生被强行按下暂停",
+      text: "手续、指印、随身物品被收走的那一刻，你从熟悉的轨道上被摘了出去。外面的人继续按日历生活，而你学会用另一种时间感数日子——错误、侥幸和代价，终于以法律的形式对上了账。",
+      instant: true,
+      baseWeight: 510,
+      require: requirement({
+        requiredFlags: ["incarcerated"]
+      })
+    }),
     ending({
       id: "early_health_collapse",
       title: "结局：身体先一步垮下去",
       text: "你不是突然倒下的，而是在很多次“先扛过去再说”的累积里，把身体一路透支到了再也顶不住的边缘。",
       instant: true,
-      baseWeight: 200,
+      baseWeight: 120,
       require: requirement({
-        minAge: 22,
-        minChoices: 45,
-        minStats: { stress: 72 },
-        maxStats: { health: 12 }
+        minAge: 30,
+        minChoices: 72,
+        minStats: { stress: 78 },
+        maxStats: { health: 6 },
+        someFlags: ["chronic_condition", "health_warning", "overworked", "chronic_stress"]
       })
     }),
     ending({
@@ -108,13 +154,13 @@
       title: "结局：长期高压之后，整个人都被压垮了",
       text: "你长期靠意志力把生活往前拧，工作、成绩和责任都没有立刻输，可身心先失去了继续运转的能力。",
       instant: true,
-      baseWeight: 160,
+      baseWeight: 110,
       require: requirement({
-        minAge: 24,
-        minChoices: 52,
-        minStats: { stress: 82 },
-        maxStats: { mental: 16, happiness: 18 },
-        someFlags: ["chronic_stress", "overworked", "career_first"]
+        minAge: 32,
+        minChoices: 80,
+        minStats: { stress: 88 },
+        maxStats: { mental: 12, happiness: 14 },
+        someFlags: ["chronic_stress", "overworked", "career_first", "emotional_shutdown"]
       })
     }),
     ending({
@@ -122,12 +168,12 @@
       title: "结局：债务失控，人生在现实压力里突然塌了",
       text: "很多问题并不是在一夜之间坏掉的，只是债务滚到一定程度以后，生活结构会开始连锁断裂，留下来的不只是钱的问题。",
       instant: true,
-      baseWeight: 150,
+      baseWeight: 115,
       require: requirement({
-        minAge: 23,
-        minChoices: 48,
-        minStats: { debt: 86, stress: 70 },
-        maxStats: { money: 24 }
+        minAge: 28,
+        minChoices: 75,
+        minStats: { debt: 88, stress: 76 },
+        maxStats: { money: 18 }
       })
     }),
     ending({
@@ -135,12 +181,13 @@
       title: "结局：灰色路径翻车，最后把自己送进了更窄的地方",
       text: "你原本以为那只是一次更快的解法，可当风险、侥幸和现实后果真正对上账时，代价会比你当初想象得更重。",
       instant: true,
-      baseWeight: 140,
+      baseWeight: 105,
       require: requirement({
-        minAge: 24,
-        minChoices: 50,
-        minStats: { debt: 72, stress: 68 },
-        someFlags: ["debt_rollover", "speculative_route", "major_bet_loss"]
+        minAge: 28,
+        minChoices: 76,
+        minStats: { debt: 82, stress: 76 },
+        requiredFlags: ["debt_rollover"],
+        someFlags: ["speculative_route", "major_bet_loss", "bad_company"]
       })
     }),
     ending({
@@ -188,7 +235,9 @@
       weightModifiers: [
         modifier({ weight: 14, when: { requiredRomanceFlags: ["relationship_committed", "relationship_maintained"] } }),
         modifier({ weight: 10, when: { someFlags: ["long_term_partner", "future_planned", "rules_reworked"] } }),
-        modifier({ weight: 8, when: { requiredTags: ["family"] } })
+        modifier({ weight: 8, when: { requiredTags: ["family"] } }),
+        modifier({ weight: 8, when: { requiredRomanceFlags: ["romance_future_aligned", "romance_domestic_anchor"] } }),
+        modifier({ weight: 6, when: { requiredRomanceFlags: ["romance_coparent_team", "romance_care_bond"] } })
       ]
     }),
     ending({
@@ -203,7 +252,8 @@
       weightModifiers: [
         modifier({ weight: 12, when: { maxStats: { happiness: 56 } } }),
         modifier({ weight: 10, when: { noCurrentPartner: true } }),
-        modifier({ weight: 8, when: { requiredRomanceFlags: ["relationship_neglected", "romance_held_back"] } })
+        modifier({ weight: 8, when: { requiredRomanceFlags: ["relationship_neglected", "romance_held_back"] } }),
+        modifier({ weight: 7, when: { requiredRomanceFlags: ["romance_distance_cost", "romance_neglected_for_child"] } })
       ]
     }),
     ending({

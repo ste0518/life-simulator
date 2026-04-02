@@ -11,6 +11,7 @@
     - `romanceProfile.breakupConditions`：进入冷淡 / 分手危机的条件。
     - `romanceProfile.canReconnect`：这条线后续是否允许重逢或复合。
     - `availability.spansStages`：人物会贯穿哪些人生阶段。
+    - 额外恋爱场景与阶段链见 `data/romance-deep-expansion.js`（按角色 id 生成 `_deep_*` 事件），入口工厂在 `romance-expansion.js` 的 `__LIFE_ROMANCE_FACTORY__`。
   */
 
   function toList(value) {
