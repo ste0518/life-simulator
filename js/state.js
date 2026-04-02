@@ -253,6 +253,8 @@
         active: false,
         routeId: "",
         routeName: "",
+        selectedUniversityName: "",
+        selectedUniversityCountry: "",
         destination: "",
         supportLevel: "",
         phase: "",

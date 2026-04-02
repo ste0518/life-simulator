@@ -1062,7 +1062,7 @@
             : gameState.lifePath === "overseas"
               ? "去国外念书"
               : "尚未决定",
-      gaokaoRegionName: gaokaoState.regionName || "你的高考地区",
+      gaokaoRegionName: gaokaoState.regionName || "默认省份线",
       gaokaoScore:
         typeof gaokaoState.score === "number" && Number.isFinite(gaokaoState.score) ? String(gaokaoState.score) : "未出分",
       gaokaoBaseScore:
@@ -1202,6 +1202,12 @@
       active: Boolean(gameState.overseas.active),
       routeId: typeof gameState.overseas.routeId === "string" ? gameState.overseas.routeId : "",
       routeName: typeof gameState.overseas.routeName === "string" ? gameState.overseas.routeName : "",
+      selectedUniversityName:
+        typeof gameState.overseas.selectedUniversityName === "string" ? gameState.overseas.selectedUniversityName : "",
+      selectedUniversityCountry:
+        typeof gameState.overseas.selectedUniversityCountry === "string"
+          ? gameState.overseas.selectedUniversityCountry
+          : "",
       destination: typeof gameState.overseas.destination === "string" ? gameState.overseas.destination : "",
       supportLevel: typeof gameState.overseas.supportLevel === "string" ? gameState.overseas.supportLevel : "",
       phase: typeof gameState.overseas.phase === "string" ? gameState.overseas.phase : "",
@@ -1451,9 +1457,7 @@
       gaokaoConfig.regionSelection && typeof gaokaoConfig.regionSelection === "object"
         ? gaokaoConfig.regionSelection
         : {};
-    const weightedRegion = pickWeightedEntry(regionSelection.weightedRegions);
     let region =
-      (weightedRegion && getGaokaoRegionById(weightedRegion.id)) ||
       getGaokaoRegionById(regionSelection.defaultRegionId) ||
       gaokaoRegions[0] ||
       null;
@@ -1703,7 +1707,7 @@
 
   function buildDomesticUniversityRecommendationCandidates(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
-    return getDomesticUniversityCandidates(tierId).map((school) => {
+    return getDomesticUniversityCandidates(tierId).map((school, index) => {
       const tags = normalizeStringArray(school.tags);
       let weight = 1;
       preferredTags.forEach((tag) => {
@@ -1714,7 +1718,8 @@
 
       return {
         ...school,
-        weight
+        weight,
+        scoreOrder: index
       };
     });
   }
@@ -1723,7 +1728,7 @@
     return (Array.isArray(candidates) ? candidates : []).map((school) => ({
       name: school.name,
       location: school.city || "国内",
-      categoryLabel: "全国近似参考 · " + (school.type || "大学"),
+      categoryLabel: "同分段参考 · " + (school.type || "大学"),
       reason: resolveRecommendationReason(
         school.fitNotes,
         preferredTags,
@@ -1735,13 +1740,23 @@
   function buildDomesticUniversityRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
-    return mapDomesticUniversityRecommendations(pickUniqueWeightedEntries(candidates, 4), preferredTags);
+    return mapDomesticUniversityRecommendations(candidates, preferredTags);
   }
 
   function buildDomesticUniversityPreviewRecommendations(tierId, preference) {
     const preferredTags = getDomesticPreferredTags(preference);
     const candidates = buildDomesticUniversityRecommendationCandidates(tierId, preference);
-    return mapDomesticUniversityRecommendations(sortEntriesByWeight(candidates).slice(0, 3), preferredTags);
+    return mapDomesticUniversityRecommendations(
+      candidates
+        .slice()
+        .sort((left, right) => {
+          const leftOrder = typeof left.scoreOrder === "number" ? left.scoreOrder : Number.MAX_SAFE_INTEGER;
+          const rightOrder = typeof right.scoreOrder === "number" ? right.scoreOrder : Number.MAX_SAFE_INTEGER;
+          return leftOrder - rightOrder;
+        })
+        .slice(0, 3),
+      preferredTags
+    );
   }
 
   function getOverseasPreferredTags(routeId) {
@@ -1755,7 +1770,7 @@
   function buildOverseasUniversityRecommendationCandidates(routeId, qsBand) {
     const preferredTags = getOverseasPreferredTags(routeId);
     const bandId = qsBand && qsBand.id ? qsBand.id : "";
-    return getOverseasUniversityCandidates(bandId).map((school) => {
+    return getOverseasUniversityCandidates(bandId).map((school, index) => {
       const tags = normalizeStringArray(school.tags);
       let weight = 1;
       preferredTags.forEach((tag) => {
@@ -1766,7 +1781,8 @@
 
       return {
         ...school,
-        weight
+        weight,
+        scoreOrder: index
       };
     });
   }
@@ -1816,20 +1832,27 @@
 
   function buildOverseasUniversityRecommendations(routeId, qsBand) {
     const preferredTags = getOverseasPreferredTags(routeId);
-    const bandId = qsBand && qsBand.id ? qsBand.id : "";
     const bandLabel = qsBand && qsBand.label ? qsBand.label : "QS 档位未定";
     const candidates = buildOverseasUniversityRecommendationCandidates(routeId, qsBand);
 
-    return pickUniqueWeightedEntries(candidates, 4).map((school) => ({
-      name: school.name,
-      location: school.country || "海外",
-      categoryLabel: bandLabel + " · " + (school.country || "海外"),
-      reason: resolveRecommendationReason(
-        school.fitNotes,
-        preferredTags,
-        "这所学校和你当前的学业能力、路线取向相对更接近。"
-      )
-    }));
+    return candidates
+      .slice()
+      .sort((left, right) => {
+        const leftOrder = typeof left.scoreOrder === "number" ? left.scoreOrder : Number.MAX_SAFE_INTEGER;
+        const rightOrder = typeof right.scoreOrder === "number" ? right.scoreOrder : Number.MAX_SAFE_INTEGER;
+        return leftOrder - rightOrder;
+      })
+      .slice(0, 4)
+      .map((school) => ({
+        name: school.name,
+        location: school.country || "海外",
+        categoryLabel: bandLabel + " · " + (school.country || "海外"),
+        reason: resolveRecommendationReason(
+          school.fitNotes,
+          preferredTags,
+          "这所学校和你当前的学业能力、路线取向相对更接近。"
+        )
+      }));
   }
 
   function buildOverseasUniversityPreviewRecommendations(routeId, qsBand) {
@@ -1851,8 +1874,92 @@
     }));
   }
 
+  function scoreOverseasSchoolForRoute(routeId, schoolTags) {
+    const preferredTags = getOverseasPreferredTags(routeId);
+    let score = 0;
+    preferredTags.forEach((tag, index) => {
+      if (tag && schoolTags.includes(tag)) {
+        score += Math.max(1, preferredTags.length - index);
+      }
+    });
+    return score;
+  }
+
+  function pickOverseasRouteChoiceForSchool(routeChoices, school) {
+    const choices = Array.isArray(routeChoices) ? routeChoices : [];
+    const schoolTags = normalizeStringArray(school && school.tags);
+    let bestChoice = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    choices.forEach((choice, index) => {
+      const payload = choice && choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
+      const routeId = typeof payload.routeId === "string" ? payload.routeId : "";
+      const score = scoreOverseasSchoolForRoute(routeId, schoolTags) * 10 - index;
+      if (score > bestScore) {
+        bestScore = score;
+        bestChoice = choice;
+      }
+    });
+
+    return bestChoice;
+  }
+
+  function buildOverseasSchoolOptionText(school, qsBand) {
+    const schoolName = school && school.name ? school.name : "海外学校";
+    const country = school && school.country ? school.country : "海外";
+    const bandLabel = qsBand && qsBand.label ? qsBand.label : "QS 档位未定";
+    return "去 " + schoolName + "（" + country + " · " + bandLabel + "）";
+  }
+
+  function buildOverseasSchoolOptions(event) {
+    if (!event || !Array.isArray(event.choices)) {
+      return [];
+    }
+
+    const routeChoices = event.choices.filter((choice) => {
+      return choice && choice.customAction === "start_overseas_route" && matchesConditions(choice.conditions, gameState);
+    });
+    if (!routeChoices.length) {
+      return [];
+    }
+
+    const academicIndex = calculateOverseasAcademicIndex("");
+    const qsBand = determineOverseasQsBand(academicIndex);
+    const candidates = getOverseasUniversityCandidates(qsBand && qsBand.id ? qsBand.id : "").slice(0, 4);
+
+    return candidates
+      .map((school, index) => {
+        const matchedChoice = pickOverseasRouteChoiceForSchool(routeChoices, school) || routeChoices[0];
+        if (!matchedChoice) {
+          return null;
+        }
+
+        const payload =
+          matchedChoice.customPayload && typeof matchedChoice.customPayload === "object"
+            ? { ...matchedChoice.customPayload }
+            : {};
+        payload.selectedUniversityName = school.name || "";
+        payload.selectedUniversityCountry = school.country || "海外";
+        payload.qsBandId = qsBand && qsBand.id ? qsBand.id : "";
+        payload.qsBandLabel = qsBand && qsBand.label ? qsBand.label : "";
+
+        return {
+          ...matchedChoice,
+          text: buildOverseasSchoolOptionText(school, qsBand),
+          customPayload: payload,
+          previewDisabled: true,
+          index
+        };
+      })
+      .filter(Boolean);
+  }
+
   function getOptionRecommendationPreview(option) {
     if (!option || typeof option !== "object") {
+      return null;
+    }
+
+    if (option.previewDisabled) {
       return null;
     }
 
@@ -1865,7 +1972,7 @@
       const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
       return {
         kind: "domestic",
-        summary: "按你当前分数，预计仍落在“" + (gaokaoState.tierLabel || "区间未定") + "”的全国近似参考带。",
+        summary: "按你当前分数，你现在可选的学校会先落在“" + (gaokaoState.tierLabel || "区间未定") + "”。",
         universities: buildDomesticUniversityPreviewRecommendations(gaokaoState.tierId, payload)
       };
     }
@@ -2020,9 +2127,7 @@
         gaokaoState.tierId ? "gaokao_tier_" + gaokaoState.tierId : ""
       ]);
       addHistory(
-        "高考成绩出来了：在" +
-          (gaokaoState.regionName || "你的地区") +
-          "参考下，你拿到了 " +
+        "高考成绩出来了：你拿到了 " +
           finalScore +
           " 分，落在“" +
           gaokaoState.tierLabel +
@@ -2090,6 +2195,12 @@
       overseasState.active = true;
       overseasState.routeId = typeof data.routeId === "string" ? data.routeId : overseasState.routeId;
       overseasState.routeName = typeof data.routeName === "string" ? data.routeName : overseasState.routeName;
+      overseasState.selectedUniversityName =
+        typeof data.selectedUniversityName === "string" ? data.selectedUniversityName : overseasState.selectedUniversityName;
+      overseasState.selectedUniversityCountry =
+        typeof data.selectedUniversityCountry === "string"
+          ? data.selectedUniversityCountry
+          : overseasState.selectedUniversityCountry;
       overseasState.destination = typeof data.destination === "string" ? data.destination : overseasState.destination;
       overseasState.supportLevel = typeof data.supportLevel === "string" ? data.supportLevel : overseasState.supportLevel;
       overseasState.phase = "arrival";
@@ -2143,15 +2254,19 @@
         applyRouteDefinition(educationRouteMap.get(data.routeId) || null);
       }
       overseasState.academicIndex = calculateOverseasAcademicIndex(overseasState.routeId);
-      const qsBand = determineOverseasQsBand(overseasState.academicIndex);
-      overseasState.qsBandId = qsBand && qsBand.id ? qsBand.id : "";
-      overseasState.qsBandLabel = qsBand && qsBand.label ? qsBand.label : "";
+      const calculatedQsBand = determineOverseasQsBand(overseasState.academicIndex);
+      const qsBand =
+        (typeof data.qsBandId === "string" && data.qsBandId && getOverseasQsBandById(data.qsBandId)) || calculatedQsBand;
+      overseasState.qsBandId =
+        typeof data.qsBandId === "string" && data.qsBandId ? data.qsBandId : qsBand && qsBand.id ? qsBand.id : "";
+      overseasState.qsBandLabel =
+        typeof data.qsBandLabel === "string" && data.qsBandLabel ? data.qsBandLabel : qsBand && qsBand.label ? qsBand.label : "";
       overseasState.recommendedUniversities = buildOverseasUniversityRecommendations(overseasState.routeId, qsBand);
       convertDomesticRelationshipsToDistance();
       syncOverseasDerivedFlags();
       addHistory(
         "你把生活连根拔起，开始准备去" +
-          (overseasState.destination || "国外") +
+          (overseasState.selectedUniversityName || overseasState.destination || "国外") +
           "念书。新的语言环境、经济账和孤独感，都会一起进场。"
       );
       return;
@@ -3700,6 +3815,10 @@
       return [];
     }
 
+    if (event.id === "overseas_departure") {
+      return buildOverseasSchoolOptions(event);
+    }
+
     return event.choices
       .map((choice, index) => ({ ...choice, index }))
       .filter((choice) => matchesConditions(choice.conditions, gameState));
@@ -3905,7 +4024,7 @@
       return getState();
     }
 
-    const option = event.choices[optionIndex];
+    const option = getVisibleOptions(event).find((candidate) => candidate.index === optionIndex) || null;
     if (!option || !matchesConditions(option.conditions, gameState)) {
       return getState();
     }

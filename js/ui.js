@@ -372,7 +372,7 @@
 
       const title = document.createElement("p");
       title.className = "route-title";
-      title.textContent = (state.gaokao.regionName || "地区未定") + " · " + state.gaokao.score + " 分";
+      title.textContent = state.gaokao.score + " 分";
       card.appendChild(title);
 
       const summary = document.createElement("p");
@@ -395,7 +395,7 @@
           details.appendChild(item);
         });
       card.appendChild(details);
-      appendUniversityRecommendations(card, "真实学校候选", state.gaokao.recommendedUniversities);
+      appendUniversityRecommendations(card, "可选学校", state.gaokao.recommendedUniversities);
 
       elements.routeContainer.appendChild(card);
     }
@@ -434,7 +434,10 @@
 
       const title = document.createElement("p");
       title.className = "route-title";
-      title.textContent = (state.overseas.routeName || "海外路线") + " · " + (state.overseas.destination || "海外城市");
+      title.textContent =
+        (state.overseas.selectedUniversityName || state.overseas.routeName || "海外路线") +
+        " · " +
+        (state.overseas.destination || "海外城市");
       card.appendChild(title);
 
       const summary = document.createElement("p");
@@ -456,6 +459,11 @@
       const details = document.createElement("ul");
       details.className = "route-details";
       [
+        state.overseas.selectedUniversityName
+          ? "选择学校：" +
+            state.overseas.selectedUniversityName +
+            (state.overseas.selectedUniversityCountry ? "（" + state.overseas.selectedUniversityCountry + "）" : "")
+          : "",
         focusLabels.length ? "当前分支倾向：" + focusLabels.join("、") : "",
         state.overseas.housingType ? "居住状态：" + state.overseas.housingType : "",
         state.overseas.budgetMode ? "生活策略：" + state.overseas.budgetMode : "",
@@ -516,7 +524,7 @@
         card.appendChild(details);
       }
 
-      appendUniversityRecommendations(card, "海外学校候选", state.overseas.recommendedUniversities);
+      appendUniversityRecommendations(card, "可选学校", state.overseas.recommendedUniversities);
 
       elements.routeContainer.appendChild(card);
     }
