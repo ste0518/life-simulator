@@ -11,7 +11,7 @@
     /** 从几岁开始参与「每年一次」判定（未满则不判） */
     minAge: 18,
     /** 每进入新的一岁时的触发概率（0–1，默认 0.01 = 1%） */
-    probabilityPerYear: 0.0025,
+    probabilityPerYear: 0.004,
     /**
      * 意外类型池：命中某岁后先掷概率，再按 weight 加权抽一条。
      * flag 须与 endings 中 requiredFlags 一致（若你只用本配置的 title/text，也建议保留 flag 便于存档/调试）。

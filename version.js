@@ -1,7 +1,7 @@
 /**
  * 应用版本号：只改下面这一行字符串即可，主页会显示为 v…（若已以 v 开头则不再重复加）
  */
-window.__APP_VERSION__ = '6.6.1';
+window.__APP_VERSION__ = '6.6.2';
 
 (function applyAppVersion() {
   var el = document.getElementById('app-version');
