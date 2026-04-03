@@ -71,16 +71,16 @@ input {
 
 /* —— Title + version (version text from version.js) —— */
 .app-title-wrap {
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.42em;
   max-width: 100%;
   font-size: clamp(1.85rem, 4.2vw, 2.65rem);
 }
 
 .app-title-wrap .app-version {
-  position: absolute;
-  right: 0;
-  bottom: 0;
+  flex: 0 0 auto;
   margin: 0;
   font-family: var(--font-ui);
   font-size: 0.24em;
@@ -91,7 +91,7 @@ input {
   opacity: 0.92;
   pointer-events: none;
   user-select: none;
-  transform: translate(0.08em, 0.14em);
+  white-space: nowrap;
 }
 
 .app-bg::after {
