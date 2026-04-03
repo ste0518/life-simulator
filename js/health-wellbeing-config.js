@@ -12,13 +12,27 @@
     /**
      * 压力 → 健康「慢性损耗」：仅在每次完整属性联动结算时生效。
      * 按 atLeast 从高到低匹配第一条：stress >= atLeast 则扣除 perStep 点健康。
-     * 默认：70–79 → -1，80–89 → -2，90–100 → -3。
      */
     stressHealthDecayBands: [
-      { atLeast: 91, perStep: 2 },
-      { atLeast: 83, perStep: 1 },
-      { atLeast: 75, perStep: 1 }
+      { atLeast: 92, perStep: 4 },
+      { atLeast: 84, perStep: 3 },
+      { atLeast: 74, perStep: 2 },
+      { atLeast: 62, perStep: 1 }
     ],
+
+    /**
+     * 叙事/标签已判定成立的负向健康变化，再乘以此系数（放大熬夜、病伤等「该疼」的扣血）。
+     * 设为 1 则关闭放大。
+     */
+    contextualNegativeHealthMultiplier: 1.38,
+
+    /**
+     * 健康较高时，正向恢复打折，避免轻易长期满血；health >= positiveHealthDiminishFrom 时用 positiveHealthHighRecoveryFactor。
+     * health <= positiveHealthFullRecoveryBelow 时恢复不打折。
+     */
+    positiveHealthDiminishFrom: 72,
+    positiveHealthFullRecoveryBelow: 52,
+    positiveHealthHighRecoveryFactor: 0.58,
 
     /**
      * 瞬时压力阶梯对心理的影响已迁至引擎「慢性高压」逻辑（js/stress-mental-balance.js）。

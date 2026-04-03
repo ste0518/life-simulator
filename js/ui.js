@@ -515,7 +515,7 @@
         const p2 = document.createElement("p");
         p2.className = "muted";
         p2.textContent =
-          "已启用按年工资入账与房租/日常扣减（数值见 data/life-workforce-expansion.js 的 LIFE_WORK_LIFE_CONFIG）。求职发送次数：" +
+          "已启用按年工资入账与日常扣减；房租按年薪的一定比例每年从财富中扣除。求职发送次数：" +
           (typeof wl.jobApplicationsSent === "number" ? wl.jobApplicationsSent : 0) +
           "。";
         card.appendChild(p2);
@@ -1199,7 +1199,7 @@
         const pfHint = document.createElement("p");
         pfHint.className = "muted relationship-partner-family-hint";
         pfHint.textContent =
-          "亲密度参考（好感/信任等综合）：" + pf.intimacyScore + " / 解锁阈值 " + pf.threshold + "（可在 data/life-systems.js 的 LIFE_FAMILY_REVEAL_CONFIG 修改）";
+          "亲密度（好感、信任、熟悉度等综合）：" + pf.intimacyScore + " / " + pf.threshold + " 以上可了解更完整的家庭背景。";
         pfWrap.appendChild(pfHint);
         if (!pf.revealed) {
           const vague = document.createElement("p");

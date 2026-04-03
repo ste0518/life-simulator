@@ -124,10 +124,10 @@
      * 慢性高压 → 额外心理消耗：每次属性联动结算时，若压力连续若干次都 ≥ 阈值，才开始每步扣心理。
      * 压力降到阈值以下则 streak 清零，额外拖累停止。
      */
-    chronicStressThreshold: 74,
-    chronicStressMinConsecutiveSteps: 6,
-    chronicStressMentalPerStep: -1,
-    chronicStressHappinessPerStep: 0,
+    chronicStressThreshold: 72,
+    chronicStressMinConsecutiveSteps: 5,
+    chronicStressMentalPerStep: -2,
+    chronicStressHappinessPerStep: -1,
 
     /**
      * 心理长期偏低 → 轻微压力反弹（累积性，非单次选择打崩）
@@ -135,6 +135,13 @@
     chronicLowMentalThreshold: 32,
     chronicLowMentalMinSteps: 6,
     chronicLowMentalStressPerStep: 1,
+
+    /**
+     * 心理长期处于极低区间 → 每步额外扣健康（阈值可比 chronicLowMentalThreshold 更严）
+     */
+    chronicLowMentalHealthThreshold: 28,
+    chronicLowMentalHealthMinConsecutiveSteps: 8,
+    chronicLowMentalHealthPerStep: -1,
 
     /** 每次联动结算里的「环境」修正（替代原先过陡的瞬时压力→心理阶梯） */
     derived: {

@@ -334,7 +334,9 @@
         /** 联动结算时压力连续处于高位的步数（用于慢性心理拖累，见 js/stress-mental-balance.js） */
         highStressStreak: 0,
         /** 联动结算时心理连续偏低的步数 */
-        lowMentalStreak: 0
+        lowMentalStreak: 0,
+        /** 心理连续处于极低位的步数（用于身体损耗，见 js/stress-mental-balance.js） */
+        lowMentalHealthStreak: 0
       },
       setupStep: "naming",
       /**

@@ -16,6 +16,19 @@
      * 意外类型池：命中某岁后先掷概率，再按 weight 加权抽一条。
      * flag 须与 endings 中 requiredFlags 一致（若你只用本配置的 title/text，也建议保留 flag 便于存档/调试）。
      */
+    /**
+     * 长期高压 + 心理过低时略提高年度意外概率（在 probabilityPerYear 上乘以系数，有上限）。
+     * 详见引擎 trySuddenDeathAnnualRollForAgeSpan。
+     */
+    mentalStressRisk: {
+      enabled: true,
+      maxMultiplier: 1.65,
+      highStressAtLeast: 78,
+      lowMentalAtMost: 34,
+      stressBoostCoeff: 0.0042,
+      mentalBoostCoeff: 0.0035
+    },
+
     outcomes: [
       {
         flag: "sudden_death_car_crash",

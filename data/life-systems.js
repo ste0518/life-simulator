@@ -692,7 +692,7 @@
 
   /** 恋爱对象「家庭背景」解锁：综合亲密度阈值与权重（引擎读取 window.LIFE_FAMILY_REVEAL_CONFIG） */
   const familyRevealConfig = {
-    minIntimacyScore: 80,
+    minIntimacyScore: 40,
     weights: {
       affection: 0.45,
       trust: 0.4,

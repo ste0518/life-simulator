@@ -143,6 +143,30 @@
     annualLivingCostBase: 7,
     /** 有「住家」类 flag 时从年支出里减免 */
     liveWithParentsLivingDiscount: 5,
+
+    /**
+     * 工作地点与「住自己家」是否同时成立：仅当 workLocationId 在列表内时，住房里程碑才出现该选项。
+     * （引擎与 UI 选项过滤共用）
+     */
+    housingEligibilityRules: {
+      parentsHomeAllowedWorkLocationIds: ["loc_stay_local", "loc_hometown_return"]
+    },
+
+    /**
+     * 年房租 = 年度名义工资收入（与年度结算同一套：career 年薪 × 地点 salaryMult）× annualSalaryFraction × 住房档位倍数。
+     * 住父母家倍数为 0。改比例只改 annualSalaryFraction。
+     */
+    rentConfig: {
+      annualSalaryFraction: 0.4,
+      housingRentTierMultipliers: {
+        housing_parents_home: 0,
+        housing_share_room: 0.88,
+        housing_company_dorm: 0.58,
+        housing_studio_plain: 1,
+        housing_one_bedroom: 1.14,
+        housing_nicer_upgrade: 1.32
+      }
+    },
     layoffProbabilityPerYear: 0.035,
     bonusProbabilityPerYear: 0.065,
     bonusMoneyRange: [2, 8],
@@ -182,32 +206,33 @@
       {
         id: "housing_parents_home",
         label: "住家里 / 不额外租房",
-        annualRent: 0,
         stats: { happiness: -1, stress: 3, familySupport: 2 },
         addFlags: ["housing_parents_roof"]
       },
       {
         id: "housing_share_room",
         label: "合租小房间（便宜、边界感弱）",
-        annualRent: 5,
         stats: { stress: 3, happiness: -2, health: -1 }
+      },
+      {
+        id: "housing_company_dorm",
+        label: "单位宿舍 / 公司周转房（有名额时）",
+        stats: { stress: 2, happiness: -1, social: 1 },
+        addFlags: ["housing_company_dorm"]
       },
       {
         id: "housing_studio_plain",
         label: "普通单间/开间",
-        annualRent: 9,
         stats: { happiness: 1, stress: 1 }
       },
       {
         id: "housing_one_bedroom",
         label: "一居室（独立空间）",
-        annualRent: 14,
         stats: { happiness: 3, stress: -2, money: -1 }
       },
       {
         id: "housing_nicer_upgrade",
         label: "条件更好的小区/公寓",
-        annualRent: 22,
         stats: { happiness: 5, stress: -3, money: -2 }
       }
     ],
@@ -471,8 +496,8 @@
     event({
       id: "housing_pick_milestone",
       stage: "young_adult",
-      title: "住哪里：合租、独居、还是暂时住家里？",
-      text: "房租是按年从你财富里扣的摘要，也是你每天起床时心情的底色。选一个你能承受、也能说服自己住得下去的方案。",
+      title: "住哪里：合租、独居、宿舍，还是暂时住家里？",
+      text: "房租会按你的年薪水平折算成每年的固定支出，从财富里扣——工资高，租金负担也会跟着上去。选一个你能承受、也能说服自己住得下去的方案。若工作不在老家附近，通常没法每天住回父母家。",
       minAge: 22,
       maxAge: 60,
       weight: 0,
@@ -493,6 +518,12 @@
           text: "合租小房间。",
           customAction: "apply_housing_choice",
           customPayload: { housingId: "housing_share_room" },
+          effects: { age: 0, stats: {} }
+        }),
+        choice({
+          text: "单位宿舍 / 公司周转房（有名额时）。",
+          customAction: "apply_housing_choice",
+          customPayload: { housingId: "housing_company_dorm" },
           effects: { age: 0, stats: {} }
         }),
         choice({

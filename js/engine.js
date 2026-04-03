@@ -1457,6 +1457,43 @@
     return 0;
   }
 
+  function applyResolvedHealthStatDelta(delta, options) {
+    const cfg = getHealthWellbeingConfig();
+    const settings = options || {};
+    if (typeof delta !== "number" || !delta) {
+      return 0;
+    }
+    if (delta < 0) {
+      let v = resolveNegativeHealthStatDelta(delta, settings);
+      if (v < 0) {
+        const mult =
+          typeof cfg.contextualNegativeHealthMultiplier === "number" ? cfg.contextualNegativeHealthMultiplier : 1;
+        v = Math.round(v * mult);
+      }
+      return v;
+    }
+    if (settings.allowAnyHealthEffects) {
+      return Math.round(delta);
+    }
+    if (cfg.enabled === false) {
+      return Math.round(delta);
+    }
+    const softStart = typeof cfg.positiveHealthDiminishFrom === "number" ? cfg.positiveHealthDiminishFrom : 72;
+    const factor = typeof cfg.positiveHealthHighRecoveryFactor === "number" ? cfg.positiveHealthHighRecoveryFactor : 0.58;
+    const fullBelow = typeof cfg.positiveHealthFullRecoveryBelow === "number" ? cfg.positiveHealthFullRecoveryBelow : 52;
+    const h = gameState.stats.health || 0;
+    if (h >= softStart) {
+      return Math.max(0, Math.round(delta * factor));
+    }
+    if (h <= fullBelow) {
+      return Math.round(delta);
+    }
+    const span = softStart - fullBelow;
+    const t = span > 0 ? (h - fullBelow) / span : 1;
+    const scale = 1 - t * (1 - factor);
+    return Math.max(0, Math.round(delta * scale));
+  }
+
   function matchesHealthCollapseContextForEnding(state) {
     const cfg = getHealthWellbeingConfig();
     if (cfg.endingHealthZeroRequireContext === false) {
@@ -1552,7 +1589,12 @@
     }
 
     if (!gameState.wellbeingTracking || typeof gameState.wellbeingTracking !== "object") {
-      gameState.wellbeingTracking = { healthZeroConsecutiveSteps: 0, highStressStreak: 0, lowMentalStreak: 0 };
+      gameState.wellbeingTracking = {
+        healthZeroConsecutiveSteps: 0,
+        highStressStreak: 0,
+        lowMentalStreak: 0,
+        lowMentalHealthStreak: 0
+      };
     }
     const wt = gameState.wellbeingTracking;
     if (typeof wt.highStressStreak !== "number") {
@@ -1560,6 +1602,9 @@
     }
     if (typeof wt.lowMentalStreak !== "number") {
       wt.lowMentalStreak = 0;
+    }
+    if (typeof wt.lowMentalHealthStreak !== "number") {
+      wt.lowMentalHealthStreak = 0;
     }
 
     const chronicTh = typeof smb.chronicStressThreshold === "number" ? smb.chronicStressThreshold : 72;
@@ -1584,6 +1629,24 @@
     const lowMMin = typeof smb.chronicLowMentalMinSteps === "number" ? smb.chronicLowMentalMinSteps : 6;
     if (wt.lowMentalStreak >= lowMMin && mentalNow <= lowMTh) {
       addChange("stress", typeof smb.chronicLowMentalStressPerStep === "number" ? smb.chronicLowMentalStressPerStep : 1);
+    }
+
+    const mhTh =
+      typeof smb.chronicLowMentalHealthThreshold === "number" ? smb.chronicLowMentalHealthThreshold : 28;
+    const mhMin =
+      typeof smb.chronicLowMentalHealthMinConsecutiveSteps === "number"
+        ? smb.chronicLowMentalHealthMinConsecutiveSteps
+        : 8;
+    if (mentalNow <= mhTh) {
+      wt.lowMentalHealthStreak += 1;
+    } else {
+      wt.lowMentalHealthStreak = 0;
+    }
+    if (wt.lowMentalHealthStreak >= mhMin && mentalNow <= mhTh) {
+      addChange(
+        "health",
+        typeof smb.chronicLowMentalHealthPerStep === "number" ? smb.chronicLowMentalHealthPerStep : -1
+      );
     }
 
     (function applyStressHealthDecayBands() {
@@ -3057,6 +3120,79 @@
     }
   }
 
+  function getParentsHomeAllowedWorkLocationIds() {
+    const rules = lifeWorkLifeConfig.housingEligibilityRules || {};
+    const list = rules.parentsHomeAllowedWorkLocationIds;
+    return Array.isArray(list) && list.length ? list : ["loc_stay_local", "loc_hometown_return"];
+  }
+
+  function isParentsHomeAllowedForCurrentWorkLife() {
+    ensureWorkLifeState();
+    const wl = gameState.workLife;
+    const locId = typeof wl.workLocationId === "string" ? wl.workLocationId.trim() : "";
+    if (!locId) {
+      return false;
+    }
+    return getParentsHomeAllowedWorkLocationIds().indexOf(locId) !== -1;
+  }
+
+  function computeEmployedAnnualSalaryIncomeForState(state) {
+    const st = state || gameState;
+    const wl = st.workLife && typeof st.workLife === "object" ? st.workLife : {};
+    const cid = st.careerRoute && st.careerRoute.id ? st.careerRoute.id : "";
+    if (!cid || careerZeroSalaryIds.indexOf(cid) !== -1) {
+      return 0;
+    }
+    const salaryTable = lifeWorkLifeConfig.salaryByCareerRouteId || {};
+    let income = typeof salaryTable[cid] === "number" ? salaryTable[cid] : 8;
+    const locList = Array.isArray(lifeWorkLifeConfig.workLocations) ? lifeWorkLifeConfig.workLocations : [];
+    const locId = typeof wl.workLocationId === "string" ? wl.workLocationId : "";
+    const loc = locList.find(function (x) {
+      return x && x.id === locId;
+    });
+    const mult = loc && typeof loc.salaryMult === "number" ? loc.salaryMult : 1;
+    return Math.max(0, Math.round(income * mult));
+  }
+
+  function computeAnnualHousingRentAmount(annualSalaryIncome, housingId) {
+    const hid = typeof housingId === "string" ? housingId.trim() : "";
+    const rc = lifeWorkLifeConfig.rentConfig && typeof lifeWorkLifeConfig.rentConfig === "object" ? lifeWorkLifeConfig.rentConfig : {};
+    const frac = typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.4;
+    const tierMap = rc.housingRentTierMultipliers && typeof rc.housingRentTierMultipliers === "object" ? rc.housingRentTierMultipliers : {};
+    if (!hid || hid === "housing_parents_home") {
+      return 0;
+    }
+    const tier = typeof tierMap[hid] === "number" ? tierMap[hid] : 1;
+    if (!annualSalaryIncome || tier <= 0) {
+      return 0;
+    }
+    return Math.max(0, Math.round(annualSalaryIncome * frac * tier));
+  }
+
+  function suddenDeathProbabilityMultiplier(stateRef) {
+    const cfg = getSuddenDeathConfig();
+    const block = cfg.mentalStressRisk;
+    if (!block || block.enabled === false) {
+      return 1;
+    }
+    const maxM = typeof block.maxMultiplier === "number" ? block.maxMultiplier : 1.65;
+    const hs = typeof block.highStressAtLeast === "number" ? block.highStressAtLeast : 78;
+    const lm = typeof block.lowMentalAtMost === "number" ? block.lowMentalAtMost : 34;
+    const cS = typeof block.stressBoostCoeff === "number" ? block.stressBoostCoeff : 0.0042;
+    const cM = typeof block.mentalBoostCoeff === "number" ? block.mentalBoostCoeff : 0.0035;
+    const st = stateRef && typeof stateRef.stats === "object" ? stateRef.stats : {};
+    const stress = typeof st.stress === "number" ? st.stress : 0;
+    const mental = typeof st.mental === "number" ? st.mental : 50;
+    let m = 1;
+    if (stress >= hs) {
+      m += (stress - hs) * cS;
+    }
+    if (mental <= lm) {
+      m += (lm - mental) * cM;
+    }
+    return Math.min(maxM, m);
+  }
+
   function ensureEconomyLedger() {
     if (!gameState.economyLedger || typeof gameState.economyLedger !== "object") {
       gameState.economyLedger = { lastSettledAge: -1 };
@@ -3083,7 +3219,7 @@
 
   function syncPartnerFamilyRevealFromIntimacy() {
     const threshold =
-      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 80;
+      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 40;
     Object.values(gameState.relationships || {}).forEach((rel) => {
       if (!rel || !rel.met) {
         return;
@@ -3177,12 +3313,9 @@
     if (!cid || careerZeroSalaryIds.includes(cid)) {
       return;
     }
-    const salaryTable = lifeWorkLifeConfig.salaryByCareerRouteId || {};
-    let income = typeof salaryTable[cid] === "number" ? salaryTable[cid] : 8;
     const locList = Array.isArray(lifeWorkLifeConfig.workLocations) ? lifeWorkLifeConfig.workLocations : [];
     const loc = locList.find((x) => x && x.id === wl.workLocationId) || null;
-    const mult = loc && typeof loc.salaryMult === "number" ? loc.salaryMult : 1;
-    income = Math.max(0, Math.round(income * mult));
+    const income = computeEmployedAnnualSalaryIncomeForState(gameState);
     const livingBase =
       typeof lifeWorkLifeConfig.annualLivingCostBase === "number" ? lifeWorkLifeConfig.annualLivingCostBase : 7;
     let living = livingBase + (loc && typeof loc.livingCostAdd === "number" ? loc.livingCostAdd : 0);
@@ -3193,9 +3326,7 @@
           : 0;
       living = Math.max(2, living - disc);
     }
-    const houseList = Array.isArray(lifeWorkLifeConfig.housingOptions) ? lifeWorkLifeConfig.housingOptions : [];
-    const house = houseList.find((x) => x && x.id === wl.housingId) || null;
-    const rent = house && typeof house.annualRent === "number" ? house.annualRent : 0;
+    const rent = computeAnnualHousingRentAmount(income, wl.housingId);
     const kids = getChildCount(gameState);
     const childCost = kids > 0 ? kids * 3 : 0;
     let net = income - living - rent - childCost;
@@ -3376,7 +3507,8 @@
       return false;
     }
     for (let y = startYear; y <= endYear; y++) {
-      if (Math.random() < p) {
+      const pEff = Math.min(0.035, p * suddenDeathProbabilityMultiplier(gameState));
+      if (Math.random() < pEff) {
         const picked = pickWeightedSuddenDeathOutcome(cfg);
         if (!picked) {
           return false;
@@ -3992,6 +4124,10 @@
       const hlist = Array.isArray(lifeWorkLifeConfig.housingOptions) ? lifeWorkLifeConfig.housingOptions : [];
       const h = hlist.find((x) => x && x.id === housingId) || null;
       if (!h || !gameState.flags.includes("pending_housing_pick")) {
+        return;
+      }
+      if (housingId === "housing_parents_home" && !isParentsHomeAllowedForCurrentWorkLife()) {
+        addHistory("你现在的工作半径不在老家附近，没法每天住回父母家，换一个更现实的租房或宿舍方案。");
         return;
       }
       const inc = Array.isArray(h.incompatibleFlags) ? h.incompatibleFlags : [];
@@ -5492,7 +5628,7 @@
         }
         let applied = delta;
         if (key === "health") {
-          applied = resolveNegativeHealthStatDelta(delta, {
+          applied = applyResolvedHealthStatDelta(delta, {
             allowAnyHealthEffects: Boolean(settings.allowAnyHealthEffects),
             mutationEvent: settings.mutationEvent || null,
             mutationChoice: settings.mutationChoice || null
@@ -6402,7 +6538,18 @@
         }
         return true;
       })
-      .filter((choice) => matchesConditions(choice.conditions, gameState));
+      .filter((choice) => matchesConditions(choice.conditions, gameState))
+      .filter((choice) => {
+        if (event.id !== "housing_pick_milestone") {
+          return true;
+        }
+        const payload = choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
+        const hid = typeof payload.housingId === "string" ? payload.housingId.trim() : "";
+        if (hid !== "housing_parents_home") {
+          return true;
+        }
+        return isParentsHomeAllowedForCurrentWorkLife();
+      });
   }
 
   function getEligibleFallbackEvents() {
@@ -7018,6 +7165,25 @@
     return getState();
   }
 
+  function getWorkLifeEconomyPreview(state) {
+    const st = state || gameState;
+    if (!st || typeof st !== "object") {
+      return null;
+    }
+    const wl = st.workLife && typeof st.workLife === "object" ? st.workLife : {};
+    const income = computeEmployedAnnualSalaryIncomeForState(st);
+    const hid = typeof wl.housingId === "string" ? wl.housingId.trim() : "";
+    const rent = computeAnnualHousingRentAmount(income, hid);
+    const rc = lifeWorkLifeConfig.rentConfig && typeof lifeWorkLifeConfig.rentConfig === "object" ? lifeWorkLifeConfig.rentConfig : {};
+    return {
+      annualSalaryIncome: income,
+      annualRent: rent,
+      annualSalaryFraction: typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.4,
+      housingId: hid,
+      workLocationId: typeof wl.workLocationId === "string" ? wl.workLocationId : ""
+    };
+  }
+
   function getRelationshipDynamicBio(state, relationshipId) {
     const rel = getRelationshipSnapshot(state, relationshipId);
     if (!rel) {
@@ -7037,7 +7203,7 @@
     }
     const score = computePartnerIntimacyScore(rel);
     const th =
-      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 80;
+      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 40;
     const revealed = Boolean(rel.partnerFamilyRevealed) || score >= th;
     return {
       vague: typeof pack.vague === "string" ? pack.vague : "",
@@ -7080,6 +7246,7 @@
     giveGiftFromInventory,
     getRelationshipDynamicBio,
     getPartnerFamilyView,
+    getWorkLifeEconomyPreview,
     computePartnerIntimacyScore: function (state, relationshipId) {
       const rel = getRelationshipSnapshot(state, relationshipId);
       return computePartnerIntimacyScore(rel);

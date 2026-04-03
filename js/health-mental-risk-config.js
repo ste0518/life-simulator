@@ -10,9 +10,9 @@
     enabled: true,
     /** 仅对这些 instant 结局 id 生效（须与 data/endings.js 中 id 一致） */
     instantEndingWeightMultipliers: {
-      terminal_health_zero: 1.1,
-      early_health_collapse: 1.15,
-      burnout_breakdown: 1.12
+      terminal_health_zero: 1.22,
+      early_health_collapse: 1.28,
+      burnout_breakdown: 1.2
     }
   };
 
