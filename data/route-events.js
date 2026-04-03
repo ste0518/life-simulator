@@ -168,28 +168,62 @@
         choice({
           text: "进入就业市场，开始投递与面试（求职循环）。",
           setCareerRoute: "career_in_job_search",
+          addFlags: ["postgrad_branch_job_market", "postgrad_route_picked"],
+          removeFlags: [
+            "postgrad_branch_further_study",
+            "postgrad_branch_gap",
+            "postgrad_branch_family_home",
+            "postgrad_branch_drift"
+          ],
           effects: { age: 0, stats: {} },
           log: "你把状态切成「求职者」，准备在一轮轮回音里把自己卖出去。"
         }),
         choice({
           text: "继续深造：考研/留学/读第二学位，把起薪再往后押。",
           setCareerRoute: "further_study_route",
-          effects: { age: 0, stats: {} }
+          addFlags: ["post_grad_chose_further_study", "postgrad_branch_further_study", "postgrad_route_picked"],
+          removeFlags: ["postgrad_branch_job_market", "postgrad_branch_gap", "postgrad_branch_family_home", "postgrad_branch_drift"],
+          effects: { age: 0, stats: {} },
+          log: "你把时间表继续押给考场、论文与申请，把「落地上班」再往后推一程。"
         }),
         choice({
           text: "暂时不工作：休整、试错、旅行或慢启动（经济压力会跟上来）。",
           setCareerRoute: "career_gap_year_after_degree",
-          effects: { age: 0, stats: {} }
+          addFlags: ["postgrad_branch_gap", "postgrad_route_picked"],
+          removeFlags: [
+            "postgrad_branch_job_market",
+            "postgrad_branch_further_study",
+            "postgrad_branch_family_home",
+            "postgrad_branch_drift"
+          ],
+          effects: { age: 0, stats: {} },
+          log: "你允许人生先空一格：慢启动会花钱，也会买回一点呼吸。"
         }),
         choice({
           text: "回家/依赖家庭支持，先把生活放回熟悉的屋檐下。",
           setCareerRoute: "career_family_supported_home",
-          effects: { age: 0, stats: {} }
+          addFlags: ["postgrad_branch_family_home", "postgrad_route_picked"],
+          removeFlags: [
+            "postgrad_branch_job_market",
+            "postgrad_branch_further_study",
+            "postgrad_branch_gap",
+            "postgrad_branch_drift"
+          ],
+          effects: { age: 0, stats: {} },
+          log: "你把一部分生活交回熟悉的屋檐下：省钱，也重新面对家里的音量。"
         }),
         choice({
           text: "仍在迷茫期，先把日子过成「未命名状态」（更伤钱包与心理）。",
           setCareerRoute: "unemployed_drift_route",
-          effects: { age: 0, stats: {} }
+          addFlags: ["postgrad_branch_drift", "postgrad_route_picked"],
+          removeFlags: [
+            "postgrad_branch_job_market",
+            "postgrad_branch_further_study",
+            "postgrad_branch_gap",
+            "postgrad_branch_family_home"
+          ],
+          effects: { age: 0, stats: {} },
+          log: "你承认自己还没被命名进任何一条轨道——这很诚实，也会更费钱、更费心神。"
         }),
         ...careerRoutes
           .filter((route) => route.id === "career_early_labor_market")

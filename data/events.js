@@ -41,6 +41,9 @@
     - minStats / maxStats：属性阈值
     - requiredFlags / excludedFlags：必须有 / 必须没有的长期状态
     - requiredTags / excludedTags：必须有 / 必须没有的人生标签
+    - careerRouteIds / excludedCareerRouteIds：当前职业路线 id（与 routes 中 career 路线 id 一致）
+    - educationRouteIds / excludedEducationRouteIds：学业路线 id
+    - familyBackgroundIds / excludedFamilyBackgroundIds：家庭背景 id
     - someFlags：只要命中其中任意一个 flag 就能触发
     - visited / notVisited：要求某事件已经 / 尚未出现过
     - knownRelationships / unknownRelationships：指定关系对象是否已认识
@@ -86,9 +89,24 @@
         typeof source.activeRelationshipMaxAffection === "number" ? source.activeRelationshipMaxAffection : null,
       requiredActiveRelationshipFlags: toList(source.requiredActiveRelationshipFlags),
       excludedActiveRelationshipFlags: toList(source.excludedActiveRelationshipFlags),
+      familyBackgroundIds: toList(source.familyBackgroundIds),
+      excludedFamilyBackgroundIds: toList(source.excludedFamilyBackgroundIds),
+      educationRouteIds: toList(source.educationRouteIds),
+      excludedEducationRouteIds: toList(source.excludedEducationRouteIds),
+      careerRouteIds: toList(source.careerRouteIds),
+      excludedCareerRouteIds: toList(source.excludedCareerRouteIds),
       noCurrentPartner: Boolean(source.noCurrentPartner),
     };
   }
+
+  /** 与 route-events「毕业之后」五条过渡职业路线对齐；专属事件见 data/graduation-route-expansion.js */
+  const POSTGRAD_TRANSITION_EXCLUDED_CAREERS = [
+    "career_in_job_search",
+    "further_study_route",
+    "career_gap_year_after_degree",
+    "career_family_supported_home",
+    "unemployed_drift_route"
+  ];
 
   function relationshipEffect(value) {
     const source = value && typeof value === "object" ? value : {};
@@ -4792,100 +4810,6 @@
       ],
     }),
     event({
-      id: "graduation_offer",
-      stage: "young_adult",
-      title: "毕业或同龄人开始正式入场",
-      text: "不管你是大学毕业，还是更早出来工作，二十出头的某一年，你总会被要求给自己一个像样的去向。那一刻，人生第一次显得像一份需要对外解释的简历。",
-      minAge: 22,
-      maxAge: 24,
-      weight: 9,
-      tags: ["career", "young_adult"],
-      conditions: condition({}),
-      effectsOnEnter: mutation({
-        effects: {
-          age: 1,
-          stats: {},
-        },
-        addFlags: [],
-        removeFlags: [],
-        addTags: [],
-        removeTags: [],
-        log: "你看着周围的人一个个有了去处，也意识到“以后再说”的时间已经没那么多了。",
-      }),
-      choices: [
-        choice({
-          text: "你进了大厂或成熟平台，想先把履历做漂亮。",
-          effects: {
-            age: 2,
-            stats: {
-              career: 10,
-              happiness: -4,
-              money: 10,
-            },
-          },
-          addFlags: ["corporate_path", "career_first"],
-          removeFlags: [],
-          addTags: ["work", "ambition"],
-          removeTags: [],
-          log: "你得到了一个被很多人认可的起点，也默认接受了它后面的高强度和高比较。",
-          conditions: condition({}),
-          next: undefined,
-        }),
-        choice({
-          text: "你去了小团队或创业公司，赌的是成长速度和可能性。",
-          effects: {
-            age: 2,
-            stats: {
-              career: 8,
-              happiness: 2,
-              health: -5,
-            },
-          },
-          addFlags: ["startup_path", "risk_taker"],
-          removeFlags: [],
-          addTags: ["ambition", "craft"],
-          removeTags: [],
-          log: "你知道这条路不稳定，但也知道，自己不想太早被一套成熟流程磨平。",
-          conditions: condition({}),
-          next: undefined,
-        }),
-        choice({
-          text: "你继续考研、考公或考证，想换一种更安全的未来。",
-          effects: {
-            age: 2,
-            stats: {
-              happiness: -3,
-              intelligence: 6,
-            },
-          },
-          addFlags: ["exam_path", "safe_choice"],
-          removeFlags: [],
-          addTags: ["stability", "pressure"],
-          removeTags: [],
-          log: "你不是没有野心，只是更在意一种可被预期的生活结构。",
-          conditions: condition({}),
-          next: undefined,
-        }),
-        choice({
-          text: "你先回家乡站稳脚跟，不急着和最热的赛道硬碰硬。",
-          effects: {
-            age: 2,
-            stats: {
-              happiness: 5,
-              social: 5,
-            },
-          },
-          addFlags: ["hometown_return", "stable_job"],
-          removeFlags: [],
-          addTags: ["family", "stability"],
-          removeTags: [],
-          log: "你没有把回去当成退场，而是把它当成先把生活过稳的一种方式。",
-          conditions: condition({}),
-          next: undefined,
-        }),
-      ],
-    }),
-    event({
       id: "first_job_entry",
       stage: "young_adult",
       title: "初入职场的第一轮碰撞",
@@ -4894,7 +4818,9 @@
       maxAge: 26,
       weight: 8,
       tags: ["career", "young_adult"],
-      conditions: condition({}),
+      conditions: condition({
+        excludedCareerRouteIds: POSTGRAD_TRANSITION_EXCLUDED_CAREERS
+      }),
       effectsOnEnter: mutation({
         effects: {
           age: 1,
@@ -4987,7 +4913,9 @@
       maxAge: 28,
       weight: 8,
       tags: ["life", "young_adult"],
-      conditions: condition({}),
+      conditions: condition({
+        excludedCareerRouteIds: POSTGRAD_TRANSITION_EXCLUDED_CAREERS
+      }),
       effectsOnEnter: mutation({
         effects: {
           age: 1,

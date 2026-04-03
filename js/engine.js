@@ -767,6 +767,134 @@
     return Math.max(0, Math.min(100, value));
   }
 
+  function getDebtFinanceConfig() {
+    const raw = window.LIFE_DEBT_FINANCE_CONFIG;
+    return raw && typeof raw === "object" ? raw : {};
+  }
+
+  function pickDebtFinanceTemplate(list, amount) {
+    const arr = Array.isArray(list) ? list.filter((x) => typeof x === "string" && x.trim()) : [];
+    const line = arr.length ? arr[Math.floor(Math.random() * arr.length)] : "";
+    return line.replace(/\{amount\}/g, String(amount));
+  }
+
+  /**
+   * 非财富属性，或关闭自动负债时的底层数值写入（不经「收入抵债 / 支出转负债」）。
+   */
+  function applyRawStatDelta(key, delta) {
+    if (!delta) {
+      return;
+    }
+
+    let appliedDelta = delta;
+    if ((key === "intelligence" || key === "discipline") && gameState.age <= 20) {
+      if (delta > 0) {
+        appliedDelta += 1;
+      } else if (delta < 0) {
+        appliedDelta = Math.min(0, delta + 1);
+      }
+    }
+
+    const currentValue = gameState.stats[key] || 0;
+    gameState.stats[key] = clampStat(key, currentValue + appliedDelta);
+  }
+
+  function applyMoneyOutflowFromWealth(amount, options) {
+    const cfg = getDebtFinanceConfig();
+    const spend = Math.max(0, Math.round(amount));
+    if (!spend) {
+      return;
+    }
+    const money = Math.max(0, gameState.stats.money || 0);
+    const payFromCash = Math.min(money, spend);
+    const shortfall = Math.max(0, spend - payFromCash);
+    if (payFromCash > 0) {
+      applyRawStatDelta("money", -payFromCash);
+    }
+    if (shortfall > 0 && cfg.autoBorrowOnShortfall !== false) {
+      applyRawStatDelta("debt", shortfall);
+      const opt = options || {};
+      const minLog = typeof cfg.minShortfallToLog === "number" ? cfg.minShortfallToLog : 1;
+      if (
+        !opt.suppressShortfallLog &&
+        cfg.logOnShortfallBorrow !== false &&
+        shortfall >= minLog
+      ) {
+        const msg = pickDebtFinanceTemplate(cfg.shortfallBorrowMessages, shortfall);
+        if (msg) {
+          addHistory(msg);
+        }
+      }
+    }
+  }
+
+  function applyMoneyInflowToWealth(amount, options) {
+    const cfg = getDebtFinanceConfig();
+    let remaining = Math.max(0, Math.round(amount));
+    if (!remaining) {
+      return;
+    }
+    const debtBefore = gameState.stats.debt || 0;
+    let paidToDebt = 0;
+    if (cfg.incomePaysDebtFirst !== false && debtBefore > 0) {
+      paidToDebt = Math.min(debtBefore, remaining);
+      if (paidToDebt > 0) {
+        applyRawStatDelta("debt", -paidToDebt);
+        remaining -= paidToDebt;
+      }
+    }
+    if (remaining > 0) {
+      applyRawStatDelta("money", remaining);
+    }
+    const opt = options || {};
+    if (opt.suppressIncomeDebtLog || cfg.logOnIncomeDebtPaydown === false) {
+      return;
+    }
+    const minL = typeof cfg.minIncomeDebtLogAmount === "number" ? cfg.minIncomeDebtLogAmount : 1;
+    if (paidToDebt < minL) {
+      return;
+    }
+    if (remaining <= 0) {
+      const msg = pickDebtFinanceTemplate(cfg.incomeDebtPayMessages, paidToDebt);
+      if (msg) {
+        addHistory(msg);
+      }
+      return;
+    }
+    const splitMsg = pickDebtFinanceTemplate(cfg.incomeSplitMessages, paidToDebt);
+    if (splitMsg) {
+      addHistory(splitMsg);
+    }
+  }
+
+  /** 供自定义脚本调用：花费 amount（正数），现金不足部分记入负债 */
+  function applyCostOrDebt(amount, options) {
+    const n = typeof amount === "number" ? amount : 0;
+    if (n <= 0) {
+      return;
+    }
+    const cfg = getDebtFinanceConfig();
+    if (cfg.enabled === false) {
+      applyRawStatDelta("money", -Math.min(gameState.stats.money || 0, n));
+      return;
+    }
+    applyMoneyOutflowFromWealth(n, options || {});
+  }
+
+  /** 供自定义脚本调用：收入 amount（正数），先抵债再进财富 */
+  function applyIncomeWithDebtOffset(amount, options) {
+    const n = typeof amount === "number" ? amount : 0;
+    if (n <= 0) {
+      return;
+    }
+    const cfg = getDebtFinanceConfig();
+    if (cfg.enabled === false) {
+      applyRawStatDelta("money", n);
+      return;
+    }
+    applyMoneyInflowToWealth(n, options || {});
+  }
+
   function clampAffection(value) {
     return Math.max(0, Math.min(100, value));
   }
@@ -1242,22 +1370,26 @@
     relationship.relationshipStage = relationship.status || "unknown";
   }
 
-  function adjustStat(key, delta) {
+  function adjustStat(key, delta, options) {
     if (!delta) {
       return;
     }
 
-    let appliedDelta = delta;
-    if ((key === "intelligence" || key === "discipline") && gameState.age <= 20) {
-      if (delta > 0) {
-        appliedDelta += 1;
-      } else if (delta < 0) {
-        appliedDelta = Math.min(0, delta + 1);
+    if (key === "money") {
+      const cfg = getDebtFinanceConfig();
+      if (cfg.enabled === false) {
+        applyRawStatDelta("money", delta);
+        return;
       }
+      if (delta < 0) {
+        applyMoneyOutflowFromWealth(-delta, options || {});
+      } else {
+        applyMoneyInflowToWealth(delta, options || {});
+      }
+      return;
     }
 
-    const currentValue = gameState.stats[key] || 0;
-    gameState.stats[key] = clampStat(key, currentValue + appliedDelta);
+    applyRawStatDelta(key, delta);
   }
 
   function getHealthWellbeingConfig() {
@@ -3364,18 +3496,23 @@
         return;
       }
     }
-    adjustStat("money", net);
-    addHistory(
+    adjustStat("money", net, { suppressShortfallLog: true, suppressIncomeDebtLog: true });
+    const econLineBase =
       "年度收支（约 " +
-        forAge +
-        " 岁）：工作收入约 " +
-        income +
-        "，日常与居住支出约 " +
-        (living + rent + childCost) +
-        "，净变动约 " +
-        net +
-        "。"
-    );
+      forAge +
+      " 岁）：工作收入约 " +
+      income +
+      "，日常与居住支出约 " +
+      (living + rent + childCost) +
+      "，净变动约 " +
+      net;
+    if (net < 0) {
+      addHistory(econLineBase + "（现金不足部分已按规则记入负债；日后进账会优先填债。）");
+    } else if (net > 0) {
+      addHistory(econLineBase + "（若仍有负债，其中一部分可能已先用于抵债。）");
+    } else {
+      addHistory(econLineBase + "。");
+    }
   }
 
   function settleEconomyYearsAfterAgeJump(ageBefore, ageAfter) {
@@ -3722,11 +3859,7 @@
     }
     const cost = typeof data.moneyCost === "number" ? data.moneyCost : 0;
     if (cost > 0) {
-      const have = gameState.stats.money || 0;
-      const pay = Math.min(cost, have);
-      if (pay > 0) {
-        adjustStat("money", -pay);
-      }
+      adjustStat("money", -cost);
     }
     if (typeof data.happiness === "number") {
       adjustStat("happiness", data.happiness);
@@ -3938,9 +4071,6 @@
         return;
       }
       const price = typeof item.price === "number" ? item.price : 0;
-      if ((gameState.stats.money || 0) < price) {
-        return;
-      }
       adjustStat("money", -price);
       if (item.effects && item.effects.stats) {
         Object.entries(item.effects.stats).forEach(([key, delta]) => {
@@ -5638,7 +5768,10 @@
         } else if (key === "mental") {
           applied = scaleMentalStatDelta(delta, settings);
         }
-        adjustStat(key, applied);
+        adjustStat(key, applied, {
+          mutationEvent: settings.mutationEvent || null,
+          mutationChoice: settings.mutationChoice || null
+        });
       }
     }
 
@@ -6492,11 +6625,23 @@
     return gameState.gameOver ? null : event;
   }
 
+  function isShopAutoDebtEnabled() {
+    const c = getDebtFinanceConfig();
+    return c.enabled !== false && c.autoBorrowOnShortfall !== false && c.allowShopPurchaseWhenBroke !== false;
+  }
+
   function choicePassesSpendGate(choice, state) {
     if (choice.customAction === "shop_purchase") {
       const payload = choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
       const item = shopItemMap.get(payload.itemId);
-      return Boolean(item) && (state.stats.money || 0) >= (typeof item.price === "number" ? item.price : 0);
+      if (!item) {
+        return false;
+      }
+      const price = typeof item.price === "number" ? item.price : 0;
+      if (isShopAutoDebtEnabled()) {
+        return true;
+      }
+      return (state.stats.money || 0) >= price;
     }
     return true;
   }
@@ -6864,7 +7009,8 @@
     if (option.customAction === "shop_purchase") {
       const payload = option.customPayload && typeof option.customPayload === "object" ? option.customPayload : {};
       const item = shopItemMap.get(payload.itemId);
-      if (!item || (gameState.stats.money || 0) < (typeof item.price === "number" ? item.price : 0)) {
+      const price = item && typeof item.price === "number" ? item.price : 0;
+      if (!item || (!isShopAutoDebtEnabled() && (gameState.stats.money || 0) < price)) {
         return getState();
       }
     }
@@ -6995,6 +7141,9 @@
       return false;
     }
     const price = typeof item.price === "number" ? item.price : 0;
+    if (isShopAutoDebtEnabled()) {
+      return true;
+    }
     return (gameState.stats.money || 0) >= price;
   }
 
@@ -7226,6 +7375,9 @@
   }
 
   window.LifeGameEngine = {
+    applyCostOrDebt,
+    applyIncomeWithDebtOffset,
+    getDebtFinanceConfig,
     getState,
     getCurrentEvent,
     getVisibleOptions,

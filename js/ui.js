@@ -887,11 +887,19 @@
       const affordable = engine.canPurchaseShopItem(item.id);
       buy.disabled = !canUse || !affordable;
       const priceN = typeof item.price === "number" ? item.price : 0;
+      const moneyNow = state.stats && typeof state.stats.money === "number" ? state.stats.money : 0;
+      const debtCfg = window.LIFE_DEBT_FINANCE_CONFIG && typeof window.LIFE_DEBT_FINANCE_CONFIG === "object" ? window.LIFE_DEBT_FINANCE_CONFIG : {};
+      const creditShop =
+        debtCfg.enabled !== false &&
+        debtCfg.autoBorrowOnShortfall !== false &&
+        debtCfg.allowShopPurchaseWhenBroke !== false;
       buy.textContent = !canUse
         ? "当前不可用"
         : !affordable
-          ? "积蓄不足"
-          : "购买（" + priceN + " " + stateApi.STAT_LABELS.money + "）";
+          ? "不可购买"
+          : creditShop && moneyNow < priceN
+            ? "购买（约 " + priceN + "，不足将记入负债）"
+            : "购买（" + priceN + " " + stateApi.STAT_LABELS.money + "）";
 
       buy.addEventListener("click", function () {
         engine.purchaseShopItem(item.id);

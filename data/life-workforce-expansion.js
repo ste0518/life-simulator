@@ -547,25 +547,25 @@
       ]
     }),
     event({
-      id: "switch_to_job_search_from_gap",
+      id: "switch_to_job_search_from_gap_year",
       stage: "young_adult",
-      title: "暂缓之后：准备重新进入就业市场",
-      text: "空白期不会自动变成答案，但你可以把下一段走得更清醒一点。",
+      title: "暂缓就业之后：空白期要不要收口",
+      text: "旅行、试错、慢启动都试过一圈以后，账单和同龄人节奏会一起催你回答：要不要把自己重新签回就业市场？",
       minAge: 22,
       maxAge: 45,
       weight: 6,
       repeatable: true,
       cooldownChoices: 5,
-      tags: ["career", "job_hunt"],
+      tags: ["career", "job_hunt", "postgrad_branch_gap"],
       conditions: condition({
-        careerRouteIds: ["career_gap_year_after_degree", "career_family_supported_home", "unemployed_drift_route"]
+        careerRouteIds: ["career_gap_year_after_degree"]
       }),
       choices: [
         choice({
           text: "认真开始投递与面试（进入求职循环）。",
           setCareerRoute: "career_in_job_search",
           addFlags: ["job_pipeline_active"],
-          removeFlags: ["employment_deferred"],
+          removeFlags: ["employment_deferred", "postgrad_branch_gap"],
           effects: { age: 0, stats: { stress: 2 } },
           log: "你重新打开招聘软件，像重新打开一条更硬的生存线。"
         }),
@@ -573,6 +573,66 @@
           text: "再给自己一点时间。",
           effects: { age: 1, stats: { mental: 1, stress: 1 } },
           log: "你仍没把自己签出去，但也不算逃。"
+        })
+      ]
+    }),
+    event({
+      id: "switch_to_job_search_from_family_home",
+      stage: "young_adult",
+      title: "住家缓冲之后：要不要走出去找工作",
+      text: "屋檐省下房租，也放大催促声。你知道继续住下去会更省，但「自己的收入」这件事会像一根刺。",
+      minAge: 22,
+      maxAge: 45,
+      weight: 6,
+      repeatable: true,
+      cooldownChoices: 5,
+      tags: ["career", "job_hunt", "postgrad_branch_home"],
+      conditions: condition({
+        careerRouteIds: ["career_family_supported_home"]
+      }),
+      choices: [
+        choice({
+          text: "搬开视线里的催促，认真投递与面试（进入求职循环）。",
+          setCareerRoute: "career_in_job_search",
+          addFlags: ["job_pipeline_active"],
+          removeFlags: ["employment_deferred", "postgrad_branch_family_home"],
+          effects: { age: 0, stats: { stress: 3, mental: 1 } },
+          log: "你把简历发出去，也像把一部分话语权从饭桌上夺回来。"
+        }),
+        choice({
+          text: "再赖一阵家里，把启动成本攒够再说。",
+          effects: { age: 1, stats: { familySupport: 1, stress: 2, mental: -1 } },
+          log: "你告诉自己这是策略，不是懦弱——虽然你也怕它变成习惯。"
+        })
+      ]
+    }),
+    event({
+      id: "switch_to_job_search_from_drift",
+      stage: "young_adult",
+      title: "迷茫期要不要收口：把未命名状态改成行动",
+      text: "临时工单、拖延和自我怀疑不会自动变成方向。你站在「继续漂」和「把自己押进求职」之间。",
+      minAge: 22,
+      maxAge: 45,
+      weight: 6,
+      repeatable: true,
+      cooldownChoices: 5,
+      tags: ["career", "job_hunt", "postgrad_branch_drift"],
+      conditions: condition({
+        careerRouteIds: ["unemployed_drift_route"]
+      }),
+      choices: [
+        choice({
+          text: "咬牙进入投递与面试循环，哪怕仍不确定想要什么。",
+          setCareerRoute: "career_in_job_search",
+          addFlags: ["job_pipeline_active"],
+          removeFlags: ["employment_deferred", "postgrad_branch_drift"],
+          effects: { age: 0, stats: { stress: 4, discipline: 2, mental: 1 } },
+          log: "你先选行动，再让行动反过来教你想要什么。"
+        }),
+        choice({
+          text: "再拖一小段，害怕一投简历就像承认自己输了。",
+          effects: { age: 1, stats: { mental: -2, stress: 3, money: -2 } },
+          log: "拖延保护了你的自尊，也继续收利息。"
         })
       ]
     }),

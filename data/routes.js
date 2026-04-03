@@ -486,7 +486,14 @@
       optionText: "继续深造，把时间再压给更高训练。",
       details: ["专业能力提升更明显", "短期收入较低", "圈层和城市机会可能升级"],
       conditions: {
-        someFlags: ["research_experience", "mentor_support", "top_school", "advanced_degree", "academic_grind"],
+        someFlags: [
+          "research_experience",
+          "mentor_support",
+          "top_school",
+          "advanced_degree",
+          "academic_grind",
+          "post_grad_chose_further_study"
+        ],
         excludedEducationRouteIds: ["direct_work_route", "non_gaokao_skill_path", "gaokao_vocational_college"]
       },
       apply: {
