@@ -314,6 +314,8 @@
       },
       /** 各「意外阶段」已触发过的意外事件次数，键与 data/timeline-rules.js 中 accidentPhaseId 对齐 */
       accidentCountsByPhase: {},
+      /** 自上次「意外」事件以来，已完成的非意外事件次数（用于约 5:1 节奏） */
+      eventsSinceLastAccident: 0,
       setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,

@@ -4247,6 +4247,30 @@
     return list.indexOf(id) !== -1;
   }
 
+  function accidentEventMatchesDerivedLifePhase(event, state) {
+    const st = state || gameState;
+    if (!event || !Array.isArray(event.tags) || !event.tags.includes("accident")) {
+      return true;
+    }
+    if (event.timelinePhaseIds && event.timelinePhaseIds.length) {
+      return true;
+    }
+    const stg = typeof event.stage === "string" ? event.stage.trim() : "";
+    if (!stg || stg === "misc") {
+      return true;
+    }
+    const map = window.LIFE_ACCIDENT_TIMELINE_STAGE_ALLOWLIST;
+    if (!map || typeof map !== "object") {
+      return true;
+    }
+    const phaseId = deriveTimelinePhase(st);
+    const allowed = map[phaseId];
+    if (allowed == null) {
+      return true;
+    }
+    return allowed.indexOf(stg) !== -1;
+  }
+
   function eventPassesTimelineRules(event, state) {
     const st = state || gameState;
     if (!event) {
@@ -4270,7 +4294,7 @@
         : {};
     const band = bands[event.stage];
     if (!band) {
-      return true;
+      return accidentEventMatchesDerivedLifePhase(event, st);
     }
     const age = typeof st.age === "number" ? st.age : 0;
     if (typeof band.minAge === "number" && age < band.minAge) {
@@ -4297,7 +4321,7 @@
         return false;
       }
     }
-    return true;
+    return accidentEventMatchesDerivedLifePhase(event, st);
   }
 
   function isEventEligible(event, candidateState) {
@@ -4309,6 +4333,10 @@
     }
 
     if (typeof event.maxVisits === "number" && visitCount >= event.maxVisits) {
+      return false;
+    }
+
+    if (Array.isArray(event.tags) && event.tags.includes("accident") && visitCount > 0) {
       return false;
     }
 
@@ -4870,6 +4898,33 @@
     return Math.max(0, weight);
   }
 
+  /** 与 data/timeline-rules.js LIFE_ACCIDENT_STAGE_CONFIG 并列：每 N 次非意外后优先抽意外 */
+  var ACCIDENT_AFTER_NORMAL_EVENTS = 5;
+
+  function eventIsAccidentTagged(event) {
+    return Boolean(event && Array.isArray(event.tags) && event.tags.includes("accident"));
+  }
+
+  function pickWeightedEventWithAccidentCadence(eligible) {
+    if (!eligible || !eligible.length) {
+      return null;
+    }
+    const accidents = eligible.filter(eventIsAccidentTagged);
+    const normal = eligible.filter((e) => !eventIsAccidentTagged(e));
+    const streak =
+      gameState && typeof gameState.eventsSinceLastAccident === "number" ? gameState.eventsSinceLastAccident : 0;
+
+    if (streak >= ACCIDENT_AFTER_NORMAL_EVENTS && accidents.length) {
+      return pickWeightedEventWithNarrativeBias(accidents);
+    }
+
+    if (normal.length) {
+      return pickWeightedEventWithNarrativeBias(normal);
+    }
+
+    return pickWeightedEventWithNarrativeBias(accidents.length ? accidents : eligible);
+  }
+
   function pickWeightedEventWithNarrativeBias(events, state) {
     const candidates = (events || [])
       .map((event) => ({
@@ -5355,7 +5410,7 @@
       addHistory("日子继续往前推，你在不知不觉间长到了 " + nextAge + " 岁。");
     }
 
-    return pickWeightedEventWithNarrativeBias(sameAgeEvents);
+    return pickWeightedEventWithAccidentCadence(sameAgeEvents);
   }
 
   function fastForwardToSpecificAge(targetAge, message) {
@@ -5514,7 +5569,7 @@
       return;
     }
 
-    let fallbackEvent = pickWeightedEventWithNarrativeBias(getEligibleFallbackEvents());
+    let fallbackEvent = pickWeightedEventWithAccidentCadence(getEligibleFallbackEvents());
 
     if (!fallbackEvent) {
       fallbackEvent = fastForwardToNextEligibleAge();
@@ -5606,6 +5661,11 @@
     }
 
     rememberEvent(event.id);
+    if (eventIsAccidentTagged(event)) {
+      gameState.eventsSinceLastAccident = 0;
+    } else {
+      gameState.eventsSinceLastAccident = (typeof gameState.eventsSinceLastAccident === "number" ? gameState.eventsSinceLastAccident : 0) + 1;
+    }
     gameState.choiceCount += 1;
     const deferredEnterAge =
       event.deferEnterAge &&

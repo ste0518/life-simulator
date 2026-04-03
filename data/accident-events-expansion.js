@@ -79,7 +79,8 @@
       minAge: typeof source.minAge === "number" ? source.minAge : null,
       maxAge: typeof source.maxAge === "number" ? source.maxAge : null,
       weight: typeof source.weight === "number" ? source.weight : 3,
-      repeatable: source.repeatable !== false,
+      /** 默认每个意外 id 每局只经历一次；需重复时显式 repeatable: true */
+      repeatable: source.repeatable === true,
       cooldownChoices: typeof source.cooldownChoices === "number" ? source.cooldownChoices : 8,
       tags: toList(source.tags),
       conditions: condition(source.conditions || {}),
@@ -183,6 +184,221 @@
       ]
     }),
     event({
+      id: "acc_exp_primary_rain_half_umbrella",
+      stage: "school",
+      title: "意外：放学下雨，陌生家长分你半把伞",
+      text: "你缩在檐下正发愁，有人把伞沿往你这边斜了斜，说「顺路」。",
+      minAge: 7,
+      maxAge: 11,
+      tags: ["accident", "social"],
+      choices: [
+        choice({
+          text: "小声道谢，记下路牌与那天的温度。",
+          effects: { age: 0, stats: { happiness: 3, social: 2, mental: 1 } },
+          addFlags: ["stranger_umbrella_grace"],
+          log: "你相信善意可以很短，也可以很长。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_desk_anonymous_note",
+      stage: "school",
+      title: "意外：抽屉里多了一张匿名小纸条",
+      text: "字迹歪歪扭扭，像玩笑又像认真——你猜了一整天是谁放的。",
+      minAge: 8,
+      maxAge: 11,
+      tags: ["accident", "social"],
+      choices: [
+        choice({
+          text: "不当回事，把注意力拉回功课。",
+          effects: { age: 0, stats: { discipline: 2, mental: 1, stress: -1 } },
+          log: "你把心跳按进铅笔盒里。"
+        }),
+        choice({
+          text: "悄悄观察，又有点享受被注意。",
+          effects: { age: 0, stats: { happiness: 2, social: 1, stress: 1 } },
+          addFlags: ["peer_attention_glitch"],
+          log: "被看见的感觉，像阳光落在背上。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_library_find_book",
+      stage: "school",
+      title: "意外：在图书角翻到一本「不像这岁数该看」的书",
+      text: "封面旧旧的，里面讲的却是大人世界的一角。你合上书，心里却关不上。",
+      minAge: 9,
+      maxAge: 11,
+      tags: ["accident", "education", "mental"],
+      choices: [
+        choice({
+          text: "放回去，像什么都没发生。",
+          effects: { age: 0, stats: { intelligence: 1, mental: 2, stress: 1 } },
+          log: "有些问题，提前路过也算预习。"
+        }),
+        choice({
+          text: "问老师能不能讲给你听一点点。",
+          effects: { age: 0, stats: { social: 2, intelligence: 2, stress: -1 } },
+          addFlags: ["early_big_question_asked"],
+          log: "你学会把困惑交给可信的大人。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_stray_cat_follow",
+      stage: "school",
+      title: "意外：路边小猫跟了你半条街",
+      text: "它蹭你的裤脚，你蹲下来，它又不肯走。你心里软了一下，又想起家里不让养。",
+      minAge: 6,
+      maxAge: 11,
+      tags: ["accident", "happiness", "family"],
+      choices: [
+        choice({
+          text: "拜托附近小店老板暂时照看，回家商量。",
+          effects: { age: 0, stats: { social: 2, familySupport: 1, happiness: 2 } },
+          addFlags: ["stray_cat_soft_launch"],
+          log: "你把柔软的事，用规矩包了一层。"
+        }),
+        choice({
+          text: "狠心走开，回头看了很多次。",
+          effects: { age: 0, stats: { happiness: -2, mental: 1, stress: 2 } },
+          log: "喜欢有时意味着放手，你还说不清。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_field_trip_change",
+      stage: "school",
+      title: "意外：春游改期，目的地也换了",
+      text: "期待像被轻轻拧了一下。有人欢呼有人叹气，你在两种情绪之间晃。",
+      minAge: 7,
+      maxAge: 11,
+      tags: ["accident", "education", "happiness"],
+      choices: [
+        choice({
+          text: "接受变化，自己找点小期待。",
+          effects: { age: 0, stats: { happiness: 2, discipline: 1, mental: 1 } },
+          log: "你学会Plan B也是一种风景。"
+        }),
+        choice({
+          text: "失落很久，觉得「白高兴一场」。",
+          effects: { age: 0, stats: { happiness: -3, stress: 2 } },
+          log: "期待落空时，小孩也会认真难过。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_found_wallet_turn_in",
+      stage: "school",
+      title: "意外：操场边捡到一个小钱包",
+      text: "里面有零钱和一张皱巴巴的学生卡。你捏在手里，像捏着别人的一天。",
+      minAge: 7,
+      maxAge: 11,
+      tags: ["accident", "money", "social"],
+      choices: [
+        choice({
+          text: "交给老师，等失主来认领。",
+          effects: { age: 0, stats: { discipline: 2, happiness: 3, social: 1 } },
+          addFlags: ["lost_wallet_honest"],
+          log: "诚实让你走路更直一点。"
+        }),
+        choice({
+          text: "犹豫后留下零钱，把卡交上去。",
+          effects: { age: 0, stats: { money: 2, mental: -2, stress: 3 } },
+          addFlags: ["found_money_guilt_pin"],
+          log: "小便宜会在心里留下刺。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_substitute_teacher",
+      stage: "school",
+      title: "意外：代课老师第一节课就叫出你的名字",
+      text: "你说不清为什么被点到——也许只是花名册巧合。全班看向你，你脸一下子热了。",
+      minAge: 8,
+      maxAge: 11,
+      tags: ["accident", "education", "social"],
+      choices: [
+        choice({
+          text: "站起来答得磕磕绊绊，但撑住了。",
+          effects: { age: 0, stats: { social: 2, intelligence: 1, stress: 1 } },
+          log: "被看见的瞬间，也会推你一把。"
+        }),
+        choice({
+          text: "低头沉默，课后把委屈写进日记。",
+          effects: { age: 0, stats: { stress: 2, mental: -1 } },
+          log: "不是所有的注视，你都准备好接住。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_grandparent_video",
+      stage: "school",
+      title: "意外：远方长辈突然打来视频",
+      text: "屏幕里的人在笑，话却绕着健康与钱转。你听不懂全部，却感到大人也在硬撑。",
+      minAge: 7,
+      maxAge: 11,
+      tags: ["accident", "family", "mental"],
+      choices: [
+        choice({
+          text: "认真听，把担心藏在心里。",
+          effects: { age: 0, stats: { familySupport: 2, mental: 1, stress: 1 } },
+          log: "你开始明白家不只有饭香，也有叹息。"
+        }),
+        choice({
+          text: "岔开话题，讲学校里的好笑事。",
+          effects: { age: 0, stats: { happiness: 2, familySupport: 1, social: 1 } },
+          log: "你用轻松替大人挡了一小会儿风。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_girl_hair_clip_gift",
+      stage: "school",
+      title: "意外：同桌送你一枚便宜却亮晶晶的发卡",
+      text: "她说「你扎头发更好看」。你愣住，不知道先笑还是先道谢。",
+      minAge: 8,
+      maxAge: 11,
+      tags: ["accident", "social", "happiness"],
+      conditions: condition({ requiredFlags: ["player_gender_female"] }),
+      choices: [
+        choice({
+          text: "收下并回赠一块橡皮或小贴纸。",
+          effects: { age: 0, stats: { happiness: 4, social: 3, stress: -1 } },
+          addFlags: ["girl_peer_gift_exchange"],
+          log: "友谊有时从一件很小的亮晶晶开始。"
+        }),
+        choice({
+          text: "婉拒，怕被人起哄。",
+          effects: { age: 0, stats: { social: -1, stress: 2, mental: 1 } },
+          log: "你在好意与目光之间，先选了躲。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_primary_girl_skipping_rope_team",
+      stage: "school",
+      title: "意外：跳绳比赛缺人，你被临时拉上场",
+      text: "绳子甩得飞快，你脑子一片空白，却莫名其妙跟上了节奏。",
+      minAge: 7,
+      maxAge: 11,
+      tags: ["accident", "health", "happiness"],
+      conditions: condition({ requiredFlags: ["player_gender_female"] }),
+      choices: [
+        choice({
+          text: "全力配合，把紧张变成笑声。",
+          effects: { age: 0, stats: { happiness: 4, health: 1, social: 2 } },
+          addFlags: ["rope_team_fill_in"],
+          log: "你发现自己比想象中更能扛场。"
+        }),
+        choice({
+          text: "绊了一下，躲到人群后面脸红。",
+          effects: { age: 0, stats: { stress: 3, happiness: -1, social: -1 } },
+          log: "公开出糗，是童年里很响的一课。"
+        })
+      ]
+    }),
+    event({
       id: "acc_exp_ms_bike_crash",
       stage: "adolescence",
       title: "意外：骑车拐弯时擦伤手臂",
@@ -265,7 +481,7 @@
     event({
       id: "acc_exp_hs_competition_dark_horse",
       stage: "highschool",
-      title: "意外：小学科竞赛爆冷拿奖",
+      title: "意外：冷门学科竞赛爆冷拿奖",
       text: "连自己都没料到。老师看你的眼神多了一点东西——期待，也可能是压力。",
       minAge: 15,
       maxAge: 17,
@@ -299,6 +515,29 @@
           effects: { age: 0, stats: { money: -4, stress: 5, mental: -2, familySupport: 1 } },
           addFlags: ["family_finance_shock_hs"],
           log: "现实提前教你做取舍。"
+        })
+      ]
+    }),
+    event({
+      id: "acc_exp_hs_sports_injury",
+      stage: "highschool",
+      title: "意外：体育课或球赛里伤了一下",
+      text: "扭伤、擦伤或被人肘到——你嘴上逞强，走路却诚实。",
+      minAge: 15,
+      maxAge: 17,
+      tags: ["accident", "health"],
+      choices: [
+        choice({
+          text: "老实养伤，顺便把节奏放慢。",
+          effects: { age: 0, stats: { health: -5, discipline: 2, stress: 2 } },
+          addFlags: ["hs_sports_injury_recover"],
+          log: "疼教会你留余地。"
+        }),
+        choice({
+          text: "硬撑继续练，结果拖成老伤。",
+          effects: { age: 0, stats: { health: -6, stress: 3, discipline: -1 } },
+          addFlags: ["hs_sports_injury_push"],
+          log: "逞能的利息，后来才到账。"
         })
       ]
     }),

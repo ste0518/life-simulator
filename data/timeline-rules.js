@@ -123,8 +123,34 @@
   };
 
   /**
+   * 带 accident 标签、且未写 timelinePhaseIds 的事件：除年龄带外，还须与当前 deriveTimelinePhase 的人生段落一致，
+   * 避免例如「在读大学却抽到 young_adult 职场意外」。stage 为 misc 的不在此列（由事件自身 min/maxAge 约束）。
+   * 键必须与 LIFE_TIMELINE_RULES 的 phaseId 一致；adult_misc 表示不额外限制；某 phase 未列出时引擎视为不限制。
+   */
+  window.LIFE_ACCIDENT_TIMELINE_STAGE_ALLOWLIST = {
+    preschool: ["childhood"],
+    primary_school: ["school"],
+    middle_school: ["adolescence"],
+    high_school: ["highschool", "transition"],
+    college_overseas: ["college"],
+    college_domestic: ["college"],
+    postgrad_career: ["college", "career", "family"],
+    /** 时间线规则下已婚可能排在在读之前，保留 college 以免校园意外被误挡 */
+    family_parenting: ["family", "career", "college"],
+    family_married: ["family", "career", "young_adult", "college"],
+    career_work: ["career", "young_adult", "family", "midlife"],
+    young_adult_seek: ["young_adult", "career"],
+    young_adult: ["young_adult"],
+    midlife: ["midlife", "family", "career", "later_life"],
+    later_life: ["later_life", "midlife"],
+    adult_misc: null
+  };
+
+  /**
    * 意外事件配额：accidentPhaseId 可与 deriveTimelinePhase 不同，这里单独映射「计数键」。
    * resolveAccidentPhase(state) 在引擎中实现，规则顺序与下方 phases 对齐。
+   * 抽选节奏（约每 5 次非意外后出现一次意外）在 js/engine.js 的 ACCIDENT_AFTER_NORMAL_EVENTS；
+   * 意外与人生段落对齐见 LIFE_ACCIDENT_TIMELINE_STAGE_ALLOWLIST。
    */
   window.LIFE_ACCIDENT_STAGE_CONFIG = {
     weightBoostUntilMet: 14,
