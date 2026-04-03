@@ -18,16 +18,50 @@
 
   /** 全局结婚门槛（个体差异常用 growthModifiers.marriageEase 微调，见引擎） */
   const marriageConfig = {
-    minPlayerAge: 26,
+    minPlayerAge: 24,
     /** 从确认恋爱状态起算的最少「一起经过的年数」（用年龄差近似） */
     minPartnerAgeSpan: 2,
     allowedStatuses: ["dating", "passionate", "steady", "long_distance_dating"],
-    minCommitment: 58,
-    minTrust: 52,
-    minAffection: 55,
-    maxTension: 48,
+    minCommitment: 54,
+    minTrust: 48,
+    minAffection: 52,
+    maxTension: 52,
     /** growthModifiers.marriageEase 每 1 点，等效降低 minCommitment 约 0.35（在引擎内计算） */
-    commitmentEaseFactor: 0.35
+    commitmentEaseFactor: 0.35,
+
+    /**
+     * 求婚接受概率模型（引擎内读取）。结果 clamp 在 minClamp–maxClamp。
+     * 角色级修正：characterProposalBias[id] 加减在最终概率前。
+     */
+    proposalLogic: {
+      baseAcceptPlayerProposes: 0.36,
+      baseFollowThroughPartnerProposes: 0.88,
+      affectionCoef: 0.007,
+      trustCoef: 0.006,
+      commitmentCoef: 0.008,
+      continuityCoef: 0.004,
+      tensionStart: 40,
+      tensionPenaltyCoef: 0.005,
+      longDistancePenalty: 0.12,
+      lowMoneyThreshold: 14,
+      lowMoneyPenalty: 0.07,
+      lowCareerThreshold: 10,
+      lowCareerPenalty: 0.05,
+      playerStressHigh: 78,
+      playerStressPenalty: 0.06,
+      conflictFlagPenalty: 0.1,
+      conflictFlags: ["marriage_family_clash", "marriage_parent_opposed"],
+      minClamp: 0.07,
+      maxClamp: 0.93
+    },
+
+    /** 对象 id → 对「你求婚时对方答应」的额外概率修正（可正可负） */
+    characterProposalBias: {
+      song_qinghe: 0.07,
+      jiang_xun: -0.02,
+      lin_xiaonan: 0.04,
+      zhou_mingyue: -0.04
+    }
   };
 
   /**
@@ -246,10 +280,10 @@
       conditions: {
         excludedFlags: ["player_married"],
         activeRelationshipStatuses: ["dating", "passionate", "steady", "long_distance_dating"],
-        activeRelationshipMinCommitment: 52,
-        activeRelationshipMinTrust: 48,
-        activeRelationshipMinAffection: 52,
-        activeRelationshipMaxTension: 52,
+        activeRelationshipMinCommitment: 48,
+        activeRelationshipMinTrust: 44,
+        activeRelationshipMinAffection: 48,
+        activeRelationshipMaxTension: 56,
         activeRelationshipMinPartnerAgeSpan: 2
       },
       choices: [
@@ -309,8 +343,8 @@
         excludedFlags: ["player_married"],
         someFlags: ["marriage_talk_future", "marriage_cohab_trial"],
         activeRelationshipStatuses: ["dating", "passionate", "steady", "long_distance_dating"],
-        activeRelationshipMinCommitment: 54,
-        activeRelationshipMinTrust: 50
+        activeRelationshipMinCommitment: 50,
+        activeRelationshipMinTrust: 46
       },
       choices: [
         ch({
@@ -360,44 +394,94 @@
       id: "marriage_arc_proposal_crossroads",
       stage: "family",
       title: "求婚、推迟、还是把话收回心里？",
-      text: "有人把这一刻准备成仪式，有人只想在吃完外卖的沙发上把话说完。无论哪种，关键都是：你们愿不愿意把「我」默认改成「我们」，并接受它带来的失去与新增。",
-      minAge: 27,
+      text: "有人把这一刻准备成仪式，有人只想在吃完外卖的沙发上把话说完。无论哪种，关键都是：你们愿不愿意把「我」默认改成「我们」，并接受它带来的失去与新增。\n\n说出口的那一秒，并不会自动换来「一定成」——答应与否，仍要看你们此刻到底有多稳。",
+      minAge: 25,
       maxAge: 48,
-      weight: 7,
+      weight: 9,
       repeatable: true,
       tags: ["romance", "marriage"],
       conditions: {
         excludedFlags: ["player_married"],
         someFlags: ["marriage_talk_future", "marriage_met_parents", "marriage_cohab_trial"],
         activeRelationshipStatuses: ["steady", "dating", "passionate", "long_distance_dating"],
-        activeRelationshipMinCommitment: 58,
-        activeRelationshipMinTrust: 52,
-        activeRelationshipMinAffection: 55,
-        activeRelationshipMaxTension: 48,
+        activeRelationshipMinCommitment: 54,
+        activeRelationshipMinTrust: 48,
+        activeRelationshipMinAffection: 52,
+        activeRelationshipMaxTension: 52,
         activeRelationshipMinPartnerAgeSpan: 2
       },
       choices: [
         ch({
           text: "把戒指/承诺拿出来，认真问一句：愿不愿意一起把户口和人生绑近一点。",
-          customAction: "marriage_commit",
+          customAction: "marriage_proposal_attempt",
           customPayload: {
-            addFlags: ["player_married", "marriage_proposed_by_player", "marriage_accepted"],
-            moneyCost: 6,
-            happiness: 5,
-            stress: 3,
-            partnerHistory: "你在并不完美的条件下，仍然选择了把名字写进彼此的长期里。"
+            proposer: "player",
+            onSuccess: {
+              addFlags: ["player_married", "marriage_proposed_by_player", "marriage_accepted"],
+              moneyCost: 6,
+              happiness: 5,
+              stress: 3,
+              partnerHistory: "你在并不完美的条件下，仍然选择了把名字写进彼此的长期里。"
+            },
+            onFail: {
+              addFlags: ["marriage_proposal_rejected_by_partner", "marriage_proposal_cooling"],
+              stats: { happiness: -5, stress: 6, mental: -3 },
+              log: "对方的沉默比拒绝更锋利：婚礼的话题悬在半空，你们都得重新学怎么相处。"
+            },
+            failRelationshipEffects: [
+              {
+                targetId: "__active__",
+                tension: 12,
+                trust: -4,
+                commitment: -3,
+                affection: -4,
+                history: "你问得太真，对方却接不住——那一刻的尴尬会在之后很久里返潮。"
+              }
+            ]
           }
         }),
         ch({
-          text: "对方先开口问你「要不要结婚」——你点头，反而比想象中平静。",
-          customAction: "marriage_commit",
+          text: "对方先开口问你「要不要结婚」——你心里一热，准备点头。",
+          customAction: "marriage_proposal_attempt",
           customPayload: {
-            addFlags: ["player_married", "marriage_proposed_by_partner", "marriage_accepted"],
-            moneyCost: 4,
-            happiness: 6,
-            stress: 2,
-            partnerHistory: "轮到对方更勇敢。你才发现自己不是不想，只是一直在等一句明确的邀请。"
+            proposer: "partner_followthrough",
+            onSuccess: {
+              addFlags: ["player_married", "marriage_proposed_by_partner", "marriage_accepted"],
+              moneyCost: 4,
+              happiness: 6,
+              stress: 2,
+              partnerHistory: "轮到对方更勇敢。你才发现自己不是不想，只是一直在等一句明确的邀请。"
+            },
+            onFail: {
+              addFlags: ["marriage_proposal_partner_backs_out", "marriage_proposal_cooling"],
+              stats: { happiness: -4, stress: 7, mental: -2 },
+              log: "话说到一半，对方又缩回去：不是不爱，是怕。你们的「要结婚」像被按下暂停，悬在彼此喉咙里。"
+            },
+            failRelationshipEffects: [
+              {
+                targetId: "__active__",
+                tension: 10,
+                trust: -3,
+                commitment: -2,
+                history: "先开口的人也会先害怕：你们第一次发现，承诺不只是勇气，还是能力。"
+              }
+            ]
           }
+        }),
+        ch({
+          text: "对方问了结婚，你却摇头：你还不想把一辈子押在这一刻。",
+          effects: { stats: { happiness: -3, stress: 5, mental: 2 } },
+          addFlags: ["marriage_player_declined_partner_proposal", "marriage_proposal_cooling"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              tension: 14,
+              trust: -6,
+              affection: -5,
+              history: "你把门关上得很礼貌，但对方眼里的光也真的暗了一截。"
+            }
+          ],
+          log: "拒绝并不总是终点，却一定会留下温度差——接下来要么修，要么散。"
         }),
         ch({
           text: "你说「再等等」：现实压力还在，你不想用婚礼遮住还没解决的账。",
@@ -424,6 +508,155 @@
               tension: 10,
               commitment: -6,
               history: "婚姻这扇门你们最终没有一起推。喜欢还在，但不够换成一辈子。"
+            }
+          ]
+        })
+      ]
+    }),
+    ev({
+      id: "marriage_arc_player_initiated_proposal",
+      stage: "family",
+      title: "你想主动把「结婚」说出口",
+      text: "不一定要戒指和烟花，有时只是把心里那句「我想和你过很久」说清楚。你会紧张，因为这不是浪漫台词，而是在把未来押上桌。\n\n{name} 看着你，等的不只是一个形式，而是一个你能负责的回答。",
+      minAge: 24,
+      maxAge: 50,
+      weight: 11,
+      repeatable: true,
+      tags: ["romance", "marriage", "milestone"],
+      conditions: {
+        excludedFlags: ["player_married", "marriage_proposal_cooling"],
+        activeRelationshipStatuses: ["dating", "passionate", "steady", "long_distance_dating"],
+        activeRelationshipMinCommitment: 50,
+        activeRelationshipMinTrust: 46,
+        activeRelationshipMinAffection: 50,
+        activeRelationshipMaxTension: 54,
+        activeRelationshipMinPartnerAgeSpan: 2
+      },
+      choices: [
+        ch({
+          text: "认真求婚：把意愿、顾虑和对未来的打算一起说清楚。",
+          customAction: "marriage_proposal_attempt",
+          customPayload: {
+            proposer: "player",
+            onSuccess: {
+              addFlags: ["player_married", "marriage_proposed_by_player", "marriage_accepted"],
+              moneyCost: 5,
+              happiness: 6,
+              stress: 3,
+              partnerHistory: "你把「一辈子」说得并不轻佻，对方听懂了里面的重量。"
+            },
+            onFail: {
+              addFlags: ["marriage_proposal_rejected_by_partner", "marriage_proposal_cooling"],
+              stats: { happiness: -4, stress: 5, mental: -2 },
+              log: "对方没有立刻说「好」，而是把话折成「再等等」——你知道这不是温柔拖延，而是拒绝的一种体面。"
+            },
+            failRelationshipEffects: [
+              {
+                targetId: "__active__",
+                tension: 10,
+                trust: -3,
+                commitment: -2,
+                affection: -3,
+                history: "主动开口的人要先学会承受落差：你递出去的未来，没有被同样用力接住。"
+              }
+            ]
+          }
+        }),
+        ch({
+          text: "话到嘴边又咽回去，改口说「我只是想确认你还在」。",
+          effects: { stats: { stress: 2, mental: 1 } },
+          addFlags: ["marriage_proposal_swallowed"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              trust: 2,
+              tension: 3,
+              history: "你把求婚藏成一句确认，彼此都松了口气，也都有点不甘。"
+            }
+          ]
+        }),
+        ch({
+          text: "用玩笑带过：你知道自己还没准备好承担「结婚」这两个字。",
+          effects: { stats: { happiness: -1, stress: -1 } },
+          addFlags: ["marriage_avoid_proposal_joke"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              theirInterest: -2,
+              tension: 4,
+              history: "玩笑能挡尴尬，也会让对方怀疑：你到底把这段关系放在第几位。"
+            }
+          ]
+        })
+      ]
+    }),
+    ev({
+      id: "marriage_arc_proposal_repair_window",
+      stage: "family",
+      title: "求婚后遗症：尴尬还在，日子还得过",
+      text: "那件事之后，你们说话都会多绕半圈。不是不爱了，而是「被拒绝/被撤回」像一块看不见的玻璃，踩在脚下会响。\n\n你可以选：把它当作结束，还是当作需要更慢一点的开始。",
+      minAge: 24,
+      maxAge: 52,
+      weight: 10,
+      repeatable: true,
+      tags: ["romance", "marriage"],
+      conditions: {
+        excludedFlags: ["player_married"],
+        someFlags: [
+          "marriage_proposal_rejected_by_partner",
+          "marriage_proposal_partner_backs_out",
+          "marriage_player_declined_partner_proposal"
+        ],
+        activeRelationshipStatuses: ["dating", "passionate", "steady", "cooling", "long_distance_dating"]
+      },
+      choices: [
+        ch({
+          text: "把尴尬摊开讲：不是要逼答案，而是不想假装没事。",
+          effects: { stats: { stress: 3, mental: 2 } },
+          removeFlags: ["marriage_proposal_cooling"],
+          addFlags: ["marriage_proposal_repair_talk"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              trust: 6,
+              tension: -4,
+              commitment: 4,
+              history: "你们用很慢的方式把裂缝补上：不靠誓言，靠把话说完整。"
+            }
+          ]
+        }),
+        ch({
+          text: "先冷处理一阵，给彼此空档——你知道这很冒险。",
+          effects: { stats: { stress: 2, mental: -2 } },
+          addFlags: ["marriage_proposal_silent_break"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              status: "cooling",
+              tension: 8,
+              theirInterest: -4,
+              history: "冷处理像把火盖住：烟还在，只是看不见。"
+            }
+          ]
+        }),
+        ch({
+          text: "承认走不下去，把关系收束成分手。",
+          effects: { stats: { happiness: -6, stress: 4, mental: 4 } },
+          addFlags: ["marriage_split_after_proposal"],
+          removeFlags: [
+            "marriage_proposal_cooling",
+            "marriage_proposal_rejected_by_partner",
+            "marriage_proposal_partner_backs_out",
+            "marriage_player_declined_partner_proposal"
+          ],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              status: "broken",
+              tension: 6,
+              commitment: -12,
+              affection: -8,
+              history: "婚姻的话题像最后一根绳，挣断了，就再也绑不回原来的结。"
             }
           ]
         })
@@ -528,7 +761,7 @@
     })
   ];
 
-  window.LIFE_MARRIAGE_CONFIG = marriageConfig;
+  window.LIFE_MARRIAGE_CONFIG = Object.assign({}, window.LIFE_MARRIAGE_CONFIG || {}, marriageConfig);
   window.LIFE_CHARACTER_GROWTH = {
     marriageConfig,
     characterStageProfiles,

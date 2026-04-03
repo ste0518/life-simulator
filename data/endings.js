@@ -107,6 +107,61 @@
 
   window.LIFE_ENDINGS = [
     ending({
+      id: "sudden_death_car_crash",
+      title: "结局：一场车祸切断了所有「以后」",
+      text: "没有长篇预告，也没有让你把话说完的空档。意外最残酷的地方，是它不等人把人生整理成可以交代的样子。",
+      instant: true,
+      baseWeight: 800,
+      require: requirement({
+        minAge: 18,
+        requiredFlags: ["sudden_death_car_crash"]
+      })
+    }),
+    ending({
+      id: "sudden_death_fire",
+      title: "结局：火与烟把家和时间一起卷走",
+      text: "你后来回想，只记得警报、热浪和某种过于安静的瞬间。很多计划不是慢慢放弃，而是被现实一把推下桌。",
+      instant: true,
+      baseWeight: 800,
+      require: requirement({
+        minAge: 18,
+        requiredFlags: ["sudden_death_fire"]
+      })
+    }),
+    ending({
+      id: "sudden_death_cardiac",
+      title: "结局：心脏先一步喊停",
+      text: "身体有时会以最直接的方式罢工。不是你不努力，而是有些东西叠到极限后，不会再给你第二次「先缓一缓」。",
+      instant: true,
+      baseWeight: 800,
+      require: requirement({
+        minAge: 18,
+        requiredFlags: ["sudden_death_cardiac"]
+      })
+    }),
+    ending({
+      id: "sudden_death_industrial",
+      title: "结局：一次严重事故，把人生留在现场",
+      text: "安全规程、侥幸和经验在真正的失控面前都显得太薄。你以为自己只是照常上工，直到世界突然侧翻。",
+      instant: true,
+      baseWeight: 800,
+      require: requirement({
+        minAge: 18,
+        requiredFlags: ["sudden_death_industrial"]
+      })
+    }),
+    ending({
+      id: "sudden_death_disaster",
+      title: "结局：突发灾难，来不及撤离",
+      text: "有些危险来自远方，有些来自脚下。你来不及争论该不该更小心——命运只给了一次性的结果。",
+      instant: true,
+      baseWeight: 800,
+      require: requirement({
+        minAge: 18,
+        requiredFlags: ["sudden_death_disaster"]
+      })
+    }),
+    ending({
       id: "terminal_health_zero",
       title: "结局：身体这项硬指标，终于跌到尽头",
       text: "不是某一天突然发生的意外，而是无数次「先顶过去」之后，身体再也没有给你下一次缓冲。到了这一步，年龄、计划和未完成的愿望都得让路——因为最底层的那一格血条，已经见底了。",
@@ -146,10 +201,10 @@
       instant: true,
       baseWeight: 48,
       require: requirement({
-        minAge: 34,
-        minChoices: 100,
-        minStats: { stress: 88 },
-        maxStats: { health: 6 },
+        minAge: 32,
+        minChoices: 88,
+        minStats: { stress: 85 },
+        maxStats: { health: 9 },
         someFlags: ["chronic_condition", "health_warning", "overworked", "chronic_stress"]
       })
     }),
@@ -160,10 +215,10 @@
       instant: true,
       baseWeight: 52,
       require: requirement({
-        minAge: 34,
-        minChoices: 100,
-        minStats: { stress: 93 },
-        maxStats: { mental: 8, happiness: 10 },
+        minAge: 32,
+        minChoices: 90,
+        minStats: { stress: 90 },
+        maxStats: { mental: 12, happiness: 14 },
         someFlags: ["chronic_stress", "overworked", "career_first", "emotional_shutdown"]
       })
     }),

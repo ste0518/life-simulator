@@ -3267,6 +3267,237 @@
     }
   }
 
+  function getSuddenDeathConfig() {
+    const raw = window.LIFE_SUDDEN_DEATH_CONFIG;
+    return raw && typeof raw === "object" ? raw : {};
+  }
+
+  function getHealthMentalRiskConfig() {
+    const raw = window.LIFE_HEALTH_MENTAL_RISK_CONFIG;
+    return raw && typeof raw === "object" ? raw : {};
+  }
+
+  function pickWeightedSuddenDeathOutcome(cfg) {
+    const outcomes = Array.isArray(cfg.outcomes)
+      ? cfg.outcomes.filter(function (o) {
+          return o && typeof o.flag === "string" && o.flag.trim();
+        })
+      : [];
+    if (!outcomes.length) {
+      return null;
+    }
+    let total = 0;
+    outcomes.forEach(function (o) {
+      total += typeof o.weight === "number" && o.weight > 0 ? o.weight : 1;
+    });
+    let r = Math.random() * total;
+    for (let i = 0; i < outcomes.length; i++) {
+      const w = typeof outcomes[i].weight === "number" && outcomes[i].weight > 0 ? outcomes[i].weight : 1;
+      r -= w;
+      if (r <= 0) {
+        return outcomes[i];
+      }
+    }
+    return outcomes[outcomes.length - 1];
+  }
+
+  function finalizeSuddenDeathEnding(outcomeRow) {
+    const flag = String(outcomeRow.flag || "").trim();
+    if (!flag) {
+      return false;
+    }
+    if (gameState.flags.indexOf(flag) === -1) {
+      gameState.flags.push(flag);
+    }
+    const endingId =
+      typeof outcomeRow.endingId === "string" && outcomeRow.endingId.trim()
+        ? outcomeRow.endingId.trim()
+        : "";
+    const fromList = endingId
+      ? allEndings.find(function (e) {
+          return e.id === endingId;
+        })
+      : allEndings.find(function (e) {
+          const rf = e.require && e.require.requiredFlags;
+          return Array.isArray(rf) && rf.length === 1 && rf[0] === flag;
+        });
+    const cfgTitle = typeof outcomeRow.title === "string" ? outcomeRow.title.trim() : "";
+    const cfgText = typeof outcomeRow.text === "string" ? outcomeRow.text.trim() : "";
+    const merged = {
+      id: (fromList && fromList.id) || flag,
+      title: cfgTitle || (fromList && fromList.title) || "结局：突发意外",
+      text: cfgText || (fromList && fromList.text) || "",
+      instant: true,
+      baseWeight: fromList && typeof fromList.baseWeight === "number" ? fromList.baseWeight : 800,
+      require: fromList && fromList.require ? fromList.require : { requiredFlags: [flag] },
+      weightModifiers: fromList && Array.isArray(fromList.weightModifiers) ? fromList.weightModifiers : []
+    };
+    gameState.ending = {
+      ...merged,
+      text: buildEndingText(merged),
+      analysis: analyzeEndingSelection(fromList || merged, gameState)
+    };
+    setCurrentEvent(null);
+    gameState.gameOver = true;
+    addHistory("你的人生在中途走向了结局：" + merged.title.replace("结局：", ""));
+    return true;
+  }
+
+  /**
+   * 年龄从 ageBefore 增至 ageAfter 时：对经过的每个整数岁（≥minAge）各做一次 probabilityPerYear 判定。
+   * 见 data/sudden-death-config.js。
+   */
+  function trySuddenDeathAnnualRollForAgeSpan(ageBefore, ageAfter) {
+    if (!gameState.gameStarted || gameState.gameOver || gameState.setupStep) {
+      return false;
+    }
+    const cfg = getSuddenDeathConfig();
+    if (cfg.enabled === false) {
+      return false;
+    }
+    const a0 = typeof ageBefore === "number" ? ageBefore : 0;
+    const a1 = typeof ageAfter === "number" ? ageAfter : 0;
+    if (a1 <= a0) {
+      return false;
+    }
+    const minA = typeof cfg.minAge === "number" ? cfg.minAge : 18;
+    const p =
+      typeof cfg.probabilityPerYear === "number" && cfg.probabilityPerYear >= 0 && cfg.probabilityPerYear <= 1
+        ? cfg.probabilityPerYear
+        : 0.01;
+    const startYear = Math.max(minA, a0 + 1);
+    const endYear = a1;
+    if (startYear > endYear) {
+      return false;
+    }
+    for (let y = startYear; y <= endYear; y++) {
+      if (Math.random() < p) {
+        const picked = pickWeightedSuddenDeathOutcome(cfg);
+        if (!picked) {
+          return false;
+        }
+        return finalizeSuddenDeathEnding(picked);
+      }
+    }
+    return false;
+  }
+
+  function computeMarriageProposalAcceptanceProbability(proposerType, partner, state) {
+    const pl =
+      lifeMarriageConfig && lifeMarriageConfig.proposalLogic && typeof lifeMarriageConfig.proposalLogic === "object"
+        ? lifeMarriageConfig.proposalLogic
+        : {};
+    const st = state && state.stats ? state.stats : {};
+    const lo = typeof pl.minClamp === "number" ? pl.minClamp : 0.07;
+    const hi = typeof pl.maxClamp === "number" ? pl.maxClamp : 0.93;
+
+    if (proposerType === "partner_followthrough") {
+      let p = typeof pl.baseFollowThroughPartnerProposes === "number" ? pl.baseFollowThroughPartnerProposes : 0.88;
+      p += ((typeof partner.affection === "number" ? partner.affection : 50) - 50) * (typeof pl.affectionCoef === "number" ? pl.affectionCoef * 0.45 : 0.003);
+      p -= Math.max(0, (typeof partner.tension === "number" ? partner.tension : 0) - 38) * 0.004;
+      const biasMap =
+        lifeMarriageConfig && lifeMarriageConfig.characterProposalBias && typeof lifeMarriageConfig.characterProposalBias === "object"
+          ? lifeMarriageConfig.characterProposalBias
+          : {};
+      const b = biasMap[partner.id];
+      if (typeof b === "number") {
+        p += b * 0.25;
+      }
+      return clampNumber(p, lo, hi);
+    }
+
+    let p = typeof pl.baseAcceptPlayerProposes === "number" ? pl.baseAcceptPlayerProposes : 0.36;
+    p += ((typeof partner.affection === "number" ? partner.affection : 50) - 50) * (typeof pl.affectionCoef === "number" ? pl.affectionCoef : 0.007);
+    p += ((typeof partner.trust === "number" ? partner.trust : 50) - 50) * (typeof pl.trustCoef === "number" ? pl.trustCoef : 0.006);
+    p += ((typeof partner.commitment === "number" ? partner.commitment : 50) - 50) * (typeof pl.commitmentCoef === "number" ? pl.commitmentCoef : 0.008);
+    p += ((typeof partner.continuity === "number" ? partner.continuity : 50) - 50) * (typeof pl.continuityCoef === "number" ? pl.continuityCoef : 0.004);
+    const tStart = typeof pl.tensionStart === "number" ? pl.tensionStart : 40;
+    p -= Math.max(0, (typeof partner.tension === "number" ? partner.tension : 0) - tStart) * (typeof pl.tensionPenaltyCoef === "number" ? pl.tensionPenaltyCoef : 0.005);
+    const mods = partner.growthModifiers && typeof partner.growthModifiers === "object" ? partner.growthModifiers : {};
+    p += (typeof mods.marriageEase === "number" ? mods.marriageEase : 0) * 0.004;
+    p += (typeof mods.stability === "number" ? mods.stability : 0) * 0.002;
+    p -= (typeof mods.breakupRisk === "number" ? mods.breakupRisk : 0) * 0.003;
+    if (partner.status === "long_distance_dating") {
+      p -= typeof pl.longDistancePenalty === "number" ? pl.longDistancePenalty : 0.12;
+    }
+    const lm = typeof pl.lowMoneyThreshold === "number" ? pl.lowMoneyThreshold : 14;
+    if ((typeof st.money === "number" ? st.money : 0) < lm) {
+      p -= typeof pl.lowMoneyPenalty === "number" ? pl.lowMoneyPenalty : 0.07;
+    }
+    const lc = typeof pl.lowCareerThreshold === "number" ? pl.lowCareerThreshold : 10;
+    if ((typeof st.career === "number" ? st.career : 0) < lc) {
+      p -= typeof pl.lowCareerPenalty === "number" ? pl.lowCareerPenalty : 0.05;
+    }
+    const shigh = typeof pl.playerStressHigh === "number" ? pl.playerStressHigh : 78;
+    if ((typeof st.stress === "number" ? st.stress : 0) >= shigh) {
+      p -= typeof pl.playerStressPenalty === "number" ? pl.playerStressPenalty : 0.06;
+    }
+    const cfPen = typeof pl.conflictFlagPenalty === "number" ? pl.conflictFlagPenalty : 0.1;
+    const cfs = Array.isArray(pl.conflictFlags) ? pl.conflictFlags : [];
+    if (cfs.some(function (f) { return f && state.flags.indexOf(f) !== -1; })) {
+      p -= cfPen;
+    }
+    const pflags = Array.isArray(partner.flags) ? partner.flags : [];
+    if (pflags.indexOf("growth_arc_volatile") !== -1) {
+      p -= 0.055;
+    }
+    const biasMap2 =
+      lifeMarriageConfig && lifeMarriageConfig.characterProposalBias && typeof lifeMarriageConfig.characterProposalBias === "object"
+        ? lifeMarriageConfig.characterProposalBias
+        : {};
+    if (typeof biasMap2[partner.id] === "number") {
+      p += biasMap2[partner.id];
+    }
+    return clampNumber(p, lo, hi);
+  }
+
+  function finalizeMarriageCommit(activeId, data) {
+    const id = String(activeId || "").trim();
+    if (!id) {
+      return;
+    }
+    const cost = typeof data.moneyCost === "number" ? data.moneyCost : 0;
+    if (cost > 0) {
+      const have = gameState.stats.money || 0;
+      const pay = Math.min(cost, have);
+      if (pay > 0) {
+        adjustStat("money", -pay);
+      }
+    }
+    if (typeof data.happiness === "number") {
+      adjustStat("happiness", data.happiness);
+    }
+    if (typeof data.stress === "number") {
+      adjustStat("stress", data.stress);
+    }
+    normalizeStringArray(data.addFlags).forEach(function (f) {
+      if (f && gameState.flags.indexOf(f) === -1) {
+        gameState.flags.push(f);
+      }
+    });
+    const partner = getRelationshipRecord(gameState, id);
+    const spanNeed =
+      typeof lifeMarriageConfig.minPartnerAgeSpan === "number" ? lifeMarriageConfig.minPartnerAgeSpan : 2;
+    if (partner && (partner.partnerSinceAge === null || partner.partnerSinceAge === undefined)) {
+      partner.partnerSinceAge = Math.max(0, gameState.age - spanNeed);
+    }
+    if (partner) {
+      partner.marriedSinceAge = gameState.age;
+    }
+    setRelationshipStatus(
+      id,
+      "married",
+      typeof data.partnerHistory === "string" && data.partnerHistory
+        ? data.partnerHistory
+        : "你们把关系写进更长的条款里：婚礼或许简单，但承诺是认真的。"
+    );
+    if (partner) {
+      syncRelationshipStage(partner);
+      inferRelationshipStatus(partner);
+    }
+    addHistory("你们进入了婚姻：生活从「我」默认要改成「我们」。");
+  }
+
   function performCustomAction(actionName, payload) {
     const action = String(actionName || "").trim();
     const data = payload && typeof payload === "object" ? payload : {};
@@ -3878,46 +4109,58 @@
         addHistory("你们的状态还不到能把婚约说实的那一步。");
         return;
       }
+      finalizeMarriageCommit(activeId, data);
+      return;
+    }
 
-      const cost = typeof data.moneyCost === "number" ? data.moneyCost : 0;
-      if (cost > 0) {
-        const have = gameState.stats.money || 0;
-        const pay = Math.min(cost, have);
-        if (pay > 0) {
-          adjustStat("money", -pay);
+    if (action === "marriage_proposal_attempt") {
+      const activeId = gameState.activeRelationshipId ? String(gameState.activeRelationshipId).trim() : "";
+      if (!activeId) {
+        addHistory("你想推进到婚姻，但当下并没有一段被标记为「主要」的关系。");
+        return;
+      }
+      const partner = getRelationshipRecord(gameState, activeId);
+      const allowed = normalizeStringArray(lifeMarriageConfig.allowedStatuses || []);
+      if (!partner || !allowed.includes(partner.status)) {
+        addHistory("你们的状态还不到能把婚约说实的那一步。");
+        return;
+      }
+      const minPAge = typeof lifeMarriageConfig.minPlayerAge === "number" ? lifeMarriageConfig.minPlayerAge : 24;
+      if (gameState.age < minPAge) {
+        addHistory("你觉得这时候把「结婚」说死还太早了一点。");
+        return;
+      }
+      const proposerRaw = typeof data.proposer === "string" ? data.proposer.trim() : "player";
+      const proposerType = proposerRaw === "partner_followthrough" ? "partner_followthrough" : "player";
+      const pAccept = computeMarriageProposalAcceptanceProbability(proposerType, partner, gameState);
+      const onSuccess = data.onSuccess && typeof data.onSuccess === "object" ? data.onSuccess : {};
+      const onFail = data.onFail && typeof data.onFail === "object" ? data.onFail : {};
+      const failRel =
+        Array.isArray(data.failRelationshipEffects) && data.failRelationshipEffects.length
+          ? data.failRelationshipEffects
+          : Array.isArray(onFail.relationshipEffects)
+            ? onFail.relationshipEffects
+            : [];
+
+      if (Math.random() < pAccept) {
+        finalizeMarriageCommit(activeId, onSuccess);
+      } else {
+        normalizeStringArray(onFail.addFlags).forEach(function (f) {
+          if (f && gameState.flags.indexOf(f) === -1) {
+            gameState.flags.push(f);
+          }
+        });
+        const st = onFail.stats && typeof onFail.stats === "object" ? onFail.stats : {};
+        Object.keys(st).forEach(function (k) {
+          if (typeof st[k] === "number") {
+            adjustStat(k, st[k]);
+          }
+        });
+        applyRelationshipEffects(failRel);
+        if (typeof onFail.log === "string" && onFail.log) {
+          addHistory(onFail.log);
         }
       }
-
-      if (typeof data.happiness === "number") {
-        adjustStat("happiness", data.happiness);
-      }
-      if (typeof data.stress === "number") {
-        adjustStat("stress", data.stress);
-      }
-
-      normalizeStringArray(data.addFlags).forEach((f) => {
-        if (f && !gameState.flags.includes(f)) {
-          gameState.flags.push(f);
-        }
-      });
-
-      const spanNeed =
-        typeof lifeMarriageConfig.minPartnerAgeSpan === "number" ? lifeMarriageConfig.minPartnerAgeSpan : 2;
-      if (partner.partnerSinceAge === null || partner.partnerSinceAge === undefined) {
-        partner.partnerSinceAge = Math.max(0, gameState.age - spanNeed);
-      }
-
-      partner.marriedSinceAge = gameState.age;
-      setRelationshipStatus(
-        activeId,
-        "married",
-        typeof data.partnerHistory === "string" && data.partnerHistory
-          ? data.partnerHistory
-          : "你们把关系写进更长的条款里：婚礼或许简单，但承诺是认真的。"
-      );
-      syncRelationshipStage(partner);
-      inferRelationshipStatus(partner);
-      addHistory("你们进入了婚姻：生活从「我」默认要改成「我们」。");
       return;
     }
   }
@@ -4921,7 +5164,7 @@
       return "";
     }
 
-    if (normalizedId === "$active") {
+    if (normalizedId === "$active" || normalizedId === "__active__") {
       return gameState.activeRelationshipId || "";
     }
 
@@ -5133,6 +5376,10 @@
     runRelationshipGrowthHooks(ageBeforeMutation, gameState.age);
     settleEconomyYearsAfterAgeJump(ageBeforeMutation, gameState.age);
     syncPartnerFamilyRevealFromIntimacy();
+
+    if (gameState.age > ageBeforeMutation) {
+      trySuddenDeathAnnualRollForAgeSpan(ageBeforeMutation, gameState.age);
+    }
   }
 
   function calculateEndingWeight(ending, state) {
@@ -5149,6 +5396,18 @@
       }
     });
 
+    weight = Math.max(0, weight);
+    const risk = getHealthMentalRiskConfig();
+    if (risk.enabled !== false && ending.instant) {
+      const mults =
+        risk.instantEndingWeightMultipliers && typeof risk.instantEndingWeightMultipliers === "object"
+          ? risk.instantEndingWeightMultipliers
+          : {};
+      const m = mults[ending.id];
+      if (typeof m === "number") {
+        weight *= m;
+      }
+    }
     return Math.max(0, weight);
   }
 
@@ -5994,11 +6253,16 @@
       return rule.minAge === nextAge;
     });
     const skippedYears = nextAge - gameState.age;
+    const ageBeforeFastForward = gameState.age;
 
     gameState.age = nextAge;
 
     if (skippedYears > 0) {
       addHistory("日子继续往前推，你在不知不觉间长到了 " + nextAge + " 岁。");
+    }
+
+    if (trySuddenDeathAnnualRollForAgeSpan(ageBeforeFastForward, gameState.age)) {
+      return null;
     }
 
     return pickWeightedEventWithAccidentCadence(sameAgeEvents);
@@ -6016,8 +6280,10 @@
       return;
     }
 
+    const ageBeforeFastForward = gameState.age;
     gameState.age = safeAge;
     addHistory(message || ("日子继续往前推，你在不知不觉间长到了 " + safeAge + " 岁。"));
+    trySuddenDeathAnnualRollForAgeSpan(ageBeforeFastForward, gameState.age);
   }
 
   function pickWeightedEvent(events) {
@@ -6136,6 +6402,9 @@
               addHistory("原本衔接好的下一段，被现实节奏轻轻拐了个弯。");
             } else {
               fastForwardToSpecificAge(targetAge, "日子被推着往前走，你很快到了 " + targetAge + " 岁。");
+              if (gameState.gameOver) {
+                return;
+              }
               setCurrentEvent(nextEventId);
               return;
             }
@@ -6164,6 +6433,10 @@
 
     if (!fallbackEvent) {
       fallbackEvent = fastForwardToNextEligibleAge();
+    }
+
+    if (gameState.gameOver) {
+      return;
     }
 
     if (!fallbackEvent && !shouldNaturallyConcludeLife() && gameState.age < 93) {
@@ -6278,6 +6551,10 @@
         : option;
     applyMutationBlock(optionToApply, { mutationEvent: event, mutationChoice: option });
 
+    if (gameState.gameOver) {
+      return getState();
+    }
+
     if (shouldDeferDebtPrisonForNarrative()) {
       setCurrentEvent(PRISON_DEBT_GATE_EVENT_ID);
       return getState();
@@ -6288,6 +6565,10 @@
     }
 
     advanceTo(option.next);
+
+    if (gameState.gameOver) {
+      return getState();
+    }
 
     if (!gameState.currentEventId) {
       finalizeGame();

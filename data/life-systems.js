@@ -44,12 +44,14 @@
   ];
 
   const childSystem = {
-    minParentAge: 24,
-    maxParentAgeForPrompt: 42,
+    minParentAge: 22,
+    maxParentAgeForPrompt: 44,
     /** 触发「是否生育」讨论：需要稳定关系状态 */
     partnerStatuses: ["steady", "married", "dating", "passionate", "long_distance_dating"],
-    minMoneySoft: 18,
-    minCareerSoft: 12
+    minMoneySoft: 14,
+    minCareerSoft: 8,
+    /** 计划要孩子但暂缓：事件权重参考（引擎可读） */
+    plannedDelayYearsHint: 2
   };
 
   const relationshipMilestones = {
@@ -313,22 +315,38 @@
       stage: "family",
       title: "要不要孩子，从来不是一个人的念头",
       text: "你们站在成年人的中央：钱、房、双方父母、工作强度、感情底牌，全都会被卷进这个问题里。\n\n{activeLoveName} 看着你，等的不只是一个答案，而是一种共同生活的方向。",
-      minAge: 24,
-      maxAge: 42,
-      weight: 15,
+      minAge: 22,
+      maxAge: 44,
+      weight: 19,
       tags: ["family", "child", "milestone"],
       conditions: {
         maxChildCount: 0,
         activeRelationshipStatuses: ["steady", "married", "dating", "passionate", "long_distance_dating"],
-        minStats: { happiness: 30 }
+        minStats: { happiness: 26 }
       },
       choices: [
         ch({
-          text: "认真说：想要，但希望把节奏握在自己手里。",
+          text: "认真说：想要，并约定一年内认真备孕。",
+          customAction: "child_path_decision",
+          customPayload: { path: "planning_conceive", addCount: 1, tags: ["planned"] },
+          effects: { stats: { familySupport: 2, stress: 3, money: -3 } },
+          addFlags: ["wants_child_planned", "child_planned_conception"],
+          log: "你们把时间表写进生活：不是冲动，而是共同签字。"
+        }),
+        ch({
+          text: "想要，但先推迟两三年：把房贷和职业稳住再说。",
           customAction: "child_path_decision",
           customPayload: { path: "planning", addCount: 0 },
-          effects: { stats: { familySupport: 2, stress: 2 } },
-          addFlags: ["wants_child_planned"],
+          effects: { stats: { familySupport: 1, stress: 2, career: 1 } },
+          addFlags: ["wants_child_planned", "child_postponed_timeline"],
+          relationshipEffects: [
+            {
+              targetId: "$active",
+              trust: 4,
+              tension: 2,
+              history: "你们要孩子，但先允许现实排队——这是一种冷静的相爱。"
+            }
+          ],
           log: "你们把「要孩子」从情绪话头拉成了可以一起算账、一起排队承担的决定。"
         }),
         ch({
@@ -343,6 +361,21 @@
               tension: 4,
               trust: 2,
               history: "关于孩子的讨论里，现实被摆上了桌，没有人轻松。"
+            }
+          ]
+        }),
+        ch({
+          text: "先明确「暂时不要」，把话说死一点，免得互相猜。",
+          customAction: "child_path_decision",
+          customPayload: { path: "decline_for_now", addCount: 0 },
+          effects: { stats: { mental: 1, stress: 2 } },
+          addFlags: ["child_declined_explicit"],
+          relationshipEffects: [
+            {
+              targetId: "$active",
+              tension: 5,
+              trust: 3,
+              history: "不要孩子也可以是一种共识，只要别用沉默把它变成刺。"
             }
           ]
         }),
@@ -392,6 +425,145 @@
           text: "常常缺席，只能用钱和礼物补偿心里的亏欠。",
           effects: { stats: { money: -3, happiness: -2, career: 2, stress: 5 } },
           addFlags: ["parent_absent_guilt"]
+        })
+      ]
+    }),
+    ev({
+      id: "childcare_education_money_sink",
+      stage: "family",
+      title: "教育支出：钱包和心理一起变薄",
+      text: "培训班、幼儿园、兴趣班、研学——每一项都像在问你：你要不要为「别让孩子落后」买单。\n\n没有标准答案，只有你愿意把焦虑翻译成多少钱、多少时间。",
+      minAge: 24,
+      maxAge: 52,
+      weight: 13,
+      repeatable: true,
+      tags: ["family", "child", "money", "explicit_stress"],
+      conditions: { minChildCount: 1 },
+      choices: [
+        ch({
+          text: "咬牙报一门「大家都在上」的班，同时心疼钱也心疼孩子。",
+          effects: { stats: { money: -8, stress: 5, happiness: -1, familySupport: 1 } },
+          addFlags: ["child_edu_class_enrolled", "parenting_edu_pressure"]
+        }),
+        ch({
+          text: "只保留最必要的一项，把其余焦虑挡在门外。",
+          effects: { stats: { money: -3, stress: 2, mental: 2, happiness: 1 } },
+          addFlags: ["child_edu_minimalist"]
+        }),
+        ch({
+          text: "请父母过来帮忙接送，省一点钱，也欠一点人情。",
+          effects: { stats: { stress: 3, familySupport: 2, happiness: 1 } },
+          addFlags: ["childcare_grandparents_help"]
+        })
+      ]
+    }),
+    ev({
+      id: "childcare_illness_night",
+      stage: "family",
+      title: "孩子生病的那几天",
+      text: "发烧、咳嗽、夜里哭闹——你会第一次把「工作邮件」和「体温计」放在同一个优先级里撕扯。\n\n谁请假、谁硬扛、谁在心里记账，都会写进你们的关系。",
+      minAge: 22,
+      maxAge: 50,
+      weight: 14,
+      repeatable: true,
+      tags: ["family", "child", "health", "explicit_stress"],
+      conditions: { minChildCount: 1 },
+      choices: [
+        ch({
+          text: "你请假陪护，把工作推到后排。",
+          effects: { stats: { career: -2, stress: 4, happiness: 2, health: -1 } },
+          addFlags: ["parent_sick_leave_used"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              trust: 4,
+              commitment: 3,
+              history: "你在孩子最难带的几天里在场，对方会记很久。"
+            }
+          ]
+        }),
+        ch({
+          text: "让对方顶上，你掏钱请钟点工/保姆搭把手。",
+          effects: { stats: { money: -6, stress: 3, happiness: -1 } },
+          addFlags: ["childcare_nanny_help"]
+        }),
+        ch({
+          text: "两个人都硬撑上班，夜里轮流崩溃。",
+          effects: { stats: { stress: 6, mental: -2, health: -2 } },
+          addFlags: ["parenting_double_grind"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              tension: 8,
+              history: "疲惫会把好话磨没，只留下「你怎么不早点回来」。"
+            }
+          ]
+        })
+      ]
+    }),
+    ev({
+      id: "childcare_job_housing_tradeoff",
+      stage: "family",
+      title: "为孩子改工作、改租房",
+      text: "通勤、学区、加班、托育距离——一旦家里多了小人儿，「划算」的定义就会变。\n\n你要么改路线，要么继续硬撑，把压力攒到以后。",
+      minAge: 24,
+      maxAge: 55,
+      weight: 11,
+      repeatable: true,
+      tags: ["family", "child", "career"],
+      conditions: { minChildCount: 1 },
+      choices: [
+        ch({
+          text: "换一份更稳、更近、但天花板更低的工作。",
+          effects: { stats: { career: -4, stress: -2, happiness: 2, money: -1 } },
+          addFlags: ["parent_job_downshift"]
+        }),
+        ch({
+          text: "搬到更贵但更省心的地段，接受房租上涨。",
+          effects: { stats: { money: -5, stress: -3, happiness: 2 } },
+          addFlags: ["housing_upgrade_for_child"]
+        }),
+        ch({
+          text: "坚持原路线，承认家里会一直紧张。",
+          effects: { stats: { stress: 5, mental: -2, career: 2 } },
+          addFlags: ["parenting_no_restructure"]
+        })
+      ]
+    }),
+    ev({
+      id: "childcare_who_cares_debate",
+      stage: "family",
+      title: "谁带孩子：嘴上都说公平，心里都在算账",
+      text: "「我明天有会」「我妈也累」「请保姆不放心」——这些话听起来像理由，也像推卸。\n\n你们不是在争对错，是在争谁的人生更不被切碎。",
+      minAge: 23,
+      maxAge: 48,
+      weight: 12,
+      repeatable: true,
+      tags: ["family", "child", "romance"],
+      conditions: { minChildCount: 1, activeRelationshipStatuses: ["married", "steady", "dating", "passionate"] },
+      choices: [
+        ch({
+          text: "写一张粗糙但清楚的育儿分工表，哪怕很土。",
+          effects: { stats: { discipline: 2, stress: -1 } },
+          addFlags: ["childcare_duty_chart"],
+          relationshipEffects: [
+            {
+              targetId: "__active__",
+              trust: 5,
+              tension: -3,
+              history: "你们用很笨的方法，把「谁带孩子」从情绪拉回规则。"
+            }
+          ]
+        }),
+        ch({
+          text: "请一方父母长期帮忙，接受观念冲突的风险。",
+          effects: { stats: { familySupport: 1, stress: 4, happiness: -1 } },
+          addFlags: ["childcare_inlaw_cohabit_stress"]
+        }),
+        ch({
+          text: "长期请保姆，花钱买平静，也买新的不放心。",
+          effects: { stats: { money: -7, stress: 2, happiness: 1 } },
+          addFlags: ["childcare_fulltime_nanny"]
         })
       ]
     }),
@@ -532,6 +704,16 @@
   window.LIFE_SHOP_ITEMS = shopItems;
   window.LIFE_GIFT_EFFECTS = giftEffects;
   window.LIFE_CHILD_SYSTEM = childSystem;
+  window.LIFE_CHILDCARE_CONFIG = {
+    /** 便于检索：育儿向重复事件 id（文案与数值在上方 lifeSystemExtraEvents 内改） */
+    repeatableChildEventIds: [
+      "child_life_first_years",
+      "childcare_education_money_sink",
+      "childcare_illness_night",
+      "childcare_job_housing_tradeoff",
+      "childcare_who_cares_debate"
+    ]
+  };
   window.LIFE_RELATIONSHIP_MILESTONES = relationshipMilestones;
   window.LIFE_EDUCATION_CAREER_HINTS = educationToCareerHints;
 

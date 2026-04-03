@@ -9,10 +9,10 @@
     enabled: true,
 
     /** 事件选项里 stats.stress / stats.mental 默认按倍率缩小；以下情况用完整数值 */
-    eventStressRiseScale: 0.36,
-    eventStressReliefScale: 0.95,
-    eventMentalHarmScale: 0.4,
-    eventMentalRecoveryScale: 1.08,
+    eventStressRiseScale: 0.38,
+    eventStressReliefScale: 0.96,
+    eventMentalHarmScale: 0.42,
+    eventMentalRecoveryScale: 1.06,
 
     /** 事件 tags 命中时，对应维度不再缩放（可在事件数据里加标签） */
     explicitStressEventTags: ["explicit_stress", "high_stakes", "burnout", "crisis"],
@@ -124,8 +124,8 @@
      * 慢性高压 → 额外心理消耗：每次属性联动结算时，若压力连续若干次都 ≥ 阈值，才开始每步扣心理。
      * 压力降到阈值以下则 streak 清零，额外拖累停止。
      */
-    chronicStressThreshold: 72,
-    chronicStressMinConsecutiveSteps: 5,
+    chronicStressThreshold: 74,
+    chronicStressMinConsecutiveSteps: 6,
     chronicStressMentalPerStep: -1,
     chronicStressHappinessPerStep: 0,
 

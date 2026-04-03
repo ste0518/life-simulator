@@ -15,9 +15,9 @@
      * 默认：70–79 → -1，80–89 → -2，90–100 → -3。
      */
     stressHealthDecayBands: [
-      { atLeast: 92, perStep: 2 },
-      { atLeast: 84, perStep: 1 },
-      { atLeast: 76, perStep: 1 }
+      { atLeast: 91, perStep: 2 },
+      { atLeast: 83, perStep: 1 },
+      { atLeast: 75, perStep: 1 }
     ],
 
     /**
@@ -129,7 +129,7 @@
     healthZeroEndingMinStreak: 3,
     /** 还需满足「崩盘语境」之一；若为 false 则只看出血量与 streak */
     endingHealthZeroRequireContext: true,
-    healthCollapseMinStress: 78,
+    healthCollapseMinStress: 76,
     healthCollapseMinAgeFallback: 45,
     healthCollapseMinChoicesFallback: 72,
     healthCollapseSomeFlags: [
