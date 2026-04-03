@@ -78,6 +78,129 @@
     ? window.LIFE_CAREER_NON_EARNING_IDS
     : ["career_in_job_search"];
 
+  function getEmploymentChildGates() {
+    return window.LIFE_EMPLOYMENT_CHILD_GATES && typeof window.LIFE_EMPLOYMENT_CHILD_GATES === "object"
+      ? window.LIFE_EMPLOYMENT_CHILD_GATES
+      : {};
+  }
+
+  function isStablyEmployed(state) {
+    const st = state || gameState;
+    const gates = getEmploymentChildGates();
+    const req = Array.isArray(gates.stableEmploymentRequiredFlags) ? gates.stableEmploymentRequiredFlags : [];
+    const required = req.length ? req : ["annual_economy_active", "employed_housing_settled"];
+    const flags = st.flags || [];
+    if (!required.every(function (f) {
+      return flags.indexOf(f) !== -1;
+    })) {
+      return false;
+    }
+    const cid = st.careerRoute && st.careerRoute.id ? st.careerRoute.id : "";
+    const jobIds = Array.isArray(gates.jobSearchCareerRouteIds) ? gates.jobSearchCareerRouteIds : ["career_in_job_search"];
+    if (!cid || jobIds.indexOf(cid) !== -1) {
+      return false;
+    }
+    if (careerZeroSalaryIds.indexOf(cid) !== -1) {
+      return false;
+    }
+    return true;
+  }
+
+  function shouldBlockJobSearchFlavorEvent(event, state) {
+    if (!event || !isStablyEmployed(state)) {
+      return false;
+    }
+    const gates = getEmploymentChildGates();
+    const blockIds = Array.isArray(gates.jobHuntEventIdsWhenEmployed) ? gates.jobHuntEventIdsWhenEmployed : [];
+    if (blockIds.indexOf(event.id) !== -1) {
+      return true;
+    }
+    const blockTags = Array.isArray(gates.jobHuntTagsBlockedWhenEmployed) ? gates.jobHuntTagsBlockedWhenEmployed : [];
+    const tags = event.tags || [];
+    for (let i = 0; i < blockTags.length; i++) {
+      if (tags.indexOf(blockTags[i]) !== -1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function maybeClearEmploymentForJobSearchTransition() {
+    ensureWorkLifeState();
+    gameState.workLife.employmentStatus = "job_seeking";
+    gameState.workLife.employedCareerRouteId = "";
+    gameState.workLife.employedSinceAge = null;
+    if (gameState.flags.indexOf("annual_economy_active") === -1) {
+      return;
+    }
+    removeGameFlags(["annual_economy_active", "employed_housing_settled", "pending_work_location_pick", "pending_housing_pick"]);
+    gameState.workLife.workLocationId = "";
+    gameState.workLife.housingId = "";
+    if (gameState.flags.indexOf("job_pipeline_active") === -1) {
+      gameState.flags.push("job_pipeline_active");
+    }
+  }
+
+  function ensureChildrenMeta(state) {
+    const s = state || gameState;
+    if (!s.children || typeof s.children !== "object") {
+      s.children = { count: 0, tags: [], careMode: "", lastCareEventAge: null, stage: "", firstChildBornAtAge: null };
+    }
+    if (typeof s.children.stage !== "string") {
+      s.children.stage = "";
+    }
+    if (s.children.firstChildBornAtAge != null && typeof s.children.firstChildBornAtAge !== "number") {
+      s.children.firstChildBornAtAge = null;
+    }
+  }
+
+  function ensureFirstChildIntroFallback() {
+    ensureChildrenMeta(gameState);
+    const flags = gameState.flags || [];
+    if (flags.indexOf("first_child_born") === -1 || flags.indexOf("first_child_intro_completed") !== -1) {
+      return;
+    }
+    const bornAt = gameState.children.firstChildBornAtAge;
+    if (typeof bornAt !== "number") {
+      return;
+    }
+    const maxWait =
+      typeof getEmploymentChildGates().autoCompleteFirstChildIntroAfterYears === "number"
+        ? getEmploymentChildGates().autoCompleteFirstChildIntroAfterYears
+        : 2;
+    if (gameState.age - bornAt >= maxWait) {
+      addGameFlags(["first_child_intro_completed"]);
+    }
+  }
+
+  function syncChildParentingStageForCurrentAge() {
+    const rules = window.LIFE_CHILD_STAGE_RULES && typeof window.LIFE_CHILD_STAGE_RULES === "object" ? window.LIFE_CHILD_STAGE_RULES : {};
+    const list = Array.isArray(rules.stages) ? rules.stages : [];
+    ensureChildrenMeta(gameState);
+    const bornAt = gameState.children.firstChildBornAtAge;
+    if (!getChildCount(gameState) || typeof bornAt !== "number") {
+      return;
+    }
+    const years = gameState.age - bornAt;
+    let pick = null;
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i];
+      const minY = typeof row.minYearsSinceFirstChild === "number" ? row.minYearsSinceFirstChild : 0;
+      if (years >= minY) {
+        pick = row;
+      }
+    }
+    if (!pick || typeof pick.stage !== "string" || !pick.stage) {
+      return;
+    }
+    if (gameState.children.stage === pick.stage) {
+      return;
+    }
+    gameState.children.stage = pick.stage;
+    removeGameFlags(normalizeStringArray(pick.phaseFlagsRemove));
+    addGameFlags(normalizeStringArray(pick.phaseFlagsAdd));
+  }
+
   function isShopItemUnlockedForState(item, state) {
     if (!item || !state) {
       return false;
@@ -2102,6 +2225,10 @@
       skipStatLinks: true,
       allowAnyHealthEffects: true
     });
+
+    if (route.type === "career" && route.id === "career_in_job_search") {
+      maybeClearEmploymentForJobSearchTransition();
+    }
   }
 
   function formatText(text) {
@@ -3239,7 +3366,14 @@
 
   function ensureWorkLifeState() {
     if (!gameState.workLife || typeof gameState.workLife !== "object") {
-      gameState.workLife = { workLocationId: "", housingId: "", jobApplicationsSent: 0 };
+      gameState.workLife = {
+        workLocationId: "",
+        housingId: "",
+        jobApplicationsSent: 0,
+        employmentStatus: "",
+        employedCareerRouteId: "",
+        employedSinceAge: null
+      };
     }
     if (typeof gameState.workLife.workLocationId !== "string") {
       gameState.workLife.workLocationId = "";
@@ -3249,6 +3383,15 @@
     }
     if (typeof gameState.workLife.jobApplicationsSent !== "number") {
       gameState.workLife.jobApplicationsSent = 0;
+    }
+    if (typeof gameState.workLife.employmentStatus !== "string") {
+      gameState.workLife.employmentStatus = "";
+    }
+    if (typeof gameState.workLife.employedCareerRouteId !== "string") {
+      gameState.workLife.employedCareerRouteId = "";
+    }
+    if (gameState.workLife.employedSinceAge != null && typeof gameState.workLife.employedSinceAge !== "number") {
+      gameState.workLife.employedSinceAge = null;
     }
   }
 
@@ -3289,7 +3432,7 @@
   function computeAnnualHousingRentAmount(annualSalaryIncome, housingId) {
     const hid = typeof housingId === "string" ? housingId.trim() : "";
     const rc = lifeWorkLifeConfig.rentConfig && typeof lifeWorkLifeConfig.rentConfig === "object" ? lifeWorkLifeConfig.rentConfig : {};
-    const frac = typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.4;
+    const frac = typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.5;
     const tierMap = rc.housingRentTierMultipliers && typeof rc.housingRentTierMultipliers === "object" ? rc.housingRentTierMultipliers : {};
     if (!hid || hid === "housing_parents_home") {
       return 0;
@@ -3472,9 +3615,11 @@
       net += bump;
       addHistory("这一年你拿到一笔额外奖金/副业进账（约 " + bump + "）。");
     }
+    const gatesLay = getEmploymentChildGates();
     const layP =
       typeof lifeWorkLifeConfig.layoffProbabilityPerYear === "number" ? lifeWorkLifeConfig.layoffProbabilityPerYear : 0;
-    if (layP > 0 && Math.random() < layP && forAge >= 26) {
+    const allowSilentLayoff = gatesLay.enableSilentAnnualLayoff === true;
+    if (allowSilentLayoff && layP > 0 && Math.random() < layP && forAge >= 26) {
       const drift = careerRouteMap.get("career_in_job_search");
       if (drift) {
         addHistory("这一年行业波动，你失去了原来的岗位，只能重新把自己放回求职市场里。");
@@ -3529,6 +3674,8 @@
       runSingleYearEconomyTick(y);
       gameState.economyLedger.lastSettledAge = y;
     }
+    ensureFirstChildIntroFallback();
+    syncChildParentingStageForCurrentAge();
   }
 
   function stampEconomyForCurrentAgeIfNeeded() {
@@ -3538,6 +3685,8 @@
       runSingleYearEconomyTick(a);
       gameState.economyLedger.lastSettledAge = a;
     }
+    ensureFirstChildIntroFallback();
+    syncChildParentingStageForCurrentAge();
   }
 
   function getSuddenDeathConfig() {
@@ -4150,9 +4299,7 @@
     }
 
     if (action === "child_path_decision") {
-      if (!gameState.children || typeof gameState.children !== "object") {
-        gameState.children = { count: 0, tags: [], careMode: "", lastCareEventAge: null };
-      }
+      ensureChildrenMeta(gameState);
       if (!Array.isArray(gameState.children.tags)) {
         gameState.children.tags = [];
       }
@@ -4163,19 +4310,28 @@
         gameState.children.lastCareEventAge = null;
       }
       const add = typeof data.addCount === "number" ? data.addCount : 0;
-      gameState.children.count = Math.max(0, (gameState.children.count || 0) + add);
+      const prevCount = getChildCount(gameState);
+      gameState.children.count = Math.max(0, prevCount + add);
       normalizeStringArray(data.tags).forEach((tag) => {
         if (!gameState.children.tags.includes(tag)) {
           gameState.children.tags.push(tag);
         }
       });
       if (add > 0) {
-        addGameFlags(["has_child", "parent_active", "parenting_phase_newborn"]);
         gameState.children.lastCareEventAge = gameState.age;
         adjustStat("stress", 4);
         adjustStat("money", -4);
         adjustStat("happiness", 2);
-        addHistory("家里多了一个需要被接住的生命，你的时间表和钱包同时被改写。");
+        if (prevCount === 0) {
+          gameState.children.firstChildBornAtAge = gameState.age;
+          gameState.children.stage = "newborn";
+          addGameFlags(["has_child", "parent_active", "parenting_phase_newborn", "first_child_born"]);
+          addHistory("家里多了一个需要被接住的生命，你的时间表和钱包同时被改写。");
+          syncChildParentingStageForCurrentAge();
+        } else {
+          addGameFlags(["second_child_born"]);
+          addHistory("家里又添了一个需要被接住的生命，熟悉的忙乱与新的账单一齐涌上来。");
+        }
       }
       return;
     }
@@ -4216,6 +4372,8 @@
       );
       removeGameFlags(["job_pipeline_active", "post_grad_job_hunt"]);
       applyRouteDefinition(route);
+      ensureWorkLifeState();
+      gameState.workLife.employmentStatus = "placement_pending";
       addGameFlags(["pending_work_location_pick", "job_offer_received"]);
       adjustStat("happiness", 3);
       adjustStat("stress", -2);
@@ -4236,6 +4394,7 @@
       }
       ensureWorkLifeState();
       gameState.workLife.workLocationId = locationId;
+      gameState.workLife.employmentStatus = "placement_pending";
       removeGameFlags(["pending_work_location_pick"]);
       addGameFlags(["pending_housing_pick", "work_location_chosen"]);
       const st = hit.stats && typeof hit.stats === "object" ? hit.stats : {};
@@ -4267,6 +4426,9 @@
       }
       ensureWorkLifeState();
       gameState.workLife.housingId = housingId;
+      gameState.workLife.employmentStatus = "employed";
+      gameState.workLife.employedCareerRouteId = gameState.careerRoute && gameState.careerRoute.id ? gameState.careerRoute.id : "";
+      gameState.workLife.employedSinceAge = gameState.age;
       removeGameFlags(["pending_housing_pick"]);
       addGameFlags(["annual_economy_active", "employed_housing_settled"]);
       normalizeStringArray(h.addFlags).forEach((f) => {
@@ -5606,6 +5768,10 @@
     }
 
     if (!matchesConditions(event.conditions, state, event)) {
+      return false;
+    }
+
+    if (shouldBlockJobSearchFlavorEvent(event, state)) {
       return false;
     }
 
@@ -7341,7 +7507,7 @@
     return {
       annualSalaryIncome: income,
       annualRent: rent,
-      annualSalaryFraction: typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.4,
+      annualSalaryFraction: typeof rc.annualSalaryFraction === "number" ? rc.annualSalaryFraction : 0.5,
       housingId: hid,
       workLocationId: typeof wl.workLocationId === "string" ? wl.workLocationId : ""
     };

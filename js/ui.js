@@ -514,9 +514,11 @@
       if (state.flags && state.flags.indexOf("annual_economy_active") !== -1) {
         const p2 = document.createElement("p");
         p2.className = "muted";
+        const est = typeof wl.employmentStatus === "string" && wl.employmentStatus ? wl.employmentStatus : "";
         p2.textContent =
           "已启用按年工资入账与日常扣减；房租按年薪的一定比例每年从财富中扣除。求职发送次数：" +
           (typeof wl.jobApplicationsSent === "number" ? wl.jobApplicationsSent : 0) +
+          (est ? "。就业状态：" + est : "") +
           "。";
         card.appendChild(p2);
       }
@@ -1034,6 +1036,14 @@
     const p1 = document.createElement("p");
     p1.textContent = "子女数量：" + count;
     wrap.appendChild(p1);
+
+    const stg = typeof child.stage === "string" && child.stage ? child.stage : "";
+    if (count > 0 && stg) {
+      const ps = document.createElement("p");
+      ps.className = "muted";
+      ps.textContent = "育儿阶段（内部 stage）：" + stg;
+      wrap.appendChild(ps);
+    }
 
     if (count > 0) {
       const flags = (state && state.flags) || [];

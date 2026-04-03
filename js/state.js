@@ -311,12 +311,20 @@
         count: 0,
         tags: [],
         careMode: "",
-        lastCareEventAge: null
+        lastCareEventAge: null,
+        /** 与 LIFE_CHILD_STAGE_RULES 对齐：none / newborn / infant / … */
+        stage: "",
+        /** 首个孩子出生时的玩家年龄；用于阶段推进与事件条件 */
+        firstChildBornAtAge: null
       },
       workLife: {
         workLocationId: "",
         housingId: "",
-        jobApplicationsSent: 0
+        jobApplicationsSent: 0,
+        /** idle | job_seeking | placement_pending | employed — 由引擎在求职/入职节点维护 */
+        employmentStatus: "",
+        employedCareerRouteId: "",
+        employedSinceAge: null
       },
       economyLedger: {
         lastSettledAge: -1

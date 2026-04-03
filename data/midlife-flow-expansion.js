@@ -164,7 +164,7 @@
       weight: 14,
       repeatable: true,
       tags: ["family", "child", "pressure"],
-      conditions: { minChildCount: 1 },
+      conditions: { minChildCount: 1, requiredFlags: ["first_child_intro_completed"] },
       choices: [
         ch({
           text: "和伴侣对齐底线：不攀比，也不甩锅。",

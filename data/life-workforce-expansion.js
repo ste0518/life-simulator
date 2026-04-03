@@ -154,10 +154,10 @@
 
     /**
      * 年房租 = 年度名义工资收入（与年度结算同一套：career 年薪 × 地点 salaryMult）× annualSalaryFraction × 住房档位倍数。
-     * 住父母家倍数为 0。改比例只改 annualSalaryFraction。
+     * 住父母家倍数为 0。默认 annualSalaryFraction=0.5（年薪的一半）；改比例只改此处。
      */
     rentConfig: {
-      annualSalaryFraction: 0.4,
+      annualSalaryFraction: 0.5,
       housingRentTierMultipliers: {
         housing_parents_home: 0,
         housing_share_room: 0.88,
@@ -645,27 +645,27 @@
       minAge: 24,
       maxAge: 45,
       weight: 8,
-      repeatable: true,
+      repeatable: false,
       cooldownChoices: 6,
       tags: ["children", "parenting"],
-      conditions: condition({ minChildCount: 1 }),
+      conditions: condition({ minChildCount: 1, excludedFlags: ["first_child_intro_completed"] }),
       choices: [
         choice({
           text: "尽量亲自带睡，把自己熬到极限也要靠近 Ta。",
           effects: { age: 1, stats: { happiness: 3, health: -6, stress: 6, career: -2 } },
-          addFlags: ["parenting_primary_self"],
+          addFlags: ["parenting_primary_self", "first_child_intro_completed"],
           log: "你在夜里听见自己的心跳比哭声还响。"
         }),
         choice({
           text: "请父母过来搭手，家里多三个人也多三条线。",
           effects: { age: 1, stats: { familySupport: 2, stress: 4, happiness: 2 } },
-          addFlags: ["parenting_grandparent_help"],
+          addFlags: ["parenting_grandparent_help", "first_child_intro_completed"],
           log: "厨房、沙发与育儿观念同时变得拥挤。"
         }),
         choice({
           text: "请保姆/月嫂，买一点可执行的睡眠。",
           effects: { age: 1, stats: { money: -6, stress: -3, happiness: 2 } },
-          addFlags: ["parenting_nanny_used"],
+          addFlags: ["parenting_nanny_used", "first_child_intro_completed"],
           log: "你把一部分愧疚换成合同与工资条。"
         })
       ]
@@ -681,7 +681,7 @@
       repeatable: true,
       cooldownChoices: 5,
       tags: ["children", "parenting", "health"],
-      conditions: condition({ minChildCount: 1 }),
+      conditions: condition({ minChildCount: 1, requiredFlags: ["first_child_intro_completed"] }),
       choices: [
         choice({
           text: "立刻去医院，把钱和班都先放下。",
@@ -706,7 +706,7 @@
       repeatable: true,
       cooldownChoices: 6,
       tags: ["children", "parenting", "education"],
-      conditions: condition({ minChildCount: 1 }),
+      conditions: condition({ minChildCount: 1, requiredFlags: ["first_child_intro_completed"] }),
       choices: [
         choice({
           text: "选离家近的普惠园，先把节奏稳住。",
@@ -731,7 +731,7 @@
       repeatable: true,
       cooldownChoices: 5,
       tags: ["children", "romance", "parenting"],
-      conditions: condition({ minChildCount: 1, minStats: { stress: 30 } }),
+      conditions: condition({ minChildCount: 1, minStats: { stress: 30 }, requiredFlags: ["first_child_intro_completed"] }),
       choices: [
         choice({
           text: "把规则谈清楚：钱、时间、谁兜底。",
@@ -756,7 +756,7 @@
       repeatable: true,
       cooldownChoices: 7,
       tags: ["children", "work", "parenting"],
-      conditions: condition({ minChildCount: 1 }),
+      conditions: condition({ minChildCount: 1, requiredFlags: ["first_child_intro_completed"] }),
       choices: [
         choice({
           text: "换更稳但更慢的岗位。",
@@ -784,7 +784,7 @@
       repeatable: true,
       cooldownChoices: 8,
       tags: ["accident", "children"],
-      conditions: condition({ minChildCount: 1 }),
+      conditions: condition({ minChildCount: 1, requiredFlags: ["first_child_intro_completed"] }),
       effectsOnEnter: mutation({ addTags: ["crisis"] }),
       choices: [
         choice({
@@ -810,7 +810,7 @@
         choice({
           text: "拿赔偿礼包，先稳住现金流再谋下一步。",
           effects: { age: 1, stats: { money: 6, stress: 10, career: -4, mental: -3 } },
-          addFlags: ["laid_off_once", "career_in_job_search"],
+          addFlags: ["laid_off_once", "post_layoff_search"],
           setCareerRoute: "career_in_job_search",
           log: "你走出门时，天还是那天，但身份少了一块。"
         })

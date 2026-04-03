@@ -400,14 +400,14 @@
       minAge: 22,
       maxAge: 50,
       weight: 14,
-      repeatable: true,
+      repeatable: false,
       tags: ["family", "child"],
-      conditions: { minChildCount: 1 },
+      conditions: { minChildCount: 1, excludedFlags: ["first_child_intro_completed"] },
       choices: [
         ch({
           text: "尽量多换尿布、多哄睡，把自己熬瘦一圈。",
           effects: { stats: { health: -2, happiness: 3, stress: 4, money: -2 } },
-          addFlags: ["parent_heavy_presence"]
+          addFlags: ["parent_heavy_presence", "first_child_intro_completed"]
         }),
         ch({
           text: "和伴侣硬吵育儿分工，但最后达成了粗糙的轮班。",
@@ -419,12 +419,13 @@
               commitment: 3,
               history: "你们在育儿里吵过，也把责任掰开接过。"
             }
-          ]
+          ],
+          addFlags: ["first_child_intro_completed"]
         }),
         ch({
           text: "常常缺席，只能用钱和礼物补偿心里的亏欠。",
           effects: { stats: { money: -3, happiness: -2, career: 2, stress: 5 } },
-          addFlags: ["parent_absent_guilt"]
+          addFlags: ["parent_absent_guilt", "first_child_intro_completed"]
         })
       ]
     }),
@@ -438,7 +439,7 @@
       weight: 13,
       repeatable: true,
       tags: ["family", "child", "money", "explicit_stress"],
-      conditions: { minChildCount: 1 },
+      conditions: { minChildCount: 1, requiredFlags: ["first_child_intro_completed"] },
       choices: [
         ch({
           text: "咬牙报一门「大家都在上」的班，同时心疼钱也心疼孩子。",
@@ -467,7 +468,7 @@
       weight: 14,
       repeatable: true,
       tags: ["family", "child", "health", "explicit_stress"],
-      conditions: { minChildCount: 1 },
+      conditions: { minChildCount: 1, requiredFlags: ["first_child_intro_completed"] },
       choices: [
         ch({
           text: "你请假陪护，把工作推到后排。",
@@ -511,7 +512,7 @@
       weight: 11,
       repeatable: true,
       tags: ["family", "child", "career"],
-      conditions: { minChildCount: 1 },
+      conditions: { minChildCount: 1, requiredFlags: ["first_child_intro_completed"] },
       choices: [
         ch({
           text: "换一份更稳、更近、但天花板更低的工作。",
@@ -540,7 +541,11 @@
       weight: 12,
       repeatable: true,
       tags: ["family", "child", "romance"],
-      conditions: { minChildCount: 1, activeRelationshipStatuses: ["married", "steady", "dating", "passionate"] },
+      conditions: {
+        minChildCount: 1,
+        requiredFlags: ["first_child_intro_completed"],
+        activeRelationshipStatuses: ["married", "steady", "dating", "passionate"]
+      },
       choices: [
         ch({
           text: "写一张粗糙但清楚的育儿分工表，哪怕很土。",

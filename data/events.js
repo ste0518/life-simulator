@@ -5394,7 +5394,7 @@
       maxAge: 25,
       weight: 6,
       tags: ["job", "young_adult"],
-      conditions: condition({}),
+      conditions: condition({ excludedFlags: ["employed_housing_settled"] }),
       effectsOnEnter: mutation({
         effects: {
           age: 0,
