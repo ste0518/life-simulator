@@ -312,6 +312,8 @@
       economyLedger: {
         lastSettledAge: -1
       },
+      /** 各「意外阶段」已触发过的意外事件次数，键与 data/timeline-rules.js 中 accidentPhaseId 对齐 */
+      accidentCountsByPhase: {},
       setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,

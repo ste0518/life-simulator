@@ -118,6 +118,10 @@
     (lifeCharacterGrowth && lifeCharacterGrowth.marriageConfig) ||
     (window.LIFE_MARRIAGE_CONFIG && typeof window.LIFE_MARRIAGE_CONFIG === "object" ? window.LIFE_MARRIAGE_CONFIG : {}) ||
     {};
+  const lifeAccidentStageConfig =
+    window.LIFE_ACCIDENT_STAGE_CONFIG && typeof window.LIFE_ACCIDENT_STAGE_CONFIG === "object"
+      ? window.LIFE_ACCIDENT_STAGE_CONFIG
+      : {};
   const OVERSEAS_PHASE_LABELS = {
     arrival: "初到适应期",
     settling: "初步融入期",
@@ -667,6 +671,7 @@
       : [];
     normalizedEvent.deferEnterAge = shouldDelayEnterAge(normalizedEvent.effectsOnEnter, normalizedEvent.choices);
     normalizedEvent.familyStoryHookTags = normalizeStringArray(source.familyStoryHookTags);
+    normalizedEvent.timelinePhaseIds = normalizeStringArray(source.timelinePhaseIds);
 
     return normalizedEvent;
   }
@@ -4168,6 +4173,133 @@
     return gameState.recentEventIds.slice(0, event.cooldownChoices).includes(event.id);
   }
 
+  function ensureAccidentLedger(state) {
+    const s = state || gameState;
+    if (!s.accidentCountsByPhase || typeof s.accidentCountsByPhase !== "object") {
+      s.accidentCountsByPhase = {};
+    }
+  }
+
+  function deriveTimelinePhase(state) {
+    const rules = Array.isArray(window.LIFE_TIMELINE_RULES) ? window.LIFE_TIMELINE_RULES : [];
+    for (let i = 0; i < rules.length; i++) {
+      const raw = rules[i];
+      if (!raw || typeof raw.phaseId !== "string") {
+        continue;
+      }
+      const cond = { ...raw };
+      delete cond.phaseId;
+      if (matchesConditions(normalizeConditionObject(cond, null), state, null)) {
+        return raw.phaseId;
+      }
+    }
+    return "adult_misc";
+  }
+
+  function getAccidentPhaseId(state) {
+    const phases = Array.isArray(lifeAccidentStageConfig.phases) ? lifeAccidentStageConfig.phases : [];
+    for (let i = 0; i < phases.length; i++) {
+      const raw = phases[i];
+      if (!raw || typeof raw.accidentPhaseId !== "string") {
+        continue;
+      }
+      const cond = { ...raw };
+      delete cond.accidentPhaseId;
+      delete cond.minAccidents;
+      if (matchesConditions(normalizeConditionObject(cond, null), state, null)) {
+        return raw.accidentPhaseId;
+      }
+    }
+    return "";
+  }
+
+  function getAccidentQuotaForPhase(phaseId) {
+    if (!phaseId) {
+      return 0;
+    }
+    const phases = Array.isArray(lifeAccidentStageConfig.phases) ? lifeAccidentStageConfig.phases : [];
+    const hit = phases.find((p) => p && p.accidentPhaseId === phaseId);
+    return hit && typeof hit.minAccidents === "number" ? hit.minAccidents : 0;
+  }
+
+  function getAccidentCountForState(state, phaseId) {
+    ensureAccidentLedger(state);
+    return state.accidentCountsByPhase[phaseId] || 0;
+  }
+
+  function bumpAccidentCountIfNeeded(event) {
+    if (!event || !Array.isArray(event.tags) || !event.tags.includes("accident")) {
+      return;
+    }
+    ensureAccidentLedger(gameState);
+    const phaseId = getAccidentPhaseId(gameState);
+    if (!phaseId) {
+      return;
+    }
+    gameState.accidentCountsByPhase[phaseId] = (gameState.accidentCountsByPhase[phaseId] || 0) + 1;
+  }
+
+  function isStudentLikeEducationState(state) {
+    const id = state && state.educationRoute && state.educationRoute.id ? state.educationRoute.id : "";
+    const list = Array.isArray(window.LIFE_TIMELINE_STUDENT_EDUCATION_IDS)
+      ? window.LIFE_TIMELINE_STUDENT_EDUCATION_IDS
+      : [];
+    return list.indexOf(id) !== -1;
+  }
+
+  function eventPassesTimelineRules(event, state) {
+    const st = state || gameState;
+    if (!event) {
+      return false;
+    }
+    const overrides =
+      window.LIFE_TIMELINE_EVENT_OVERRIDES && typeof window.LIFE_TIMELINE_EVENT_OVERRIDES === "object"
+        ? window.LIFE_TIMELINE_EVENT_OVERRIDES
+        : {};
+    const ov = overrides[event.id];
+    if (ov && ov.skipTimelineCheck) {
+      return true;
+    }
+    if (event.timelinePhaseIds && event.timelinePhaseIds.length) {
+      const phase = deriveTimelinePhase(st);
+      return event.timelinePhaseIds.indexOf(phase) !== -1;
+    }
+    const bands =
+      window.LIFE_TIMELINE_STAGE_BANDS && typeof window.LIFE_TIMELINE_STAGE_BANDS === "object"
+        ? window.LIFE_TIMELINE_STAGE_BANDS
+        : {};
+    const band = bands[event.stage];
+    if (!band) {
+      return true;
+    }
+    const age = typeof st.age === "number" ? st.age : 0;
+    if (typeof band.minAge === "number" && age < band.minAge) {
+      return false;
+    }
+    if (typeof band.maxAge === "number" && age > band.maxAge) {
+      return false;
+    }
+    if (band.requireStudentOrOverseas) {
+      const overseas = (st.flags || []).indexOf("life_path_overseas") !== -1;
+      if (!overseas && !isStudentLikeEducationState(st)) {
+        return false;
+      }
+    }
+    const extra = band.extraConditions || band.conditions;
+    if (extra && typeof extra === "object" && Object.keys(extra).length) {
+      if (!matchesConditions(normalizeConditionObject(extra, null), st, null)) {
+        return false;
+      }
+    }
+    if (Array.isArray(band.excludedEducationRouteIds) && band.excludedEducationRouteIds.length) {
+      const eduId = st.educationRoute && st.educationRoute.id ? st.educationRoute.id : "";
+      if (eduId && band.excludedEducationRouteIds.indexOf(eduId) !== -1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   function isEventEligible(event, candidateState) {
     const state = candidateState || gameState;
     const visitCount = state.eventVisitCounts && state.eventVisitCounts[event.id] ? state.eventVisitCounts[event.id] : 0;
@@ -4184,7 +4316,11 @@
       return false;
     }
 
-    return matchesConditions(event.conditions, state, event);
+    if (!matchesConditions(event.conditions, state, event)) {
+      return false;
+    }
+
+    return eventPassesTimelineRules(event, state);
   }
 
   function resolveRelationshipTargetId(targetId) {
@@ -4719,6 +4855,18 @@
       }
     }
 
+    if (Array.isArray(event.tags) && event.tags.includes("accident")) {
+      ensureAccidentLedger(currentState);
+      const ap = getAccidentPhaseId(currentState);
+      const quota = getAccidentQuotaForPhase(ap);
+      const have = getAccidentCountForState(currentState, ap);
+      const boost =
+        typeof lifeAccidentStageConfig.weightBoostUntilMet === "number" ? lifeAccidentStageConfig.weightBoostUntilMet : 0;
+      if (quota > 0 && have < quota && boost > 0) {
+        weight += boost;
+      }
+    }
+
     return Math.max(0, weight);
   }
 
@@ -5081,6 +5229,7 @@
     gameState.currentEventPendingEnter = false;
     rememberEnteredEvent(event.id);
     applyMutationBlock(event.effectsOnEnter, { skipAge: event.deferEnterAge, skipStatLinks: true });
+    bumpAccidentCountIfNeeded(event);
 
     if (checkInstantEnding()) {
       return;
@@ -5279,8 +5428,33 @@
 
     const educationRouteMissing = !gameState.educationRoute;
     const careerRouteMissing = !gameState.careerRoute;
+    const flags = gameState.flags || [];
 
     if (educationRouteMissing && gameState.age >= 18) {
+      if (flags.includes("life_path_non_gaokao")) {
+        const nonG = eventMap.get("non_gaokao_departure") || null;
+        if (nonG && isEventEligible(nonG)) {
+          return nonG;
+        }
+      }
+      if (flags.includes("life_path_overseas")) {
+        const os = eventMap.get("overseas_departure") || null;
+        if (os && isEventEligible(os)) {
+          return os;
+        }
+      }
+      if (flags.includes("gaokao_taken")) {
+        const gr = eventMap.get("gaokao_result") || null;
+        if (gr && isEventEligible(gr)) {
+          return gr;
+        }
+      }
+      if (flags.includes("life_path_gaokao")) {
+        const gd = eventMap.get("gaokao_day") || null;
+        if (gd && isEventEligible(gd)) {
+          return gd;
+        }
+      }
       const educationEvent = eventMap.get("score_and_volunteer") || null;
       if (educationEvent && isEventEligible(educationEvent)) {
         return educationEvent;
@@ -5312,9 +5486,13 @@
           candidateState.age = targetAge;
 
           if (matchesConditions(requestedRule, candidateState, requestedEvent)) {
-            fastForwardToSpecificAge(targetAge, "日子被推着往前走，你很快到了 " + targetAge + " 岁。");
-            setCurrentEvent(nextEventId);
-            return;
+            if (!eventPassesTimelineRules(requestedEvent, candidateState)) {
+              addHistory("原本衔接好的下一段，被现实节奏轻轻拐了个弯。");
+            } else {
+              fastForwardToSpecificAge(targetAge, "日子被推着往前走，你很快到了 " + targetAge + " 岁。");
+              setCurrentEvent(nextEventId);
+              return;
+            }
           }
         }
       }

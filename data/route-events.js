@@ -146,24 +146,6 @@
   window.LIFE_EXTRA_EVENTS = [
     ...(Array.isArray(window.LIFE_EXTRA_EVENTS) ? window.LIFE_EXTRA_EVENTS : []),
     event({
-      id: "score_and_volunteer",
-      stage: "transition",
-      title: "分数出来之后，你要自己决定未来去向",
-      text: "高考之后，摆在面前的不是自动播放的下一段，而是真正要由你承担后果的路线选择。城市、平台、自由度、钱、家里期待和你自己真正想试的方向，都挤在了这一刻。",
-      minAge: 18,
-      maxAge: 20,
-      weight: 10,
-      tags: ["gaokao", "choice", "route"],
-      effectsOnEnter: mutation({
-        effects: {
-          age: 1,
-          stats: {}
-        },
-        log: "你第一次切实感到，升学和去向不是一句文案，而是会改写后面几年生活结构的分流。"
-      }),
-      choices: educationRoutes.map((route) => buildRouteChoice(route, "education"))
-    }),
-    event({
       id: "graduation_offer",
       stage: "young_adult",
       title: "毕业之后：工作、深造、空白，还是回家缓一缓？",

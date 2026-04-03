@@ -1379,6 +1379,9 @@
       maxAge: 20,
       weight: 100,
       tags: ["transition", "milestone"],
+      conditions: condition({
+        excludedFlags: ["life_path_gaokao", "life_path_non_gaokao", "life_path_overseas"]
+      }),
       effectsOnEnter: mutation({
         customAction: "assign_gaokao_region",
         log: "高中结束以后，路不再只剩一条。你必须明确回答：参加高考，不参加高考，还是把人生直接搬到国外去读。"

@@ -11,7 +11,7 @@
     - flags 适合记录长期状态，例如是否经历过某段剧情。
     - tags 适合记录人生倾向或路线标签，例如 family / ambition / stability。
     - next 用法：undefined = 按当前状态继续抽事件；"event_id" = 强制跳转；null = 直接收束并判定结局。
-    - stage 只用于分组和阅读，不影响现有引擎逻辑。
+    - stage 会参与时间线软校验（见 data/timeline-rules.js）；同名事件 id 以**后加载**的脚本为准。
   */
 
   function toList(value) {
@@ -3183,15 +3183,15 @@
       ],
     }),
     event({
-      id: "score_and_volunteer",
+      id: "legacy_score_and_volunteer_stub_events_js",
       stage: "transition",
-      title: "分数出来之后，你要决定去哪里",
+      title: "【旧版占位·不会在游玩中出现】分数出来之后，你要决定去哪里",
       text: "分数是一种数字，但志愿更像是一场价值排序。城市、专业、面子、现实、离家远近，所有问题都在这几天被压缩得异常具体。",
       minAge: 18,
       maxAge: 20,
-      weight: 10,
+      weight: 0,
       tags: ["gaokao", "choice"],
-      conditions: condition({}),
+      conditions: condition({ requiredFlags: ["__legacy_event_disabled__"] }),
       effectsOnEnter: mutation({
         effects: {
           age: 1,
