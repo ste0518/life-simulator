@@ -69,6 +69,22 @@ input {
   opacity: 1;
 }
 
+/* —— Version badge (driven by version.js) —— */
+.app-version {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--muted-2);
+  opacity: 0.88;
+  pointer-events: none;
+  user-select: none;
+  z-index: 3;
+}
+
 .app-bg::after {
   content: "";
   position: absolute;
