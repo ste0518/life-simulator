@@ -147,8 +147,8 @@
       baseWeight: 48,
       require: requirement({
         minAge: 34,
-        minChoices: 92,
-        minStats: { stress: 82 },
+        minChoices: 100,
+        minStats: { stress: 88 },
         maxStats: { health: 6 },
         someFlags: ["chronic_condition", "health_warning", "overworked", "chronic_stress"]
       })
@@ -161,9 +161,9 @@
       baseWeight: 52,
       require: requirement({
         minAge: 34,
-        minChoices: 92,
-        minStats: { stress: 90 },
-        maxStats: { mental: 12, happiness: 14 },
+        minChoices: 100,
+        minStats: { stress: 93 },
+        maxStats: { mental: 8, happiness: 10 },
         someFlags: ["chronic_stress", "overworked", "career_first", "emotional_shutdown"]
       })
     }),
@@ -175,8 +175,8 @@
       baseWeight: 115,
       require: requirement({
         minAge: 28,
-        minChoices: 75,
-        minStats: { debt: 88, stress: 76 },
+        minChoices: 82,
+        minStats: { debt: 88, stress: 82 },
         maxStats: { money: 18 }
       })
     }),
@@ -188,8 +188,8 @@
       baseWeight: 105,
       require: requirement({
         minAge: 28,
-        minChoices: 76,
-        minStats: { debt: 82, stress: 76 },
+        minChoices: 82,
+        minStats: { debt: 82, stress: 82 },
         requiredFlags: ["debt_rollover"],
         someFlags: ["speculative_route", "major_bet_loss", "bad_company"]
       })

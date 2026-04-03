@@ -52,17 +52,18 @@
     discipline: "自律习惯"
   };
 
+  /** 出生登记前的中性底稿；选定家庭背景后由引擎写入财富/心理/幸福感/家庭支持与健康、压力、负债 */
   const DEFAULT_STATS = {
-    money: 22,
+    money: 34,
     debt: 0,
-    health: 60,
-    mental: 60,
-    happiness: 55,
+    health: 100,
+    mental: 58,
+    happiness: 58,
     intelligence: 25,
     social: 25,
     career: 0,
-    familySupport: 25,
-    stress: 20,
+    familySupport: 30,
+    stress: 0,
     discipline: 20
   };
 
@@ -328,7 +329,11 @@
        * 由引擎在每次属性联动结算后维护；读档时需随 state 一并序列化（若你后续做存档）。
        */
       wellbeingTracking: {
-        healthZeroConsecutiveSteps: 0
+        healthZeroConsecutiveSteps: 0,
+        /** 联动结算时压力连续处于高位的步数（用于慢性心理拖累，见 js/stress-mental-balance.js） */
+        highStressStreak: 0,
+        /** 联动结算时心理连续偏低的步数 */
+        lowMentalStreak: 0
       },
       setupStep: "naming",
       relationships: createInitialRelationships(),

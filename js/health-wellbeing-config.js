@@ -15,20 +15,23 @@
      * 默认：70–79 → -1，80–89 → -2，90–100 → -3。
      */
     stressHealthDecayBands: [
-      { atLeast: 90, perStep: 3 },
-      { atLeast: 80, perStep: 2 },
-      { atLeast: 70, perStep: 1 }
+      { atLeast: 92, perStep: 2 },
+      { atLeast: 84, perStep: 1 },
+      { atLeast: 76, perStep: 1 }
     ],
 
-    /** 压力分段：只影响心理/幸福感，不再叠加大额「连带扣健康」 */
-    stressMentalSoftThreshold: 45,
-    stressMentalMidThreshold: 60,
-    stressMentalHardThreshold: 75,
-    stressTierMentalSoft: -1,
-    stressTierMentalMid: -2,
-    stressTierMentalHard: -3,
-    stressTierHappinessMid: -1,
-    stressTierHappinessHard: -2,
+    /**
+     * 瞬时压力阶梯对心理的影响已迁至引擎「慢性高压」逻辑（js/stress-mental-balance.js）。
+     * 以下阈值仅保留给可能读取旧字段的工具或存档兼容；引擎不再用其做每步扣心理。
+     */
+    stressMentalSoftThreshold: 999,
+    stressMentalMidThreshold: 999,
+    stressMentalHardThreshold: 999,
+    stressTierMentalSoft: 0,
+    stressTierMentalMid: 0,
+    stressTierMentalHard: 0,
+    stressTierHappinessMid: 0,
+    stressTierHappinessHard: 0,
 
     /** 负债是否参与「每次结算扣健康」；默认关闭，避免与高压叠加暴毙 */
     debtAppliesDerivedHealth: false,
@@ -36,7 +39,7 @@
     debtDerivedHealthPerStep: -1,
 
     /** 健康偏低时的心理/情绪连带（略轻于旧版） */
-    lowHealthMentalThreshold: 28,
+    lowHealthMentalThreshold: 24,
     lowHealthMentalPenalty: -1,
     lowHealthHappinessPenalty: -1,
 
@@ -126,7 +129,7 @@
     healthZeroEndingMinStreak: 3,
     /** 还需满足「崩盘语境」之一；若为 false 则只看出血量与 streak */
     endingHealthZeroRequireContext: true,
-    healthCollapseMinStress: 70,
+    healthCollapseMinStress: 78,
     healthCollapseMinAgeFallback: 45,
     healthCollapseMinChoicesFallback: 72,
     healthCollapseSomeFlags: [

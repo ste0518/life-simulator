@@ -8,6 +8,9 @@
     - 文案：改 title / text / choice.text / log。
     - 触发条件：优先改 event 的 minAge / maxAge；其余条件放在 conditions 里。
     - 选项效果：改 effects.stats、addFlags、removeFlags、addTags、removeTags。
+    - 压力/心理：普通选项里的 stats.stress、stats.mental 默认会按 js/stress-mental-balance.js 缩小；
+      若剧情明确高压或明确疗愈，可依赖叙事关键词自动还原幅度，或在选项上设 explicitStress: true / explicitMental: true，
+      或在事件 tags 里加 explicit_stress、explicit_mental_harm 等（见该配置文件）。
     - flags 适合记录长期状态，例如是否经历过某段剧情。
     - tags 适合记录人生倾向或路线标签，例如 family / ambition / stability。
     - next 用法：undefined = 按当前状态继续抽事件；"event_id" = 强制跳转；null = 直接收束并判定结局。

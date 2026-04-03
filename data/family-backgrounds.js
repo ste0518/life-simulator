@@ -8,7 +8,9 @@
 
     统一维度（dimensions）：家庭财富 / 父母关系 / 家庭教育方式 / 家庭支持度 / 教育资源 / 情绪氛围
 
-    apply：仍复用事件 mutation 结构（stats 为在默认开局上的增量、flags / tags / romanceFlags）。
+    apply：仍复用事件 mutation 结构（stats 增量、flags / tags / romanceFlags）。
+    注意：引擎会忽略 apply.effects.stats 里的 money / debt / health / mental / happiness / stress / familySupport，
+    这些由 js/initial-stats-config.js 按 id 统一写入，避免与家庭表重复；其余属性（如 intelligence、social）仍在此增量。
 
     meta（可选，便于后续手改与 UI 展示）：
       tier          — 分层：high_resource | mid | strained | volatile 等（仅作分类，引擎可不读）
