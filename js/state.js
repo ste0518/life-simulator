@@ -228,6 +228,13 @@
       enteredEvents: [],
       eventVisitCounts: {},
       recentEventIds: [],
+      /**
+       * 叙事去重：最近若干次选择对应的事件签名（含换皮簇），用于降低短窗口内同类事件连刷。
+       * 每项：{ id, s: 签名或 null, a: 年龄, c: choiceCount }
+       */
+      recentStoryDedupe: [],
+      /** 每个叙事签名最后一次触发时的年龄；配合事件的 dedupeMinAgeGap（年） */
+      storyDedupeSigLastAge: {},
       currentEventId: null,
       currentEventPendingEnter: false,
       activeRelationshipId: null,

@@ -12,6 +12,13 @@
     - tags 适合记录人生倾向或路线标签，例如 family / ambition / stability。
     - next 用法：undefined = 按当前状态继续抽事件；"event_id" = 强制跳转；null = 直接收束并判定结局。
     - stage 会参与时间线软校验（见 data/timeline-rules.js）；同名事件 id 以**后加载**的脚本为准。
+    - 去重（引擎统一处理，可选字段）：
+      · repeatable: false → 每局最多一次（与 visited / notVisited 条件可叠加）。
+      · cooldownChoices → 与 recentEventIds 配合，同一 id 在若干次选择内不再出现。
+      · dedupeKey: "同一模板簇" 字符串 → 不同 id 但 key 相同的事件，短窗口内不会连刷（换皮去重）。
+      · dedupeSpacingChoices: 数字 → 覆盖默认「最近几次选择内禁止同签名」的宽度。
+      · dedupeMinAgeGap: 数字 → 同一签名两次触发至少相隔的年数。
+      · skipNarrativeDedupe: true → 不参与叙事签名去重（兜底/里程碑可在数据里显式标）。
   */
 
   function toList(value) {

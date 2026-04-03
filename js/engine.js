@@ -618,14 +618,18 @@
     }
 
     if (stage === "later_life") {
-      return 10;
+      return 12;
     }
 
     if (stage === "midlife") {
-      return 8;
+      return 10;
     }
 
-    return 6;
+    if (stage === "school" || stage === "adolescence" || stage === "highschool" || stage === "college") {
+      return 9;
+    }
+
+    return 8;
   }
 
   function getDefaultEventMaxVisits(stage, repeatable) {
@@ -637,22 +641,45 @@
       return 2;
     }
 
+    if (stage === "school" || stage === "adolescence" || stage === "highschool" || stage === "college") {
+      return 2;
+    }
+
     return 3;
   }
 
   function normalizeEventObject(event, index) {
     const source = event && typeof event === "object" ? event : {};
     const repeatable = Boolean(source.repeatable);
+    const tags = normalizeStringArray(source.tags);
+    const rawId = typeof source.id === "string" && source.id.trim() ? source.id.trim() : "";
     const fallbackId = "event_" + String(index + 1);
     const normalizedEvent = {
-      id: typeof source.id === "string" && source.id.trim() ? source.id.trim() : fallbackId,
+      id: rawId || fallbackId,
       stage: typeof source.stage === "string" && source.stage.trim() ? source.stage.trim() : "misc",
       title: typeof source.title === "string" && source.title.trim() ? source.title.trim() : "未命名事件",
       text: typeof source.text === "string" ? source.text : "",
       minAge: typeof source.minAge === "number" ? source.minAge : null,
       maxAge: typeof source.maxAge === "number" ? source.maxAge : null,
       weight: typeof source.weight === "number" ? source.weight : 1,
-      tags: normalizeStringArray(source.tags),
+      tags,
+      /** 可选：同一 key 的事件视为同一「叙事簇」，短窗口内最多出现一个 */
+      dedupeKey: typeof source.dedupeKey === "string" && source.dedupeKey.trim() ? source.dedupeKey.trim() : "",
+      /** 可选：覆盖默认的「最近几次选择内禁止同签名」宽度 */
+      dedupeSpacingChoices:
+        typeof source.dedupeSpacingChoices === "number" && source.dedupeSpacingChoices >= 0
+          ? Math.floor(source.dedupeSpacingChoices)
+          : null,
+      /** 可选：同一签名两次触发至少间隔的年数（与 spacing 同时生效） */
+      dedupeMinAgeGap:
+        typeof source.dedupeMinAgeGap === "number" && source.dedupeMinAgeGap > 0
+          ? Math.floor(source.dedupeMinAgeGap)
+          : null,
+      /** 为 true 时不参与叙事签名去重（兜底、填充、里程碑等） */
+      skipNarrativeDedupe:
+        Boolean(source.skipNarrativeDedupe) ||
+        tags.indexOf("life_padding") !== -1 ||
+        (rawId && /_milestone$/.test(rawId)),
       repeatable,
       cooldownChoices:
         typeof source.cooldownChoices === "number"
@@ -4138,14 +4165,168 @@
     gameState.eventVisitCounts[eventId] = (gameState.eventVisitCounts[eventId] || 0) + 1;
     gameState.recentEventIds.unshift(eventId);
 
-    if (gameState.recentEventIds.length > 18) {
-      gameState.recentEventIds.length = 18;
+    if (gameState.recentEventIds.length > 24) {
+      gameState.recentEventIds.length = 24;
     }
+
+    pushStoryDedupeLedger(gameState, eventMap.get(eventId) || null);
   }
 
   function rememberEnteredEvent(eventId) {
     if (!gameState.enteredEvents.includes(eventId)) {
       gameState.enteredEvents.push(eventId);
+    }
+  }
+
+  /** 参与「自动叙事簇」签名的标签；换皮事件若标签组合相同会更难连刷 */
+  var NARRATIVE_DEDUPE_TAG_SET = new Set([
+    "accident",
+    "romance",
+    "children",
+    "parenting",
+    "school",
+    "adolescence",
+    "highschool",
+    "college",
+    "career",
+    "work",
+    "job_hunt",
+    "education",
+    "family",
+    "health",
+    "mental",
+    "money",
+    "social",
+    "housing",
+    "stability",
+    "pressure",
+    "reflection",
+    "later_life",
+    "childhood",
+    "happiness"
+  ]);
+
+  function ensureStoryDedupe(state) {
+    const s = state || gameState;
+    if (!Array.isArray(s.recentStoryDedupe)) {
+      s.recentStoryDedupe = [];
+    }
+    if (!s.storyDedupeSigLastAge || typeof s.storyDedupeSigLastAge !== "object") {
+      s.storyDedupeSigLastAge = {};
+    }
+  }
+
+  function relationshipStatusSaltForDedupe(event) {
+    const rule =
+      event && event.conditions && Array.isArray(event.conditions.activeRelationshipStatuses)
+        ? event.conditions.activeRelationshipStatuses
+        : [];
+    if (!rule.length) {
+      return "";
+    }
+    return rule
+      .map((x) => String(x || "").trim())
+      .filter(Boolean)
+      .sort()
+      .join(",");
+  }
+
+  function computeStorySignature(event, state) {
+    if (!event || event.skipNarrativeDedupe) {
+      return null;
+    }
+    const st = state || gameState;
+    let base;
+    if (event.dedupeKey) {
+      base = "key:" + event.dedupeKey;
+    } else {
+      const narrative = (event.tags || []).filter((t) => NARRATIVE_DEDUPE_TAG_SET.has(t)).sort();
+      if (!narrative.length) {
+        return null;
+      }
+      base = "auto:" + narrative.join("|");
+    }
+    const rs = relationshipStatusSaltForDedupe(event);
+    if (rs) {
+      base += "|rs:" + rs;
+    }
+    if (event.tags && event.tags.indexOf("romance") !== -1 && st.activeRelationshipId) {
+      base += "|rel:" + st.activeRelationshipId;
+    }
+    return base;
+  }
+
+  function defaultNarrativeSpacingChoices(event) {
+    const tags = event.tags || [];
+    if (tags.indexOf("accident") !== -1) {
+      return 8;
+    }
+    if (tags.indexOf("romance") !== -1) {
+      return 8;
+    }
+    if (tags.indexOf("children") !== -1 || tags.indexOf("parenting") !== -1) {
+      return 6;
+    }
+    if (tags.some((t) => t === "school" || t === "adolescence" || t === "highschool" || t === "college")) {
+      return 5;
+    }
+    if (tags.indexOf("career") !== -1 || tags.indexOf("work") !== -1 || tags.indexOf("job_hunt") !== -1) {
+      return 5;
+    }
+    return 4;
+  }
+
+  function spacingChoicesForEvent(event) {
+    if (typeof event.dedupeSpacingChoices === "number") {
+      return event.dedupeSpacingChoices;
+    }
+    return defaultNarrativeSpacingChoices(event);
+  }
+
+  function isNarrativeDedupeBlocked(event, state) {
+    if (!event || event.skipNarrativeDedupe) {
+      return false;
+    }
+    const sig = computeStorySignature(event, state);
+    if (!sig) {
+      return false;
+    }
+    const st = state || gameState;
+    ensureStoryDedupe(st);
+    if (typeof event.dedupeMinAgeGap === "number" && event.dedupeMinAgeGap > 0) {
+      const lastAge = st.storyDedupeSigLastAge[sig];
+      if (typeof lastAge === "number" && st.age - lastAge < event.dedupeMinAgeGap) {
+        return true;
+      }
+    }
+    const spacing = spacingChoicesForEvent(event);
+    const recent = st.recentStoryDedupe;
+    for (let i = 0; i < recent.length && i < spacing; i++) {
+      if (recent[i].s === sig) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function pushStoryDedupeLedger(state, event) {
+    if (!event) {
+      return;
+    }
+    const st = state || gameState;
+    ensureStoryDedupe(st);
+    const sig = computeStorySignature(event, st);
+    st.recentStoryDedupe.unshift({
+      id: event.id,
+      s: sig,
+      a: st.age,
+      c: typeof st.choiceCount === "number" ? st.choiceCount : 0
+    });
+    if (st.recentStoryDedupe.length > 36) {
+      st.recentStoryDedupe.length = 36;
+    }
+    if (sig) {
+      st.storyDedupeSigLastAge[sig] = st.age;
     }
   }
 
@@ -4909,8 +5090,11 @@
     if (!eligible || !eligible.length) {
       return null;
     }
-    const accidents = eligible.filter(eventIsAccidentTagged);
-    const normal = eligible.filter((e) => !eventIsAccidentTagged(e));
+    ensureStoryDedupe(gameState);
+    const narrativeOk = eligible.filter((e) => !isNarrativeDedupeBlocked(e, gameState));
+    const pool = narrativeOk.length ? narrativeOk : eligible;
+    const accidents = pool.filter(eventIsAccidentTagged);
+    const normal = pool.filter((e) => !eventIsAccidentTagged(e));
     const streak =
       gameState && typeof gameState.eventsSinceLastAccident === "number" ? gameState.eventsSinceLastAccident : 0;
 
