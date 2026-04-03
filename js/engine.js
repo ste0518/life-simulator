@@ -506,6 +506,9 @@
       maxChildCount:
         typeof conditions.maxChildCount === "number" ? conditions.maxChildCount : null,
       inventoryMin: normalizeNumberMap(conditions.inventoryMin),
+      minHealthZeroStreak:
+        typeof conditions.minHealthZeroStreak === "number" ? conditions.minHealthZeroStreak : null,
+      requireHealthCollapseContext: Boolean(conditions.requireHealthCollapseContext),
       debtPrisonOrFlag: Boolean(conditions.debtPrisonOrFlag),
       debtToMoneyPrison: normalizeDebtToMoneyPrison(conditions.debtToMoneyPrison)
     };
@@ -596,6 +599,8 @@
     if (Object.prototype.hasOwnProperty.call(source, "next")) {
       normalizedChoice.next = source.next;
     }
+
+    normalizedChoice.directHealth = Boolean(source.directHealth);
 
     return normalizedChoice;
   }
@@ -688,7 +693,9 @@
       maxVisits:
         typeof source.maxVisits === "number"
           ? Math.max(1, source.maxVisits)
-          : getDefaultEventMaxVisits(typeof source.stage === "string" ? source.stage.trim() : "misc", repeatable)
+          : getDefaultEventMaxVisits(typeof source.stage === "string" ? source.stage.trim() : "misc", repeatable),
+      /** 为 true 时该事件的入场/选项中负向 health 不受叙事过滤（慎用，便于单条事件精调） */
+      directHealthEffects: Boolean(source.directHealthEffects)
     };
 
     normalizedEvent.conditions = normalizeConditionObject(source.conditions, normalizedEvent);
@@ -1248,6 +1255,133 @@
     gameState.stats[key] = clampStat(key, currentValue + appliedDelta);
   }
 
+  function getHealthWellbeingConfig() {
+    const raw = window.LIFE_HEALTH_WELLBEING_CONFIG;
+    return raw && typeof raw === "object" ? raw : {};
+  }
+
+  function eventTagsAllowDirectHealth(event, cfg) {
+    if (!event || !cfg || !Array.isArray(cfg.directHealthEventTags)) {
+      return false;
+    }
+    const tags = event.tags || [];
+    return cfg.directHealthEventTags.some(function (t) {
+      return tags.indexOf(t) !== -1;
+    });
+  }
+
+  function narrativeAllowsDirectHealth(haystack, cfg) {
+    if (!haystack || !cfg || !Array.isArray(cfg.healthNarrativeKeywords)) {
+      return false;
+    }
+    return cfg.healthNarrativeKeywords.some(function (kw) {
+      return kw && haystack.indexOf(kw) !== -1;
+    });
+  }
+
+  function resolveNegativeHealthStatDelta(rawDelta, options) {
+    const cfg = getHealthWellbeingConfig();
+    if (typeof rawDelta !== "number" || rawDelta >= 0) {
+      return rawDelta;
+    }
+    if (cfg.enabled === false || cfg.filterUncontextualNegativeHealth === false) {
+      return rawDelta;
+    }
+    const settings = options || {};
+    if (settings.allowAnyHealthEffects) {
+      return rawDelta;
+    }
+    const event = settings.mutationEvent || null;
+    const choice = settings.mutationChoice || null;
+    if (choice && choice.directHealth) {
+      return rawDelta;
+    }
+    if (event && event.directHealthEffects) {
+      return rawDelta;
+    }
+    if (event && eventTagsAllowDirectHealth(event, cfg)) {
+      return rawDelta;
+    }
+    const parts = [];
+    if (event) {
+      parts.push(event.title || "", event.text || "");
+    }
+    if (choice) {
+      parts.push(choice.text || "");
+    }
+    const hay = parts.join("\n");
+    if (narrativeAllowsDirectHealth(hay, cfg)) {
+      return rawDelta;
+    }
+    return 0;
+  }
+
+  function matchesHealthCollapseContextForEnding(state) {
+    const cfg = getHealthWellbeingConfig();
+    if (cfg.endingHealthZeroRequireContext === false) {
+      return true;
+    }
+    const st = state && state.stats ? state.stats : {};
+    const stress = typeof st.stress === "number" ? st.stress : 0;
+    const age = state && typeof state.age === "number" ? state.age : 0;
+    const choices = state && typeof state.choiceCount === "number" ? state.choiceCount : 0;
+    const flags = (state && state.flags) || [];
+    if (stress >= (typeof cfg.healthCollapseMinStress === "number" ? cfg.healthCollapseMinStress : 70)) {
+      return true;
+    }
+    if (age >= (typeof cfg.healthCollapseMinAgeFallback === "number" ? cfg.healthCollapseMinAgeFallback : 45)) {
+      return true;
+    }
+    if (
+      choices >=
+      (typeof cfg.healthCollapseMinChoicesFallback === "number" ? cfg.healthCollapseMinChoicesFallback : 72)
+    ) {
+      return true;
+    }
+    const some = Array.isArray(cfg.healthCollapseSomeFlags) ? cfg.healthCollapseSomeFlags : [];
+    if (some.some(function (f) {
+      return f && flags.indexOf(f) !== -1;
+    })) {
+      return true;
+    }
+    const streak =
+      state &&
+      state.wellbeingTracking &&
+      typeof state.wellbeingTracking.healthZeroConsecutiveSteps === "number"
+        ? state.wellbeingTracking.healthZeroConsecutiveSteps
+        : 0;
+    if (streak >= (typeof cfg.healthZeroEndingAbsoluteStreak === "number" ? cfg.healthZeroEndingAbsoluteStreak : 8)) {
+      return true;
+    }
+    return false;
+  }
+
+  function syncWellbeingTrackingAfterMutation() {
+    const cfg = getHealthWellbeingConfig();
+    if (!gameState.wellbeingTracking || typeof gameState.wellbeingTracking !== "object") {
+      gameState.wellbeingTracking = { healthZeroConsecutiveSteps: 0 };
+    }
+    const h = typeof gameState.stats.health === "number" ? gameState.stats.health : 0;
+    if (h <= 0) {
+      gameState.wellbeingTracking.healthZeroConsecutiveSteps =
+        (gameState.wellbeingTracking.healthZeroConsecutiveSteps || 0) + 1;
+    } else {
+      gameState.wellbeingTracking.healthZeroConsecutiveSteps = 0;
+    }
+    const riskFlag = typeof cfg.healthRiskFlag === "string" && cfg.healthRiskFlag ? cfg.healthRiskFlag : "health_at_risk";
+    const enter = typeof cfg.healthRiskBandEnter === "number" ? cfg.healthRiskBandEnter : 16;
+    const clearAbove = typeof cfg.healthRiskBandClear === "number" ? cfg.healthRiskBandClear : 20;
+    if (h <= enter) {
+      if (gameState.flags.indexOf(riskFlag) === -1) {
+        gameState.flags.push(riskFlag);
+      }
+    } else if (h >= clearAbove) {
+      gameState.flags = gameState.flags.filter(function (f) {
+        return f !== riskFlag;
+      });
+    }
+  }
+
   function getRelationshipSnapshot(state, relationshipId) {
     const id = String(relationshipId || "").trim();
     if (!id || !state || !state.relationships) {
@@ -1260,6 +1394,19 @@
   function applyDerivedStatLinks() {
     const derivedChanges = {};
     const currentPartner = getCurrentPartner(gameState);
+    const hw = getHealthWellbeingConfig();
+    const stress = gameState.stats.stress || 0;
+    const sSoft = typeof hw.stressMentalSoftThreshold === "number" ? hw.stressMentalSoftThreshold : 45;
+    const sMid = typeof hw.stressMentalMidThreshold === "number" ? hw.stressMentalMidThreshold : 60;
+    const sHard = typeof hw.stressMentalHardThreshold === "number" ? hw.stressMentalHardThreshold : 75;
+    const mSoft = typeof hw.stressTierMentalSoft === "number" ? hw.stressTierMentalSoft : -1;
+    const mMid = typeof hw.stressTierMentalMid === "number" ? hw.stressTierMentalMid : -2;
+    const mHard = typeof hw.stressTierMentalHard === "number" ? hw.stressTierMentalHard : -3;
+    const hMid = typeof hw.stressTierHappinessMid === "number" ? hw.stressTierHappinessMid : -1;
+    const hHard = typeof hw.stressTierHappinessHard === "number" ? hw.stressTierHappinessHard : -2;
+    const lowHTh = typeof hw.lowHealthMentalThreshold === "number" ? hw.lowHealthMentalThreshold : 28;
+    const lowHM = typeof hw.lowHealthMentalPenalty === "number" ? hw.lowHealthMentalPenalty : -1;
+    const lowHH = typeof hw.lowHealthHappinessPenalty === "number" ? hw.lowHealthHappinessPenalty : -1;
 
     function addChange(key, delta) {
       if (!delta) {
@@ -1269,17 +1416,47 @@
       derivedChanges[key] = (derivedChanges[key] || 0) + delta;
     }
 
-    if (gameState.stats.stress >= 75) {
-      addChange("mental", -3);
-      addChange("health", -2);
-      addChange("happiness", -2);
-    } else if (gameState.stats.stress >= 60) {
-      addChange("mental", -2);
-      addChange("health", -1);
-      addChange("happiness", -1);
-    } else if (gameState.stats.stress >= 45) {
-      addChange("mental", -1);
+    if (stress >= sHard) {
+      addChange("mental", mHard);
+      addChange("happiness", hHard);
+    } else if (stress >= sMid) {
+      addChange("mental", mMid);
+      addChange("happiness", hMid);
+    } else if (stress >= sSoft) {
+      addChange("mental", mSoft);
     }
+
+    (function applyStressHealthDecayBands() {
+      const bands = hw.stressHealthDecayBands;
+      if (Array.isArray(bands) && bands.length) {
+        const sorted = bands
+          .filter(function (b) {
+            return b && typeof b.atLeast === "number";
+          })
+          .slice()
+          .sort(function (a, b) {
+            return (b.atLeast || 0) - (a.atLeast || 0);
+          });
+        for (let i = 0; i < sorted.length; i++) {
+          const b = sorted[i];
+          if (stress >= b.atLeast) {
+            const n = typeof b.perStep === "number" ? b.perStep : 0;
+            if (n) {
+              addChange("health", -Math.abs(n));
+            }
+            return;
+          }
+        }
+        return;
+      }
+      const legacyTh =
+        typeof hw.stressHealthDecayThreshold === "number" ? hw.stressHealthDecayThreshold : 88;
+      const legacyAmt =
+        typeof hw.stressHealthDecayPerStep === "number" ? hw.stressHealthDecayPerStep : 1;
+      if (stress >= legacyTh && legacyAmt) {
+        addChange("health", -Math.abs(legacyAmt));
+      }
+    })();
 
     if (gameState.stats.money <= 12) {
       addChange("stress", 2);
@@ -1290,7 +1467,6 @@
       addChange("stress", 4);
       addChange("mental", -3);
       addChange("happiness", -3);
-      addChange("health", -2);
     } else if (gameState.stats.debt >= 60) {
       addChange("stress", 3);
       addChange("mental", -2);
@@ -1300,9 +1476,16 @@
       addChange("happiness", -1);
     }
 
-    if (gameState.stats.health <= 30) {
-      addChange("mental", -2);
-      addChange("happiness", -2);
+    if (hw.debtAppliesDerivedHealth && (gameState.stats.debt || 0) >= (hw.debtDerivedHealthThreshold || 96)) {
+      const dh = typeof hw.debtDerivedHealthPerStep === "number" ? hw.debtDerivedHealthPerStep : -1;
+      if (dh) {
+        addChange("health", dh);
+      }
+    }
+
+    if ((gameState.stats.health || 0) <= lowHTh) {
+      addChange("mental", lowHM);
+      addChange("happiness", lowHH);
     }
 
     if (gameState.stats.mental <= 30) {
@@ -1545,7 +1728,8 @@
 
     applyMutationBlock(route.apply, {
       skipAge: true,
-      skipStatLinks: true
+      skipStatLinks: true,
+      allowAnyHealthEffects: true
     });
   }
 
@@ -3642,6 +3826,20 @@
       }
     }
 
+    if (typeof rule.minHealthZeroStreak === "number") {
+      const streak =
+        (state.wellbeingTracking && typeof state.wellbeingTracking.healthZeroConsecutiveSteps === "number"
+          ? state.wellbeingTracking.healthZeroConsecutiveSteps
+          : 0) || 0;
+      if (streak < rule.minHealthZeroStreak) {
+        return false;
+      }
+    }
+
+    if (rule.requireHealthCollapseContext && !matchesHealthCollapseContextForEnding(state)) {
+      return false;
+    }
+
     if (rule.familyBackgroundIds.length) {
       const familyBackgroundId = state.familyBackground && state.familyBackground.id ? state.familyBackground.id : "";
       if (!familyBackgroundId || !rule.familyBackgroundIds.includes(familyBackgroundId)) {
@@ -4115,7 +4313,7 @@
       gameState.pendingFamilyBackgroundId = null;
     }
 
-    applyMutationBlock(background.apply, { skipStatLinks: true });
+    applyMutationBlock(background.apply, { skipStatLinks: true, allowAnyHealthEffects: true });
     if (!settings.skipHistory) {
       addHistory("你的原生家庭抽到了“" + background.name + "”。");
 
@@ -4665,7 +4863,15 @@
 
     if (effects.stats) {
       for (const [key, delta] of Object.entries(effects.stats)) {
-        adjustStat(key, delta);
+        let applied = delta;
+        if (key === "health") {
+          applied = resolveNegativeHealthStatDelta(delta, {
+            allowAnyHealthEffects: Boolean(settings.allowAnyHealthEffects),
+            mutationEvent: settings.mutationEvent || null,
+            mutationChoice: settings.mutationChoice || null
+          });
+        }
+        adjustStat(key, applied);
       }
     }
 
@@ -4724,6 +4930,7 @@
 
     if (!settings.skipStatLinks) {
       applyDerivedStatLinks();
+      syncWellbeingTrackingAfterMutation();
     }
 
     autoRepayStudyLoan();
@@ -5467,7 +5674,11 @@
 
     gameState.currentEventPendingEnter = false;
     rememberEnteredEvent(event.id);
-    applyMutationBlock(event.effectsOnEnter, { skipAge: event.deferEnterAge, skipStatLinks: true });
+    applyMutationBlock(event.effectsOnEnter, {
+      skipAge: event.deferEnterAge,
+      skipStatLinks: true,
+      mutationEvent: event
+    });
     bumpAccidentCountIfNeeded(event);
 
     if (checkInstantEnding()) {
@@ -5869,7 +6080,7 @@
             }
           }
         : option;
-    applyMutationBlock(optionToApply);
+    applyMutationBlock(optionToApply, { mutationEvent: event, mutationChoice: option });
 
     if (shouldDeferDebtPrisonForNarrative()) {
       setCurrentEvent(PRISON_DEBT_GATE_EVENT_ID);

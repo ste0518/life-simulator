@@ -71,7 +71,9 @@
                   ? source.debtToMoneyPrison.moneyMultiple
                   : 5
             }
-          : null
+          : null,
+      minHealthZeroStreak: typeof source.minHealthZeroStreak === "number" ? source.minHealthZeroStreak : null,
+      requireHealthCollapseContext: Boolean(source.requireHealthCollapseContext)
     };
   }
 
@@ -111,7 +113,9 @@
       instant: true,
       baseWeight: 520,
       require: requirement({
-        maxStats: { health: 0 }
+        maxStats: { health: 0 },
+        minHealthZeroStreak: 3,
+        requireHealthCollapseContext: true
       })
     }),
     ending({
@@ -140,11 +144,11 @@
       title: "结局：身体先一步垮下去",
       text: "你不是突然倒下的，而是在很多次“先扛过去再说”的累积里，把身体一路透支到了再也顶不住的边缘。",
       instant: true,
-      baseWeight: 120,
+      baseWeight: 48,
       require: requirement({
-        minAge: 30,
-        minChoices: 72,
-        minStats: { stress: 78 },
+        minAge: 34,
+        minChoices: 92,
+        minStats: { stress: 82 },
         maxStats: { health: 6 },
         someFlags: ["chronic_condition", "health_warning", "overworked", "chronic_stress"]
       })
@@ -154,11 +158,11 @@
       title: "结局：长期高压之后，整个人都被压垮了",
       text: "你长期靠意志力把生活往前拧，工作、成绩和责任都没有立刻输，可身心先失去了继续运转的能力。",
       instant: true,
-      baseWeight: 110,
+      baseWeight: 52,
       require: requirement({
-        minAge: 32,
-        minChoices: 80,
-        minStats: { stress: 88 },
+        minAge: 34,
+        minChoices: 92,
+        minStats: { stress: 90 },
         maxStats: { mental: 12, happiness: 14 },
         someFlags: ["chronic_stress", "overworked", "career_first", "emotional_shutdown"]
       })

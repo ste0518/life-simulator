@@ -8075,7 +8075,7 @@
             stats: {
               career: 4,
               happiness: -4,
-              health: -16,
+              health: -10,
             },
           },
           addFlags: ["health_warning", "chronic_stress", "overworked"],

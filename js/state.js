@@ -323,6 +323,13 @@
       accidentCountsByPhase: {},
       /** 自上次「意外」事件以来，已完成的非意外事件次数（用于约 5:1 节奏） */
       eventsSinceLastAccident: 0,
+      /**
+       * 健康/压力系统：连续若干次结算后健康仍为 0 的计数（用于「身体尽头」类结局缓冲）。
+       * 由引擎在每次属性联动结算后维护；读档时需随 state 一并序列化（若你后续做存档）。
+       */
+      wellbeingTracking: {
+        healthZeroConsecutiveSteps: 0
+      },
       setupStep: "naming",
       relationships: createInitialRelationships(),
       gameStarted: false,
