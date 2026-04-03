@@ -6589,13 +6589,23 @@
     }
 
     gameState.currentEventPendingEnter = false;
-    rememberEnteredEvent(event.id);
     applyMutationBlock(event.effectsOnEnter, {
       skipAge: event.deferEnterAge,
       skipStatLinks: true,
       mutationEvent: event
     });
     bumpAccidentCountIfNeeded(event);
+
+    if (event.id !== PRISON_DEBT_GATE_EVENT_ID && shouldDeferDebtPrisonForNarrative()) {
+      setCurrentEvent(PRISON_DEBT_GATE_EVENT_ID);
+      gameState.currentEventPendingEnter = true;
+      const gate = eventMap.get(PRISON_DEBT_GATE_EVENT_ID) || null;
+      if (gate) {
+        return applyEventOnEnter(gate);
+      }
+    }
+
+    rememberEnteredEvent(event.id);
 
     if (checkInstantEnding()) {
       return;
@@ -6622,7 +6632,11 @@
 
     applyEventOnEnter(event);
 
-    return gameState.gameOver ? null : event;
+    if (gameState.gameOver) {
+      return null;
+    }
+
+    return eventMap.get(gameState.currentEventId) || null;
   }
 
   function isShopAutoDebtEnabled() {
