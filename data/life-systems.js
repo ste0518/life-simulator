@@ -141,7 +141,12 @@
       choices: shopItems
         .map((item) =>
           ch({
-            text: "买下「" + item.name + "」",
+            text:
+              "买下「" +
+              item.name +
+              "」（" +
+              (typeof item.price === "number" ? item.price : 0) +
+              " 财富）",
             customAction: "shop_purchase",
             customPayload: { itemId: item.id },
             conditions: {}

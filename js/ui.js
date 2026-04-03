@@ -886,11 +886,12 @@
       buy.className = "shop-item-buy";
       const affordable = engine.canPurchaseShopItem(item.id);
       buy.disabled = !canUse || !affordable;
+      const priceN = typeof item.price === "number" ? item.price : 0;
       buy.textContent = !canUse
         ? "当前不可用"
         : !affordable
           ? "积蓄不足"
-          : "购买（" + (typeof item.price === "number" ? item.price : 0) + "）";
+          : "购买（" + priceN + " " + stateApi.STAT_LABELS.money + "）";
 
       buy.addEventListener("click", function () {
         engine.purchaseShopItem(item.id);

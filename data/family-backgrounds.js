@@ -570,7 +570,7 @@
         教育资源: "中等",
         情绪氛围: "温暖"
       },
-      weight: 1.12,
+      weight: 0.6,
       storyHookTags: ["warm_support_beat", "emotion_safe_childhood"],
       meta: {
         tier: "mid",
@@ -618,7 +618,7 @@
         教育资源: "有限但尽力争取",
         情绪氛围: "克制而有韧性"
       },
-      weight: 1.08,
+      weight: 0.7,
       storyHookTags: ["financial_scarcity_guilt", "upward_grit"],
       meta: {
         tier: "strained",
@@ -666,7 +666,7 @@
         教育资源: "看运气",
         情绪氛围: "压迫"
       },
-      weight: 1.05,
+      weight: 0.7,
       storyHookTags: ["emotional_vigilance_child", "conflict_home_echo"],
       meta: {
         tier: "strained",
@@ -714,7 +714,7 @@
         教育资源: "普通",
         情绪氛围: "自由但有缺口"
       },
-      weight: 1.02,
+      weight: 0.7,
       storyHookTags: ["self_taught_childhood", "low_structure_home"],
       meta: {
         tier: "mid",
@@ -763,7 +763,7 @@
         教育资源: "有限",
         情绪氛围: "空缺感明显"
       },
-      weight: 1.02,
+      weight: 0.7,
       storyHookTags: ["care_absence_echo", "early_independence"],
       meta: {
         tier: "strained",
@@ -811,7 +811,7 @@
         教育资源: "较好",
         情绪氛围: "压抑"
       },
-      weight: 1.05,
+      weight: 0.7,
       storyHookTags: ["grade_pressure_home", "emotion_suppressed_child"],
       meta: {
         tier: "mid",
@@ -859,7 +859,7 @@
         教育资源: "有限",
         情绪氛围: "平稳"
       },
-      weight: 1.08,
+      weight: 0.7,
       storyHookTags: ["hometown_tie_story", "resource_lag_childhood"],
       meta: {
         tier: "mid",
@@ -961,7 +961,7 @@
         教育资源: "较好",
         情绪氛围: "冷淡"
       },
-      weight: 1,
+      weight: 0.7,
       storyHookTags: ["respectability_facet", "emotionally_guarded_child"],
       meta: {
         tier: "mid",
