@@ -829,6 +829,10 @@
       minAge: 9,
       maxAge: 11,
       weight: 6,
+      dedupeKey: "primary_peer_life_mesh",
+      dedupeSpacingChoices: 7,
+      dedupeMinAgeGap: 2,
+      cooldownChoices: 6,
       tags: ["friendship", "school"],
       conditions: condition({}),
       effectsOnEnter: mutation({

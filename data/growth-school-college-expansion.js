@@ -325,7 +325,11 @@
       minAge: 9,
       maxAge: 11,
       weight: 5,
-      repeatable: true,
+      repeatable: false,
+      dedupeKey: "primary_peer_life_mesh",
+      dedupeSpacingChoices: 7,
+      dedupeMinAgeGap: 2,
+      cooldownChoices: 10,
       tags: ["school", "social"],
       choices: [
         choice({

@@ -88,6 +88,7 @@
     estranged: "渐渐疏远",
     breakup: "分手 / 关系断开",
     broken: "分手 / 已经分开",
+    divorced: "离婚 / 婚姻结束",
     reconnect: "重逢 / 尝试修复",
     reconnected: "重逢后重新靠近",
     missed: "错过了",
@@ -336,6 +337,16 @@
         lowMentalStreak: 0
       },
       setupStep: "naming",
+      /**
+       * 关系里程碑是否已触发（按角色 id），例如 affection80：好感首次达 80 的自动婚姻讨论。
+       * 引擎写入；存档时需一并序列化。
+       */
+      relationshipMilestonesFired: {},
+      /**
+       * 下一回合优先展示的强制事件（绕过常规加权的里程碑等）。
+       * { eventId: string, partnerId?: string }
+       */
+      pendingForcedEvent: null,
       relationships: createInitialRelationships(),
       gameStarted: false,
       ending: null,

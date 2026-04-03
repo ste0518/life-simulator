@@ -1296,6 +1296,19 @@
         card.appendChild(switchButton);
       }
 
+      if (typeof engine.canProposeToRelationship === "function" && engine.canProposeToRelationship(state, relationship.id)) {
+        const proposeBtn = document.createElement("button");
+        proposeBtn.type = "button";
+        proposeBtn.className = "relationship-propose-button";
+        proposeBtn.textContent = "求婚";
+        proposeBtn.setAttribute("aria-label", "向" + relationship.name + "求婚");
+        proposeBtn.addEventListener("click", function () {
+          engine.attemptProposalFromSidebar(relationship.id);
+          render();
+        });
+        card.appendChild(proposeBtn);
+      }
+
       elements.relationshipsContainer.appendChild(card);
     });
   }

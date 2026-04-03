@@ -1256,6 +1256,111 @@
           minStats: { social: 30, mental: 38 }
         }
       }
+    }),
+    relationship({
+      id: "gu_shuran",
+      name: "顾舒然",
+      gender: "female",
+      identity: "初中隔壁班后来在走廊总碰见，爱扎低马尾，笑的时候会先抿一下嘴；物理不错，却总说自己是「靠刷题刷出来的」。",
+      stageTags: ["adolescence", "highschool", "college", "young_adult"],
+      roleTags: ["走廊熟人", "理科"],
+      traitTags: ["慢热", "嘴硬心软", "敏感"],
+      contactStyle: "吃「被记得细节」这一套：你愿意认真听，她就敢多讲半句。",
+      conflictStyle: "不会当众吵，但会突然客气得像陌生人。",
+      appearance: {
+        minAge: 12,
+        firstStage: "adolescence",
+        contexts: ["走廊对答案", "期中考后讲卷", "运动会后勤"],
+        sceneHooks: {
+          notice: "走廊上她抱着作业本侧身让路的那一刻",
+          contact: "对答案时对同一道错题同时叹气",
+          repeated: "放学后楼梯口那几句不咸不淡的吐槽",
+          bond: "她开始把你划进「可以问很蠢问题」的名单",
+          special: "别人起哄你们「怎么老一起出现」",
+          distance: "分班与不同目标把偶遇频率冲淡",
+          reunion: "考研自习室、公司电梯或老家商场里一声迟疑的「是你吗」"
+        },
+        introductionText: "你不是一见钟情那种认识她，而是很多次擦肩以后，突然发现「怎么又是她」。",
+        rumorText: "走廊里总有人爱开玩笑，说她看你的眼神不算清白——她听见也只当没听见。"
+      },
+      availability: {
+        spansStages: ["adolescence", "highschool", "college", "young_adult"],
+        reconnectAges: [19, 24, 30],
+        continuityBias: "steady"
+      },
+      romanceProfile: {
+        arcType: "slowburn",
+        futureFocus: "要稳定，也要被证明「不是将就」。",
+        longTermPotential: 84,
+        volatility: 38,
+        fitTags: ["study", "stability", "subtle_romance"],
+        theirInterestConditions: {
+          minStats: { intelligence: 22, mental: 35 }
+        },
+        warmingConditions: {
+          minStats: { discipline: 16 }
+        },
+        breakupConditions: {
+          minStats: { stress: 54 },
+          someFlags: ["trust_break"]
+        },
+        canReconnect: true,
+        reconnectConditions: {
+          minStats: { mental: 38 }
+        }
+      }
+    }),
+    relationship({
+      id: "hao_yiming",
+      name: "郝以诚",
+      gender: "male",
+      identity: "初二转学来，坐过后排也站过讲台边罚站；打球很凶，对人却意外直，不太会绕弯子哄人。",
+      stageTags: ["adolescence", "highschool", "young_adult", "career"],
+      roleTags: ["后排", "球场"],
+      traitTags: ["直球", "义气", "冲动"],
+      contactStyle: "更吃「并肩做事」：一起练球、一起扛事，比情话好使。",
+      conflictStyle: "急了说话冲，但回头会别扭地道歉。",
+      appearance: {
+        minAge: 13,
+        firstStage: "adolescence",
+        contexts: ["体育课分队", "放学球场", "班级合唱排练"],
+        sceneHooks: {
+          notice: "球场上他喊你名字让你帮他捡球",
+          contact: "被罚站时并排靠墙那几分钟尬聊",
+          repeated: "放学路上他骑车慢下来等你那一下",
+          bond: "有人为难你，他先挡在前面",
+          special: "全班起哄你们「是不是一对」",
+          distance: "冲动吵架后谁也不先低头",
+          reunion: "健身房、球局或同事婚礼上他笑着捅你一下"
+        },
+        introductionText: "你最早记住的是他的声音和背影，不是温柔那挂，却让人很难忽略。",
+        rumorText: "起哄的人最多，他也最敢当众怼回去——怼完又偷偷看你反应。"
+      },
+      availability: {
+        spansStages: ["adolescence", "highschool", "young_adult", "career"],
+        reconnectAges: [20, 25, 31],
+        continuityBias: "intense"
+      },
+      romanceProfile: {
+        arcType: "intense",
+        futureFocus: "要痛快，也要被当回事；讨厌冷战。",
+        longTermPotential: 72,
+        volatility: 55,
+        fitTags: ["social", "action", "passion"],
+        theirInterestConditions: {
+          minStats: { social: 20, happiness: 28 }
+        },
+        warmingConditions: {
+          excludedFlags: ["emotionally_guarded"]
+        },
+        breakupConditions: {
+          minStats: { stress: 52 }
+        },
+        canReconnect: true,
+        reconnectConditions: {
+          minStats: { social: 26 }
+        }
+      }
     })
   ];
 })();

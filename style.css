@@ -1111,6 +1111,29 @@ input {
   border-color: rgba(107, 74, 46, 0.3);
 }
 
+.relationship-propose-button {
+  margin-top: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(168, 93, 92, 0.45);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(255, 248, 246, 0.98), var(--rose-soft));
+  color: #6b3a38;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, transform 0.12s;
+}
+
+.relationship-propose-button:hover {
+  border-color: rgba(168, 93, 92, 0.65);
+  background: linear-gradient(180deg, #fffefd, rgba(255, 230, 228, 0.95));
+}
+
+.relationship-propose-button:active {
+  transform: scale(0.99);
+}
+
 /* —— History timeline —— */
 .history-timeline {
   position: relative;

@@ -527,6 +527,10 @@
       minAge: 9,
       maxAge: 11,
       weight: 8,
+      dedupeKey: "primary_peer_life_mesh",
+      dedupeSpacingChoices: 7,
+      dedupeMinAgeGap: 2,
+      cooldownChoices: 5,
       tags: ["school", "growth"],
       conditions: condition({}),
       effectsOnEnter: mutation({

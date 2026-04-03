@@ -118,6 +118,11 @@
     (lifeCharacterGrowth && lifeCharacterGrowth.marriageConfig) ||
     (window.LIFE_MARRIAGE_CONFIG && typeof window.LIFE_MARRIAGE_CONFIG === "object" ? window.LIFE_MARRIAGE_CONFIG : {}) ||
     {};
+  /** 侧栏求婚按钮、好感 80 里程碑等（见 data/life-romance-marriage-divorce-expansion.js） */
+  const lifeProposalSidebarConfig =
+    window.LIFE_PROPOSAL_SIDEBAR_CONFIG && typeof window.LIFE_PROPOSAL_SIDEBAR_CONFIG === "object"
+      ? window.LIFE_PROPOSAL_SIDEBAR_CONFIG
+      : {};
   const lifeAccidentStageConfig =
     window.LIFE_ACCIDENT_STAGE_CONFIG && typeof window.LIFE_ACCIDENT_STAGE_CONFIG === "object"
       ? window.LIFE_ACCIDENT_STAGE_CONFIG
@@ -1122,7 +1127,7 @@
       return;
     }
 
-    if (["breakup", "broken", "missed"].includes(relationship.status)) {
+    if (["breakup", "broken", "missed", "divorced"].includes(relationship.status)) {
       syncRelationshipStage(relationship);
       return;
     }
@@ -3382,6 +3387,133 @@
     return false;
   }
 
+  /**
+   * 侧栏「求婚」：以好感度百分比为核心接受概率，叠加小幅情境修正（仍 clamp）。
+   * 配置项在 window.LIFE_PROPOSAL_SIDEBAR_CONFIG。
+   */
+  function computeSidebarProposalAcceptanceProbability(partner, state) {
+    const st = state && state.stats ? state.stats : {};
+    const aff = typeof partner.affection === "number" ? partner.affection : 0;
+    const baseFromAffection = aff / 100;
+    const c = lifeProposalSidebarConfig || {};
+    const maxAdj = typeof c.maxProbabilityAdjust === "number" ? c.maxProbabilityAdjust : 0.12;
+    let adj = 0;
+    if (partner.status === "long_distance_dating") {
+      adj -= typeof c.longDistancePenalty === "number" ? c.longDistancePenalty : 0.06;
+    }
+    if (["conflict", "cooling", "distance_cooling"].includes(partner.status)) {
+      adj -= typeof c.rockyStatusPenalty === "number" ? c.rockyStatusPenalty : 0.05;
+    }
+    const ten = typeof partner.tension === "number" ? partner.tension : 0;
+    if (ten >= 58) {
+      adj -= typeof c.highTensionPenalty === "number" ? c.highTensionPenalty : 0.05;
+    } else if (ten >= 48) {
+      adj -= typeof c.midTensionPenalty === "number" ? c.midTensionPenalty : 0.02;
+    }
+    const mods = partner.growthModifiers && typeof partner.growthModifiers === "object" ? partner.growthModifiers : {};
+    adj += (typeof mods.marriageEase === "number" ? mods.marriageEase : 0) * (typeof c.marriageEaseCoef === "number" ? c.marriageEaseCoef : 0.001);
+    adj += (typeof mods.stability === "number" ? mods.stability : 0) * (typeof c.stabilityCoef === "number" ? c.stabilityCoef : 0.0008);
+    adj -= (typeof mods.breakupRisk === "number" ? mods.breakupRisk : 0) * (typeof c.breakupRiskCoef === "number" ? c.breakupRiskCoef : 0.001);
+    const biasMap =
+      lifeMarriageConfig && lifeMarriageConfig.characterProposalBias && typeof lifeMarriageConfig.characterProposalBias === "object"
+        ? lifeMarriageConfig.characterProposalBias
+        : {};
+    const b = biasMap[partner.id];
+    if (typeof b === "number") {
+      adj += b * (typeof c.characterBiasScale === "number" ? c.characterBiasScale : 0.45);
+    }
+    const pl =
+      lifeMarriageConfig && lifeMarriageConfig.proposalLogic && typeof lifeMarriageConfig.proposalLogic === "object"
+        ? lifeMarriageConfig.proposalLogic
+        : {};
+    const cfs = Array.isArray(pl.conflictFlags) ? pl.conflictFlags : [];
+    const cfPen = typeof pl.conflictFlagPenalty === "number" ? pl.conflictFlagPenalty : 0.1;
+    if (cfs.some(function (f) { return f && state.flags.indexOf(f) !== -1; })) {
+      adj -= cfPen * (typeof c.conflictFlagScale === "number" ? c.conflictFlagScale : 0.6);
+    }
+    const lm = typeof pl.lowMoneyThreshold === "number" ? pl.lowMoneyThreshold : 14;
+    if ((typeof st.money === "number" ? st.money : 0) < lm) {
+      adj -= typeof c.lowMoneyPenalty === "number" ? c.lowMoneyPenalty : 0.04;
+    }
+    const shigh = typeof pl.playerStressHigh === "number" ? pl.playerStressHigh : 78;
+    if ((typeof st.stress === "number" ? st.stress : 0) >= shigh) {
+      adj -= typeof c.playerStressPenalty === "number" ? c.playerStressPenalty : 0.04;
+    }
+    adj = Math.max(-maxAdj, Math.min(maxAdj, adj));
+    const lo = typeof c.minClamp === "number" ? c.minClamp : 0.05;
+    const hi = typeof c.maxClamp === "number" ? c.maxClamp : 0.95;
+    return clampNumber(baseFromAffection + adj, lo, hi);
+  }
+
+  function ensureRelationshipMilestonesFired() {
+    if (!gameState.relationshipMilestonesFired || typeof gameState.relationshipMilestonesFired !== "object") {
+      gameState.relationshipMilestonesFired = {};
+    }
+  }
+
+  function maybeQueueAffection80Milestone(relationship, affectionBefore) {
+    if (!relationship || !relationship.met || gameState.gameOver) {
+      return;
+    }
+    if (gameState.flags.indexOf("player_married") !== -1) {
+      return;
+    }
+    if (gameState.pendingForcedEvent && gameState.pendingForcedEvent.eventId) {
+      return;
+    }
+    const prev = typeof affectionBefore === "number" ? affectionBefore : 0;
+    const aff = typeof relationship.affection === "number" ? relationship.affection : 0;
+    if (prev >= 80 || aff < 80) {
+      return;
+    }
+    const allowedMilestone = new Set(
+      Array.isArray(lifeProposalSidebarConfig.affection80AllowedStatuses)
+        ? lifeProposalSidebarConfig.affection80AllowedStatuses
+        : [
+            "ambiguous",
+            "close",
+            "mutual_crush",
+            "confessed",
+            "dating",
+            "passionate",
+            "steady",
+            "long_distance_dating",
+            "cooling",
+            "conflict",
+            "reconnect",
+            "reconnected",
+            "distance_cooling",
+            "rebuilding_distance",
+            "hidden_double_track",
+            "exposed_double_track"
+          ]
+    );
+    if (!allowedMilestone.has(relationship.status)) {
+      return;
+    }
+    const minAge =
+      typeof lifeProposalSidebarConfig.affection80MilestoneMinPlayerAge === "number"
+        ? lifeProposalSidebarConfig.affection80MilestoneMinPlayerAge
+        : 17;
+    if ((gameState.age || 0) < minAge) {
+      return;
+    }
+    ensureRelationshipMilestonesFired();
+    const slot = gameState.relationshipMilestonesFired[relationship.id] || {};
+    if (slot.affection80) {
+      return;
+    }
+    const evIdRaw =
+      typeof lifeProposalSidebarConfig.affection80EventId === "string" ? lifeProposalSidebarConfig.affection80EventId.trim() : "";
+    const evId = evIdRaw || "milestone_affection80_marriage_discussion";
+    if (!eventMap.get(evId)) {
+      return;
+    }
+    slot.affection80 = true;
+    gameState.relationshipMilestonesFired[relationship.id] = slot;
+    gameState.pendingForcedEvent = { eventId: evId, partnerId: relationship.id };
+  }
+
   function computeMarriageProposalAcceptanceProbability(proposerType, partner, state) {
     const pl =
       lifeMarriageConfig && lifeMarriageConfig.proposalLogic && typeof lifeMarriageConfig.proposalLogic === "object"
@@ -4098,7 +4230,9 @@
     }
 
     if (action === "marriage_commit") {
-      const activeId = gameState.activeRelationshipId ? String(gameState.activeRelationshipId).trim() : "";
+      const activeId = String(
+        data.targetRelationshipId || data.partnerId || gameState.activeRelationshipId || ""
+      ).trim();
       if (!activeId) {
         addHistory("你想推进到婚姻，但当下并没有一段被标记为「主要」的关系。");
         return;
@@ -4114,7 +4248,9 @@
     }
 
     if (action === "marriage_proposal_attempt") {
-      const activeId = gameState.activeRelationshipId ? String(gameState.activeRelationshipId).trim() : "";
+      const activeId = String(
+        data.targetRelationshipId || data.partnerId || gameState.activeRelationshipId || ""
+      ).trim();
       if (!activeId) {
         addHistory("你想推进到婚姻，但当下并没有一段被标记为「主要」的关系。");
         return;
@@ -4160,6 +4296,58 @@
         if (typeof onFail.log === "string" && onFail.log) {
           addHistory(onFail.log);
         }
+      }
+      return;
+    }
+
+    if (action === "marriage_divorce_finalize") {
+      let rid = String(data.partnerId || data.targetRelationshipId || gameState.activeRelationshipId || "").trim();
+      if (!rid) {
+        const marriedList = Object.values(gameState.relationships || {}).filter(function (r) {
+          return r && r.status === "married";
+        });
+        if (marriedList.length === 1) {
+          rid = marriedList[0].id;
+        }
+      }
+      const partner = getRelationshipRecord(gameState, rid);
+      if (!partner || partner.status !== "married") {
+        addHistory("并没有一段仍有效的婚姻可供解除。");
+        return;
+      }
+      removeGameFlags(["player_married"]);
+      removeGameFlags(normalizeStringArray(data.removeGlobalFlags));
+      addGameFlags(normalizeStringArray(data.addFlags));
+      addGameFlags(["player_divorced", "player_was_married_at_least_once"]);
+      const moneyAdj = typeof data.moneyDelta === "number" ? data.moneyDelta : 0;
+      if (moneyAdj !== 0) {
+        adjustStat("money", moneyAdj);
+      }
+      const debtAdj = typeof data.debtDelta === "number" ? data.debtDelta : 0;
+      if (debtAdj !== 0) {
+        adjustStat("debt", debtAdj);
+      }
+      const statsPack = data.stats && typeof data.stats === "object" ? data.stats : {};
+      Object.keys(statsPack).forEach(function (k) {
+        if (typeof statsPack[k] === "number") {
+          adjustStat(k, statsPack[k]);
+        }
+      });
+      setRelationshipStatus(
+        rid,
+        "divorced",
+        typeof data.partnerHistory === "string" && data.partnerHistory
+          ? data.partnerHistory
+          : "婚姻在法律与日常里被拆开，你们从「我们」退回成两个要各自算账的人。"
+      );
+      applyRelationshipEffects(Array.isArray(data.relationshipEffects) ? data.relationshipEffects : []);
+      if (gameState.activeRelationshipId === rid) {
+        gameState.activeRelationshipId = null;
+      }
+      if (typeof data.log === "string" && data.log) {
+        addHistory(data.log);
+      } else {
+        addHistory("你们结束了婚姻：日子还要继续，只是规则全换了。");
       }
       return;
     }
@@ -5192,6 +5380,8 @@
         return;
       }
 
+      const affectionBefore = typeof relationship.affection === "number" ? relationship.affection : 0;
+
       relationship.met = true;
       relationship.affection = clampAffection((relationship.affection || 0) + (effect.affection || 0));
       relationship.familiarity = clampRelationshipMetric((relationship.familiarity || 0) + (effect.familiarity || 0));
@@ -5252,6 +5442,8 @@
         addRelationshipHistory(relationship.id, effect.history);
       }
 
+      maybeQueueAffection80Milestone(relationship, affectionBefore);
+
       if (effect.clearActive) {
         clearActive = true;
       }
@@ -5260,7 +5452,7 @@
         nextActiveId = resolvedTargetId;
       }
 
-      if (["breakup", "broken", "estranged", "missed"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
+      if (["breakup", "broken", "estranged", "missed", "divorced"].includes(relationship.status) && gameState.activeRelationshipId === relationship.id) {
         clearActive = true;
       }
     });
@@ -6325,6 +6517,20 @@
   }
 
   function getRequiredMilestoneEvent() {
+    const pf = gameState.pendingForcedEvent;
+    if (pf && typeof pf.eventId === "string" && pf.eventId.trim()) {
+      const forced = eventMap.get(pf.eventId.trim()) || null;
+      if (forced) {
+        const pid = typeof pf.partnerId === "string" ? pf.partnerId.trim() : "";
+        if (pid && getRelationshipRecord(gameState, pid)) {
+          gameState.activeRelationshipId = pid;
+        }
+        gameState.pendingForcedEvent = null;
+        return forced;
+      }
+      gameState.pendingForcedEvent = null;
+    }
+
     if (gameState.flags.includes("pending_work_location_pick")) {
       const locEv = eventMap.get("work_location_pick_milestone") || null;
       if (locEv && isEventEligible(locEv)) {
@@ -6693,6 +6899,125 @@
     return getState();
   }
 
+  function canProposeToRelationship(state, relationshipId) {
+    const st = state || gameState;
+    const rid = typeof relationshipId === "string" ? relationshipId.trim() : "";
+    if (
+      !rid ||
+      !st.gameStarted ||
+      st.gameOver ||
+      st.setupStep ||
+      (st.flags || []).indexOf("player_married") !== -1
+    ) {
+      return false;
+    }
+    const rel = getRelationshipSnapshot(st, rid);
+    if (!rel || !rel.met) {
+      return false;
+    }
+    const minAff =
+      typeof lifeProposalSidebarConfig.minAffectionToShowButton === "number"
+        ? lifeProposalSidebarConfig.minAffectionToShowButton
+        : 40;
+    if ((typeof rel.affection === "number" ? rel.affection : 0) < minAff) {
+      return false;
+    }
+    const allowed = normalizeStringArray(lifeMarriageConfig.allowedStatuses || []);
+    if (!allowed.includes(rel.status)) {
+      return false;
+    }
+    const minPAge = typeof lifeMarriageConfig.minPlayerAge === "number" ? lifeMarriageConfig.minPlayerAge : 24;
+    if ((st.age || 0) < minPAge) {
+      return false;
+    }
+    return true;
+  }
+
+  function attemptProposalFromSidebar(relationshipId) {
+    const rid = typeof relationshipId === "string" ? relationshipId.trim() : "";
+    if (!rid || !canProposeToRelationship(gameState, rid)) {
+      return getState();
+    }
+    const prevActive = gameState.activeRelationshipId;
+    gameState.activeRelationshipId = rid;
+    const partner = getRelationshipRecord(gameState, rid);
+    const pAccept = computeSidebarProposalAcceptanceProbability(partner, gameState);
+    const okPack =
+      lifeProposalSidebarConfig.sidebarSuccessPayload && typeof lifeProposalSidebarConfig.sidebarSuccessPayload === "object"
+        ? lifeProposalSidebarConfig.sidebarSuccessPayload
+        : {};
+    const failPack =
+      lifeProposalSidebarConfig.sidebarFailPayload && typeof lifeProposalSidebarConfig.sidebarFailPayload === "object"
+        ? lifeProposalSidebarConfig.sidebarFailPayload
+        : {};
+    const onSuccess = {
+      addFlags: ["player_married", "marriage_proposed_by_player", "marriage_accepted", "marriage_from_sidebar_button"].concat(
+        normalizeStringArray(okPack.addFlags)
+      ),
+      happiness: 4 + (typeof okPack.happiness === "number" ? okPack.happiness : 0),
+      stress: 3 + (typeof okPack.stress === "number" ? okPack.stress : 0),
+      partnerHistory:
+        typeof okPack.partnerHistory === "string" && okPack.partnerHistory
+          ? okPack.partnerHistory
+          : "在关系面板里按下「求婚」的那一刻并不体面，但承诺是真的。"
+    };
+    const failRel = [
+      {
+        targetId: rid,
+        tension: typeof failPack.failTension === "number" ? failPack.failTension : 10,
+        trust: typeof failPack.failTrust === "number" ? failPack.failTrust : -5,
+        commitment: typeof failPack.failCommitment === "number" ? failPack.failCommitment : -4,
+        affection: typeof failPack.failAffection === "number" ? failPack.failAffection : -5,
+        history:
+          typeof failPack.failHistory === "string"
+            ? failPack.failHistory
+            : "你把结婚说出口，对方的迟疑像一盆冷水：不是不爱，是还没准备好接这么重的词。"
+      }
+    ];
+    const onFail = {
+      addFlags: normalizeStringArray(failPack.addFlags).length
+        ? normalizeStringArray(failPack.addFlags)
+        : ["sidebar_proposal_rejected", "marriage_proposal_cooling"],
+      stats: failPack.stats && typeof failPack.stats === "object" ? failPack.stats : { happiness: -6, stress: 7, mental: -4 },
+      log:
+        typeof failPack.log === "string"
+          ? failPack.log
+          : "求婚没有被接住。你们之间多了层尴尬，要不要再走在一起，变成两个人都得重新想的问题。"
+    };
+
+    if (Math.random() < pAccept) {
+      finalizeMarriageCommit(rid, onSuccess);
+      gameState.activeRelationshipId = rid;
+      addHistory(
+        "你向" +
+          (partner && partner.name ? partner.name : "对方") +
+          "求婚，对方点头了（接受概率约 " +
+          Math.round(pAccept * 100) +
+          "%，以好感为主并含情境修正）。"
+      );
+    } else {
+      normalizeStringArray(onFail.addFlags).forEach(function (f) {
+        if (f && gameState.flags.indexOf(f) === -1) {
+          gameState.flags.push(f);
+        }
+      });
+      const st = onFail.stats && typeof onFail.stats === "object" ? onFail.stats : {};
+      Object.keys(st).forEach(function (k) {
+        if (typeof st[k] === "number") {
+          adjustStat(k, st[k]);
+        }
+      });
+      applyRelationshipEffects(failRel);
+      if (typeof onFail.log === "string" && onFail.log) {
+        addHistory(onFail.log);
+      }
+      addHistory("本次求婚对方未接受（约 " + Math.round(pAccept * 100) + "% 接受率）。");
+      gameState.activeRelationshipId = prevActive && prevActive !== rid ? prevActive : prevActive || null;
+    }
+
+    return getState();
+  }
+
   function getRelationshipDynamicBio(state, relationshipId) {
     const rel = getRelationshipSnapshot(state, relationshipId);
     if (!rel) {
@@ -6758,6 +7083,8 @@
     computePartnerIntimacyScore: function (state, relationshipId) {
       const rel = getRelationshipSnapshot(state, relationshipId);
       return computePartnerIntimacyScore(rel);
-    }
+    },
+    canProposeToRelationship,
+    attemptProposalFromSidebar
   };
 })();
