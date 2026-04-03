@@ -4,7 +4,8 @@
   /**
    * 人生系统集中配置（便于手动改数值 / 商品 / 礼物规则）
    * - overseasCostConfig / loanConfig：留学花费与贷款
-   * - shopItems：商店商品
+   * - 商店：须在 index.html 中于本文件之前加载 data/shop-catalog.js（LIFE_SHOP_ITEMS_CATALOG / LIFE_GIFT_EFFECTS_CATALOG / LIFE_SHOP_CONFIG）
+   * - shopItems：由目录合并写入 window.LIFE_SHOP_ITEMS
    * - giftEffects：送礼结果（按礼物 id + 关系阶段粗分）
    * - relationshipMilestones：确认关系等阈值参考（引擎内也会用到部分逻辑）
    * - childSystem：子女系统默认参数
@@ -62,7 +63,7 @@
   };
 
   /** 送礼判定：expensiveThreshold 以上且关系浅可能让对方有压力 */
-  const giftEffects = {
+  const giftEffectsCore = {
     gift_snack_hamper: {
       label: "零食礼盒",
       expensiveThreshold: 10,
@@ -92,75 +93,23 @@
     }
   };
 
-  const shopItems = [
-    {
-      id: "daily_bento_upgrade",
-      name: "好好吃一顿热便当",
-      category: "日常用品",
-      price: 5,
-      effects: { stats: { happiness: 2, health: 1, stress: -1 } },
-      log: "你用一顿像样一点的饭，把自己从凑合里捞回来一小会儿。"
-    },
-    {
-      id: "study_desk_lamp",
-      name: "护眼台灯",
-      category: "学习用品",
-      price: 11,
-      effects: { stats: { discipline: 2, intelligence: 1, money: -1 } },
-      log: "你把学习环境收拾得更像样，熬夜时眼睛和心情都少受一点罪。"
-    },
-    {
-      id: "hoodie_basic",
-      name: "基础款外套",
-      category: "服饰",
-      price: 16,
-      effects: { stats: { happiness: 2, social: 1, money: -2 } },
-      log: "新衣服不解决所有问题，但至少让你在出门见人时少一分心虚。"
-    },
-    {
-      id: "gift_snack_hamper",
-      name: "零食礼盒（可送人）",
-      category: "礼物",
-      price: 9,
-      grantInventory: { itemId: "gift_snack_hamper", count: 1 },
-      effects: { stats: { happiness: 1 } },
-      log: "你买下一份可以递到别人手里的甜。"
-    },
-    {
-      id: "gift_book_literature",
-      name: "精装文集（可送人）",
-      category: "礼物",
-      price: 15,
-      grantInventory: { itemId: "gift_book_literature", count: 1 },
-      effects: { stats: { intelligence: 1, happiness: 1 } },
-      log: "你挑了一本像话的书，准备在某个时刻送出去。"
-    },
-    {
-      id: "gift_necklace_modest",
-      name: "小项链（可送人）",
-      category: "礼物",
-      price: 22,
-      grantInventory: { itemId: "gift_necklace_modest", count: 1 },
-      effects: { stats: { happiness: 1, stress: 1 } },
-      log: "这件礼物不便宜，你清楚它自带分量。"
-    },
-    {
-      id: "gym_month",
-      name: "健身月卡",
-      category: "健康",
-      price: 14,
-      effects: { stats: { health: 4, stress: -2, money: -1 } },
-      log: "你把身体重新登记进日程里，哪怕只是短期。"
-    },
-    {
-      id: "game_night_ticket",
-      name: "演出 / 游戏之夜门票",
-      category: "娱乐",
-      price: 9,
-      effects: { stats: { happiness: 3, social: 2, stress: -1, money: -1 } },
-      log: "你允许自己浪费一晚在热闹里，给情绪找个出口。"
-    }
-  ];
+  const giftEffectsCatalog =
+    window.LIFE_GIFT_EFFECTS_CATALOG && typeof window.LIFE_GIFT_EFFECTS_CATALOG === "object"
+      ? window.LIFE_GIFT_EFFECTS_CATALOG
+      : {};
+
+  const giftEffects = Object.assign({}, giftEffectsCore, giftEffectsCatalog);
+
+  if (!window.LIFE_SHOP_CONFIG || typeof window.LIFE_SHOP_CONFIG !== "object") {
+    window.LIFE_SHOP_CONFIG = {
+      minAge: 7,
+      maxAge: 55,
+      categoryOrder: ["学习", "娱乐", "服饰", "健康", "礼物", "家庭", "日常"]
+    };
+  }
+
+  const shopItemsCatalog = Array.isArray(window.LIFE_SHOP_ITEMS_CATALOG) ? window.LIFE_SHOP_ITEMS_CATALOG : [];
+  const shopItems = shopItemsCatalog.length ? shopItemsCatalog : [];
 
   const educationToCareerHints = [
     "学历门槛在 data/routes.js 的 LIFE_CAREER_ROUTES 每条 route.conditions 里维护（educationRouteIds / excludedEducationRouteIds / someFlags）。",
@@ -183,8 +132,8 @@
       id: "life_shop_street",
       stage: "young_adult",
       title: "街边的店，总在你心软的时候招手",
-      text: "你路过商场、便利店和网店弹窗，钱包并不厚，但有时候一笔小钱就能换来一点像样的安慰、效率，或者一份可以送出去的礼物。\n\n当前积蓄大致还能支撑你挑几样不同的东西——真正要紧的是，别在情绪最差的时候用刷卡当止痛。",
-      minAge: 16,
+      text: "从小学门口的小卖部到写字楼下的便利店，再到手机里跳个不停的弹窗——钱包从来不厚，但有时候一笔小钱就能换来一点像样的安慰、效率，或者一份可以递出去的心意。\n\n能买到什么，往往也和你处在哪一段人生有关；真正要紧的是，别在情绪最差的时候用消费当止痛。",
+      minAge: 7,
       maxAge: 55,
       weight: 20,
       repeatable: true,
@@ -209,8 +158,8 @@
       id: "life_gift_moment",
       stage: "family",
       title: "把礼物递出去之前，你会多想半拍",
-      text: "你手里攥着准备好的东西，心里却在算：会不会太贵、会不会太轻、会不会在不合时宜的时候把关系推歪。\n\n{name}，如果你真的要送，就得承认这也是在把自己的心意放到秤上。",
-      minAge: 16,
+      text: "你手里攥着准备好的东西，心里却在算：会不会太贵、会不会太轻、会不会在不合时宜的时候把关系推歪。\n\n{name}，如果你真的要送，就得承认这也是在把自己的心意放到秤上。物品栏里别的礼物也可以择机送出——有时比事件里列出的那几样更贴切。",
+      minAge: 7,
       maxAge: 50,
       weight: 11,
       repeatable: true,
@@ -563,6 +512,18 @@
     loanConfig,
     autoRepayLoanMessages
   };
+
+  /** 恋爱对象「家庭背景」解锁：综合亲密度阈值与权重（引擎读取 window.LIFE_FAMILY_REVEAL_CONFIG） */
+  const familyRevealConfig = {
+    minIntimacyScore: 80,
+    weights: {
+      affection: 0.45,
+      trust: 0.4,
+      familiarity: 0.15
+    }
+  };
+  window.LIFE_FAMILY_REVEAL_CONFIG = familyRevealConfig;
+
   window.LIFE_SHOP_ITEMS = shopItems;
   window.LIFE_GIFT_EFFECTS = giftEffects;
   window.LIFE_CHILD_SYSTEM = childSystem;

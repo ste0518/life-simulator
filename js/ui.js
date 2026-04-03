@@ -485,6 +485,44 @@
       elements.routeContainer.appendChild(card);
     });
 
+    const wl = state.workLife && typeof state.workLife === "object" ? state.workLife : null;
+    if (wl && (wl.workLocationId || wl.housingId || (typeof wl.jobApplicationsSent === "number" && wl.jobApplicationsSent > 0))) {
+      const cfg = window.LIFE_WORK_LIFE_CONFIG && typeof window.LIFE_WORK_LIFE_CONFIG === "object" ? window.LIFE_WORK_LIFE_CONFIG : {};
+      const locs = Array.isArray(cfg.workLocations) ? cfg.workLocations : [];
+      const hs = Array.isArray(cfg.housingOptions) ? cfg.housingOptions : [];
+      const locLabel = locs.find(function (x) {
+        return x && x.id === wl.workLocationId;
+      });
+      const hLabel = hs.find(function (x) {
+        return x && x.id === wl.housingId;
+      });
+      const card = document.createElement("article");
+      card.className = "route-card";
+      const label = document.createElement("strong");
+      label.className = "route-label";
+      label.textContent = "工作与居住（年度结算）";
+      card.appendChild(label);
+      const p1 = document.createElement("p");
+      p1.className = "route-summary";
+      p1.textContent =
+        "工作地点：" +
+        (locLabel && locLabel.label ? locLabel.label : wl.workLocationId || "未定") +
+        "；住房：" +
+        (hLabel && hLabel.label ? hLabel.label : wl.housingId || "未定") +
+        "。";
+      card.appendChild(p1);
+      if (state.flags && state.flags.indexOf("annual_economy_active") !== -1) {
+        const p2 = document.createElement("p");
+        p2.className = "muted";
+        p2.textContent =
+          "已启用按年工资入账与房租/日常扣减（数值见 data/life-workforce-expansion.js 的 LIFE_WORK_LIFE_CONFIG）。求职发送次数：" +
+          (typeof wl.jobApplicationsSent === "number" ? wl.jobApplicationsSent : 0) +
+          "。";
+        card.appendChild(p2);
+      }
+      elements.routeContainer.appendChild(card);
+    }
+
     if (state.gaokao && typeof state.gaokao.score === "number") {
       const card = document.createElement("article");
       card.className = "route-card";
@@ -700,10 +738,26 @@
     return ids;
   }
 
+  function getShopAgeBounds() {
+    const cfg = window.LIFE_SHOP_CONFIG && typeof window.LIFE_SHOP_CONFIG === "object" ? window.LIFE_SHOP_CONFIG : {};
+    return {
+      min: typeof cfg.minAge === "number" ? cfg.minAge : 7,
+      max: typeof cfg.maxAge === "number" ? cfg.maxAge : 55
+    };
+  }
+
+  function getShopCategoryOrder() {
+    const cfg = window.LIFE_SHOP_CONFIG && typeof window.LIFE_SHOP_CONFIG === "object" ? window.LIFE_SHOP_CONFIG : {};
+    return Array.isArray(cfg.categoryOrder) ? cfg.categoryOrder : ["学习", "娱乐", "服饰", "健康", "礼物", "家庭", "日常"];
+  }
+
   function describeShopPurchaseEffects(item) {
     const lines = [];
     const price = typeof item.price === "number" ? item.price : 0;
     lines.push("需支付：" + price + " " + stateApi.STAT_LABELS.money);
+    if (typeof item.summary === "string" && item.summary.trim()) {
+      lines.push(item.summary.trim());
+    }
 
     const stats = item.effects && item.effects.stats ? item.effects.stats : {};
     Object.entries(stats).forEach(([key, delta]) => {
@@ -726,13 +780,14 @@
   }
 
   function isShopAvailableForState(state) {
+    const b = getShopAgeBounds();
     return Boolean(
       state &&
         state.gameStarted &&
         !state.gameOver &&
         !state.setupStep &&
-        state.age >= 16 &&
-        state.age <= 55
+        state.age >= b.min &&
+        state.age <= b.max
     );
   }
 
@@ -758,10 +813,45 @@
     elements.shopItemsContainer.innerHTML = "";
     const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
     const canUse = isShopAvailableForState(state);
+    const categoryOrder = getShopCategoryOrder();
+    const orderIndex = new Map(categoryOrder.map((c, i) => [c, i]));
 
-    shopItems.forEach((item) => {
-      if (!item || !item.id) {
-        return;
+    const visible = canUse
+      ? shopItems.filter((item) => item && item.id && engine.isShopItemUnlockedNow(item.id))
+      : [];
+
+    if (!visible.length) {
+      const p = document.createElement("p");
+      p.className = "shop-empty muted";
+      p.textContent = canUse
+        ? "当前人生阶段暂时没有可购商品。"
+        : "尚未到可使用商店的年龄，或仍在开局设置中。";
+      elements.shopItemsContainer.appendChild(p);
+      return;
+    }
+
+    visible.sort((a, b) => {
+      const ca = a.category || "其他";
+      const cb = b.category || "其他";
+      const ia = orderIndex.has(ca) ? orderIndex.get(ca) : 99;
+      const ib = orderIndex.has(cb) ? orderIndex.get(cb) : 99;
+      if (ia !== ib) {
+        return ia - ib;
+      }
+      const pa = typeof a.price === "number" ? a.price : 0;
+      const pb = typeof b.price === "number" ? b.price : 0;
+      return pa - pb;
+    });
+
+    let lastCategory = null;
+    visible.forEach((item) => {
+      const cat = item.category || "其他";
+      if (cat !== lastCategory) {
+        lastCategory = cat;
+        const heading = document.createElement("h3");
+        heading.className = "shop-category-heading";
+        heading.textContent = cat;
+        elements.shopItemsContainer.appendChild(heading);
       }
 
       const card = document.createElement("article");
@@ -774,12 +864,12 @@
       name.className = "shop-item-name";
       name.textContent = item.name || item.id;
 
-      const cat = document.createElement("span");
-      cat.className = "shop-item-category";
-      cat.textContent = item.category || "商品";
+      const catSpan = document.createElement("span");
+      catSpan.className = "shop-item-category";
+      catSpan.textContent = cat;
 
       top.appendChild(name);
-      top.appendChild(cat);
+      top.appendChild(catSpan);
       card.appendChild(top);
 
       const ul = document.createElement("ul");
@@ -797,7 +887,7 @@
       const affordable = engine.canPurchaseShopItem(item.id);
       buy.disabled = !canUse || !affordable;
       buy.textContent = !canUse
-        ? "当前年龄或阶段不可购买"
+        ? "当前不可用"
         : !affordable
           ? "积蓄不足"
           : "购买（" + (typeof item.price === "number" ? item.price : 0) + "）";
@@ -818,26 +908,30 @@
     }
     const canUse = isShopAvailableForState(state);
     const shopLocked = !state.gameStarted || state.gameOver || Boolean(state.setupStep);
+    const shopAgeBlocked = state.gameStarted && !state.gameOver && !state.setupStep && !canUse;
     if (elements.shopOpenBtn) {
-      elements.shopOpenBtn.disabled = shopLocked;
+      elements.shopOpenBtn.disabled = shopLocked || shopAgeBlocked;
     }
     if (elements.shopOpenBtnSecondary) {
-      elements.shopOpenBtnSecondary.disabled = shopLocked;
+      elements.shopOpenBtnSecondary.disabled = shopLocked || shopAgeBlocked;
     }
+    const b = getShopAgeBounds();
     if (!state.gameStarted || state.gameOver) {
-      elements.shopHint.textContent = "开始人生后，在 16–55 岁可打开商店购物。";
+      elements.shopHint.textContent =
+        "开始人生后，在 " + b.min + "–" + b.max + " 岁可打开商店；货架会随年龄变化。";
     } else if (state.setupStep) {
-      elements.shopHint.textContent = "完成家庭背景选择后即可使用商店。";
+      elements.shopHint.textContent =
+        "完成家庭背景并开局后，年满 " + b.min + " 岁可打开商店；也可等待随机事件「街边的店」。";
     } else if (!canUse) {
       elements.shopHint.textContent =
-        state.age < 16
-          ? "年满 16 岁后商店开放；也可等待随机事件「街边的店」。"
-          : "55 岁后此处不再开放购物（仍可回顾人生与关系）。";
+        state.age < b.min
+          ? "年满 " + b.min + " 岁后商店开放；也可等待随机事件「街边的店」。"
+          : b.max + " 岁后此处不再开放购物（仍可回顾人生与关系）。";
     } else {
       elements.shopHint.textContent =
         "当前积蓄：" +
         (state.stats && typeof state.stats.money === "number" ? state.stats.money : 0) +
-        "。商品与随机事件「街边的店，总在你心软的时候招手」一致。";
+        "。能买到的东西会随人生阶段变；与随机事件「街边的店，总在你心软的时候招手」同一套商品池（已按年龄过滤选项）。";
     }
   }
 
@@ -848,7 +942,16 @@
     elements.inventoryContainer.innerHTML = "";
     const bag = (state && state.inventory) || {};
     const shopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
-    const labelMap = new Map(shopItems.map((item) => [item.id, item.name || item.id]));
+    const labelMap = new Map();
+    shopItems.forEach((item) => {
+      if (!item || !item.id) {
+        return;
+      }
+      labelMap.set(item.id, item.name || item.id);
+      if (item.grantInventory && typeof item.grantInventory.itemId === "string") {
+        labelMap.set(item.grantInventory.itemId, item.name || item.grantInventory.itemId);
+      }
+    });
     const giftIds = getGiftItemIdsFromCatalog();
     const entries = Object.keys(bag).filter((id) => (bag[id] || 0) > 0);
 
@@ -884,7 +987,7 @@
           btn.title = "请先在「人际 / 恋爱」卡片上选中一位对象";
         } else if (!canGive) {
           btn.title =
-            "需选中对象，且关系为暧昧/熟悉升温/恋爱等阶段（与事件「把礼物递出去」条件一致）";
+            "需选中对象；低龄时可送同学（初识/熟悉/好感等），年长后还可送给暧昧或恋爱对象（与物品栏规则一致）";
         } else {
           btn.title = "送给当前选中的对象，消耗 1 件";
         }
@@ -922,6 +1025,30 @@
     const p1 = document.createElement("p");
     p1.textContent = "子女数量：" + count;
     wrap.appendChild(p1);
+
+    if (count > 0) {
+      const flags = (state && state.flags) || [];
+      let care = typeof child.careMode === "string" && child.careMode ? child.careMode : "";
+      if (!care) {
+        if (flags.indexOf("parenting_nanny_used") !== -1) {
+          care = "曾请保姆/月嫂分担";
+        } else if (flags.indexOf("parenting_grandparent_help") !== -1) {
+          care = "长辈搭手较多";
+        } else if (flags.indexOf("parenting_primary_self") !== -1) {
+          care = "更多亲自带睡与陪伴";
+        } else if (flags.indexOf("parenting_career_slowed") !== -1) {
+          care = "曾为育儿调慢职业节奏";
+        } else if (flags.indexOf("parenting_absent_risk") !== -1) {
+          care = "陪伴偏少、事业优先倾向";
+        } else {
+          care = "可在「家庭与子女」随机事件里逐步定型";
+        }
+      }
+      const pc = document.createElement("p");
+      pc.className = "muted";
+      pc.textContent = "抚养侧重：" + care + "。育儿事件前缀 childcare_ 见 data/life-workforce-expansion.js。";
+      wrap.appendChild(pc);
+    }
 
     if (Array.isArray(child.tags) && child.tags.length) {
       const p2 = document.createElement("p");
@@ -1059,6 +1186,44 @@
           ? "关系倾向：" + relationship.romanceProfile.futureFocus
           : "关系倾向：这段关系还在慢慢显形。";
 
+      let partnerFamilyNode = null;
+      const pf = engine.getPartnerFamilyView(state, relationship.id);
+      if (pf) {
+        const pfWrap = document.createElement("div");
+        pfWrap.className = "relationship-partner-family";
+        const pfTitle = document.createElement("p");
+        pfTitle.className = "relationship-partner-family-title";
+        pfTitle.textContent = "Ta 的家庭背景";
+        pfWrap.appendChild(pfTitle);
+        const pfHint = document.createElement("p");
+        pfHint.className = "muted relationship-partner-family-hint";
+        pfHint.textContent =
+          "亲密度参考（好感/信任等综合）：" + pf.intimacyScore + " / 解锁阈值 " + pf.threshold + "（可在 data/life-systems.js 的 LIFE_FAMILY_REVEAL_CONFIG 修改）";
+        pfWrap.appendChild(pfHint);
+        if (!pf.revealed) {
+          const vague = document.createElement("p");
+          vague.className = "relationship-partner-family-vague";
+          vague.textContent = pf.vague || "你还不足以看清 Ta 家庭的全貌；再走近一些，线索才会连成背景。";
+          pfWrap.appendChild(vague);
+        } else {
+          const sum = document.createElement("p");
+          sum.className = "relationship-partner-family-full";
+          sum.textContent = (pf.revealedTitle ? pf.revealedTitle + "：" : "") + (pf.revealedSummary || "");
+          pfWrap.appendChild(sum);
+          if (pf.revealedDetails && pf.revealedDetails.length) {
+            const ul = document.createElement("ul");
+            ul.className = "relationship-partner-family-details";
+            pf.revealedDetails.forEach(function (line) {
+              const li = document.createElement("li");
+              li.textContent = line;
+              ul.appendChild(li);
+            });
+            pfWrap.appendChild(ul);
+          }
+        }
+        partnerFamilyNode = pfWrap;
+      }
+
       const arcMeta = relationshipArcMap.get(relationship.id);
       let arcSummary = null;
       if (arcMeta) {
@@ -1096,6 +1261,9 @@
       card.appendChild(affection);
       card.appendChild(metrics);
       card.appendChild(profile);
+      if (partnerFamilyNode) {
+        card.appendChild(partnerFamilyNode);
+      }
       if (arcSummary) {
         card.appendChild(arcSummary);
       }
@@ -1335,6 +1503,9 @@
 
     function openShopModal() {
       const state = engine.getState();
+      if (!isShopAvailableForState(state)) {
+        return;
+      }
       setShopModalOpen(true);
       populateShopItems(state);
     }

@@ -564,7 +564,7 @@ input {
 
 .stat-card {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 5.5rem) 1fr 2.75rem;
+  grid-template-columns: minmax(5.5rem, 6.75rem) 1fr 2.75rem;
   align-items: center;
   gap: 10px 12px;
   padding: 10px 12px;
@@ -585,7 +585,7 @@ input {
 }
 
 .stat-label {
-  font-size: 0.78rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--muted);
   line-height: 1.35;
@@ -899,6 +899,44 @@ input {
   font-size: 0.86rem;
   line-height: 1.65;
   color: var(--ink-soft);
+  white-space: pre-line;
+}
+
+.relationship-partner-family {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed rgba(107, 74, 46, 0.25);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.relationship-partner-family-title {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.relationship-partner-family-hint {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.relationship-partner-family-vague,
+.relationship-partner-family-full {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  color: var(--ink-soft);
+}
+
+.relationship-partner-family-details {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--muted);
 }
 
 .relationship-traits {
@@ -1289,6 +1327,27 @@ input {
   color: var(--ink);
   border-color: var(--line-strong);
   background: #fff;
+}
+
+.shop-category-heading {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #6b6b6b);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 0.35rem;
+}
+
+.shop-category-heading:first-child {
+  margin-top: 0;
+}
+
+.shop-empty {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 .shop-items-container {

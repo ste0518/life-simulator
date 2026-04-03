@@ -166,8 +166,8 @@
     event({
       id: "graduation_offer",
       stage: "young_adult",
-      title: "进入社会之前，你得亲手选一条工作起步路线",
-      text: "无论你是大学毕业、间隔期结束，还是更早开始工作，二十出头的某一年，你都得决定把身体、时间、关系和野心放进哪种职业结构里。",
+      title: "毕业之后：工作、深造、空白，还是回家缓一缓？",
+      text: "二十出头的这一年，「下一步」不再自动播放。你可以把自己交给就业市场慢慢磨，也可以继续读书、暂时不工作，或先回到家庭的缓冲里——每条路都会改写账本、压力与关系距离。若选就业，你会进入求职回合（投递、面试、被拒与重复申请），拿到 offer 后再选城市与租房，并按年结算工资与支出。",
       minAge: 22,
       maxAge: 26,
       weight: 10,
@@ -180,9 +180,42 @@
           age: 1,
           stats: {}
         },
-        log: "这一次不是社会自动替你定去向，而是你要自己承担选择哪种工作后果。"
+        log: "你站在毕业的门槛上：这一次不是成绩单替你决定，而是你要自己签下一步。"
       }),
-      choices: careerRoutes.map((route) => buildRouteChoice(route, "career"))
+      choices: [
+        choice({
+          text: "进入就业市场，开始投递与面试（求职循环）。",
+          setCareerRoute: "career_in_job_search",
+          effects: { age: 0, stats: {} },
+          log: "你把状态切成「求职者」，准备在一轮轮回音里把自己卖出去。"
+        }),
+        choice({
+          text: "继续深造：考研/留学/读第二学位，把起薪再往后押。",
+          setCareerRoute: "further_study_route",
+          effects: { age: 0, stats: {} }
+        }),
+        choice({
+          text: "暂时不工作：休整、试错、旅行或慢启动（经济压力会跟上来）。",
+          setCareerRoute: "career_gap_year_after_degree",
+          effects: { age: 0, stats: {} }
+        }),
+        choice({
+          text: "回家/依赖家庭支持，先把生活放回熟悉的屋檐下。",
+          setCareerRoute: "career_family_supported_home",
+          effects: { age: 0, stats: {} }
+        }),
+        choice({
+          text: "仍在迷茫期，先把日子过成「未命名状态」（更伤钱包与心理）。",
+          setCareerRoute: "unemployed_drift_route",
+          effects: { age: 0, stats: {} }
+        }),
+        ...careerRoutes
+          .filter((route) => route.id === "career_early_labor_market")
+          .map((route) => buildRouteChoice(route, "career")),
+        ...careerRoutes
+          .filter((route) => route.id === "career_vocational_trades")
+          .map((route) => buildRouteChoice(route, "career"))
+      ]
     }),
     event({
       id: "route_elite_campus_pressure",

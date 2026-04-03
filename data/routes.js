@@ -605,6 +605,74 @@
         addTags: ["work", "pressure"],
         log: "你的简历比同龄人短一截，只能用更硬的付出去换机会。"
       }
+    }),
+    /** 毕业后「尚未落定」的过渡路线（引擎与 data/life-workforce-expansion.js 会识别） */
+    route({
+      id: "career_in_job_search",
+      name: "求职中（简历与面试循环）",
+      category: "career",
+      summary: "你已经毕业或同级人开始工作，但你还处在投递、笔试、面试与被拒之间。",
+      description: "这不是最终职业定型，而是过渡态；请通过「求职回合」事件争取 offer，再进入工作地点与租房流程。",
+      optionText: "进入就业市场，开始认真找工作。",
+      details: ["可重复申请不同岗位", "整体被拒概率偏高", "成功后需选城市与住房"],
+      conditions: {},
+      apply: {
+        effects: {
+          stats: {
+            stress: 3,
+            mental: -1
+          }
+        },
+        addFlags: ["job_pipeline_active", "post_grad_job_hunt"],
+        addTags: ["work", "pressure"],
+        log: "你把状态从「学生」切到「求职者」：邮箱、招聘软件和心跳一起刷新。"
+      }
+    }),
+    route({
+      id: "career_gap_year_after_degree",
+      name: "毕业后暂缓就业",
+      category: "career",
+      summary: "先不急着把自己签给某一家公司，给自己一段空白去试错、旅行或调整。",
+      description: "财富与履历会慢下来，但你能换回一点呼吸；之后仍可回到求职轨道。",
+      optionText: "暂缓工作，先把节奏找回来。",
+      details: ["短期收入偏弱", "心理压力因比较而波动", "可改走求职"],
+      conditions: {},
+      apply: {
+        effects: {
+          stats: {
+            money: -3,
+            happiness: 2,
+            stress: 4,
+            mental: 2
+          }
+        },
+        addFlags: ["post_grad_gap_year", "employment_deferred"],
+        addTags: ["selfhood", "pressure"],
+        log: "你没有立刻把自己交给某一份合同，而是允许人生先空出一格。"
+      }
+    }),
+    route({
+      id: "career_family_supported_home",
+      name: "暂依家庭支持（住家/慢启动）",
+      category: "career",
+      summary: "先回到父母安排或熟悉的屋檐下，用家里的缓冲换时间。",
+      description: "开销会小一些，但边界与话语权也会更微妙；适合作为过渡而非终点。",
+      optionText: "先回家或依赖家庭支持，把下一步想清楚。",
+      details: ["生活成本下降", "家庭介入变强", "自尊与边界需自管"],
+      conditions: {},
+      apply: {
+        effects: {
+          stats: {
+            money: 2,
+            familySupport: 5,
+            stress: 3,
+            mental: -1
+          }
+        },
+        addFlags: ["living_at_parents_after_school", "employment_deferred"],
+        addTags: ["family", "stability"],
+        log: "你又把一部分生活交回熟悉的屋檐下——省钱，也重新面对家里的音量。"
+      }
     })
   ];
 })();

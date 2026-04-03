@@ -205,7 +205,8 @@
         met: false,
         flags: [],
         sharedHistory: [],
-        history: []
+        history: [],
+        partnerFamilyRevealed: false
       };
     });
 
@@ -299,7 +300,17 @@
       inventory: {},
       children: {
         count: 0,
-        tags: []
+        tags: [],
+        careMode: "",
+        lastCareEventAge: null
+      },
+      workLife: {
+        workLocationId: "",
+        housingId: "",
+        jobApplicationsSent: 0
+      },
+      economyLedger: {
+        lastSettledAge: -1
       },
       setupStep: "naming",
       relationships: createInitialRelationships(),

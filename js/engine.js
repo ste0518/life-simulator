@@ -51,6 +51,63 @@
       : {};
   const lifeShopItems = Array.isArray(window.LIFE_SHOP_ITEMS) ? window.LIFE_SHOP_ITEMS : [];
   const shopItemMap = new Map(lifeShopItems.map((item) => [item.id, item]));
+  const lifeShopConfigGlobal =
+    window.LIFE_SHOP_CONFIG && typeof window.LIFE_SHOP_CONFIG === "object" ? window.LIFE_SHOP_CONFIG : {};
+  const MANUAL_SHOP_MIN_AGE = typeof lifeShopConfigGlobal.minAge === "number" ? lifeShopConfigGlobal.minAge : 7;
+  const MANUAL_SHOP_MAX_AGE = typeof lifeShopConfigGlobal.maxAge === "number" ? lifeShopConfigGlobal.maxAge : 55;
+
+  const lifeWorkLifeConfig =
+    window.LIFE_WORK_LIFE_CONFIG && typeof window.LIFE_WORK_LIFE_CONFIG === "object" ? window.LIFE_WORK_LIFE_CONFIG : {};
+  const lifeJobApplicationConfig =
+    window.LIFE_JOB_APPLICATION_CONFIG && typeof window.LIFE_JOB_APPLICATION_CONFIG === "object"
+      ? window.LIFE_JOB_APPLICATION_CONFIG
+      : {};
+  const lifeFamilyRevealConfig =
+    window.LIFE_FAMILY_REVEAL_CONFIG && typeof window.LIFE_FAMILY_REVEAL_CONFIG === "object"
+      ? window.LIFE_FAMILY_REVEAL_CONFIG
+      : {};
+  const partnerFamilyById =
+    window.LIFE_PARTNER_FAMILY_BY_ID && typeof window.LIFE_PARTNER_FAMILY_BY_ID === "object"
+      ? window.LIFE_PARTNER_FAMILY_BY_ID
+      : {};
+  const partnerBioSnippets =
+    window.LIFE_PARTNER_BIO_SNIPPETS && typeof window.LIFE_PARTNER_BIO_SNIPPETS === "object"
+      ? window.LIFE_PARTNER_BIO_SNIPPETS
+      : {};
+  const careerZeroSalaryIds = Array.isArray(window.LIFE_CAREER_NON_EARNING_IDS)
+    ? window.LIFE_CAREER_NON_EARNING_IDS
+    : ["career_in_job_search"];
+
+  function isShopItemUnlockedForState(item, state) {
+    if (!item || !state) {
+      return false;
+    }
+    const age = typeof state.age === "number" ? state.age : 0;
+    const minA = typeof item.shopMinAge === "number" ? item.shopMinAge : MANUAL_SHOP_MIN_AGE;
+    const maxA = typeof item.shopMaxAge === "number" ? item.shopMaxAge : MANUAL_SHOP_MAX_AGE;
+    if (age < minA || age > maxA) {
+      return false;
+    }
+    if (typeof item.shopRequiresMinChildCount === "number") {
+      const c = state.children && typeof state.children.count === "number" ? state.children.count : 0;
+      if (c < item.shopRequiresMinChildCount) {
+        return false;
+      }
+    }
+    const flags = Array.isArray(state.flags) ? state.flags : [];
+    if (Array.isArray(item.shopRequiresFlags) && item.shopRequiresFlags.length) {
+      if (!item.shopRequiresFlags.every((f) => flags.includes(f))) {
+        return false;
+      }
+    }
+    if (Array.isArray(item.shopRequiresAnyFlags) && item.shopRequiresAnyFlags.length) {
+      if (!item.shopRequiresAnyFlags.some((f) => flags.includes(f))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   const lifeGiftEffects =
     window.LIFE_GIFT_EFFECTS && typeof window.LIFE_GIFT_EFFECTS === "object" ? window.LIFE_GIFT_EFFECTS : {};
   const lifeOverseasFinance =
@@ -830,8 +887,11 @@
     if (a >= 28) {
       return "young_adult_deep";
     }
-    if (a >= 22) {
+    if (a >= 24) {
       return "work_early";
+    }
+    if (a >= 22) {
+      return "graduate_transition";
     }
     if (a >= 18) {
       return "college";
@@ -862,7 +922,11 @@
       relationship.identity ||
       "";
     const name = relationship.name || "TA";
-    const text = String(raw).replace(/\{name\}/g, name);
+    let text = String(raw).replace(/\{name\}/g, name);
+    const bioExtra = resolvePartnerBioExtra(relationship, state);
+    if (bioExtra) {
+      text = text ? text + "\n\n" + bioExtra : bioExtra;
+    }
     let arcLabel = "";
     const pools = lifeCharacterGrowth.characterGrowthPools || {};
     const gPool = pools[relationship.id] || pools._default;
@@ -1372,6 +1436,9 @@
     }
     if (!Array.isArray(relationship.growthResolvedStages)) {
       relationship.growthResolvedStages = [];
+    }
+    if (typeof relationship.partnerFamilyRevealed !== "boolean") {
+      relationship.partnerFamilyRevealed = false;
     }
     syncRelationshipStage(relationship);
 
@@ -2583,6 +2650,229 @@
     return pickWeightedEntry(candidates);
   }
 
+  function ensureWorkLifeState() {
+    if (!gameState.workLife || typeof gameState.workLife !== "object") {
+      gameState.workLife = { workLocationId: "", housingId: "", jobApplicationsSent: 0 };
+    }
+    if (typeof gameState.workLife.workLocationId !== "string") {
+      gameState.workLife.workLocationId = "";
+    }
+    if (typeof gameState.workLife.housingId !== "string") {
+      gameState.workLife.housingId = "";
+    }
+    if (typeof gameState.workLife.jobApplicationsSent !== "number") {
+      gameState.workLife.jobApplicationsSent = 0;
+    }
+  }
+
+  function ensureEconomyLedger() {
+    if (!gameState.economyLedger || typeof gameState.economyLedger !== "object") {
+      gameState.economyLedger = { lastSettledAge: -1 };
+    }
+    if (typeof gameState.economyLedger.lastSettledAge !== "number") {
+      gameState.economyLedger.lastSettledAge = -1;
+    }
+  }
+
+  function computePartnerIntimacyScore(relationship) {
+    if (!relationship) {
+      return 0;
+    }
+    const w = lifeFamilyRevealConfig.weights || {};
+    const wa = typeof w.affection === "number" ? w.affection : 0.45;
+    const wt = typeof w.trust === "number" ? w.trust : 0.4;
+    const wf = typeof w.familiarity === "number" ? w.familiarity : 0.15;
+    const raw =
+      (relationship.affection || 0) * wa +
+      (relationship.trust || 0) * wt +
+      (relationship.familiarity || 0) * wf;
+    return Math.round(Math.max(0, Math.min(100, raw)));
+  }
+
+  function syncPartnerFamilyRevealFromIntimacy() {
+    const threshold =
+      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 80;
+    Object.values(gameState.relationships || {}).forEach((rel) => {
+      if (!rel || !rel.met) {
+        return;
+      }
+      const score = computePartnerIntimacyScore(rel);
+      if (score < threshold || rel.partnerFamilyRevealed) {
+        return;
+      }
+      rel.partnerFamilyRevealed = true;
+      const pack = partnerFamilyById[rel.id] || partnerFamilyById._default || {};
+      normalizeStringArray(pack.revealedFlags).forEach((flag) => {
+        if (flag && !gameState.flags.includes(flag)) {
+          gameState.flags.push(flag);
+        }
+      });
+      addHistory("与 " + (rel.name || "TA") + " 足够亲近之后，Ta 终于愿意把家庭那一层说得更完整。");
+    });
+  }
+
+  function resolvePartnerBioExtra(relationship, state) {
+    if (!relationship || !state) {
+      return "";
+    }
+    const packs = partnerBioSnippets[relationship.id] || partnerBioSnippets._default || {};
+    const byEdu = packs.byEducationRouteId || {};
+    const eduId = state.educationRoute && state.educationRoute.id ? state.educationRoute.id : "";
+    let extra = eduId && byEdu[eduId] ? String(byEdu[eduId]) : "";
+    const arcMap = packs.byCareerArc || {};
+    const arc = relationship.growthArcId && arcMap[relationship.growthArcId] ? String(arcMap[relationship.growthArcId]) : "";
+    if (arc) {
+      extra = extra ? extra + "\n\n" + arc : arc;
+    }
+    if (state.overseas && state.overseas.active && packs.overseasActiveNote) {
+      extra = extra ? extra + "\n\n" + String(packs.overseasActiveNote) : String(packs.overseasActiveNote);
+    }
+    return extra;
+  }
+
+  function computeJobAcceptProbability(payload) {
+    const data = payload && typeof payload === "object" ? payload : {};
+    const cfg = lifeJobApplicationConfig;
+    let p = typeof cfg.baseAcceptProbability === "number" ? cfg.baseAcceptProbability : 0.38;
+    const sw = cfg.statWeights || {};
+    const st = gameState.stats || {};
+    p += (st.intelligence || 0) * (typeof sw.intelligence === "number" ? sw.intelligence : 0);
+    p += (st.social || 0) * (typeof sw.social === "number" ? sw.social : 0);
+    p += (st.career || 0) * (typeof sw.career === "number" ? sw.career : 0);
+    p += (st.mental || 0) * (typeof sw.mental === "number" ? sw.mental : 0);
+    p += (st.familySupport || 0) * (typeof sw.familySupport === "number" ? sw.familySupport : 0);
+    p -= (st.stress || 0) * (typeof cfg.stressPenalty === "number" ? cfg.stressPenalty : 0.001);
+    if (data.referral) {
+      p += typeof cfg.referralBonus === "number" ? cfg.referralBonus : 0.16;
+    }
+    if (data.familyLine) {
+      p += typeof cfg.familyJobBonus === "number" ? cfg.familyJobBonus : 0.12;
+    }
+    if (gameState.flags.includes("top_school")) {
+      p += typeof cfg.topSchoolBonus === "number" ? cfg.topSchoolBonus : 0.1;
+    }
+    const os = gameState.overseas && gameState.overseas.active;
+    if (os || gameState.flags.includes("globalized_resume")) {
+      p += typeof cfg.overseasEduBonus === "number" ? cfg.overseasEduBonus : 0.08;
+    }
+    const edu = gameState.educationRoute && gameState.educationRoute.id ? gameState.educationRoute.id : "";
+    if (edu === "gaokao_vocational_college" || edu === "non_gaokao_skill_path") {
+      p += typeof cfg.vocationalFitBonus === "number" ? cfg.vocationalFitBonus : 0.06;
+    }
+    if (edu === "direct_work_route") {
+      p += typeof cfg.directWorkBonus === "number" ? cfg.directWorkBonus : 0.05;
+    }
+    const track = typeof data.track === "string" ? data.track : "";
+    const tb = cfg.trackBonus && typeof cfg.trackBonus === "object" ? cfg.trackBonus : {};
+    if (track && typeof tb[track] === "number") {
+      p += tb[track];
+    }
+    const lo = typeof cfg.minAcceptProbability === "number" ? cfg.minAcceptProbability : 0.07;
+    const hi = typeof cfg.maxAcceptProbability === "number" ? cfg.maxAcceptProbability : 0.88;
+    return Math.max(lo, Math.min(hi, p));
+  }
+
+  function runSingleYearEconomyTick(forAge) {
+    if (!gameState.flags.includes("annual_economy_active")) {
+      return;
+    }
+    ensureWorkLifeState();
+    const wl = gameState.workLife;
+    if (!wl.workLocationId || !wl.housingId) {
+      return;
+    }
+    const cid = gameState.careerRoute && gameState.careerRoute.id ? gameState.careerRoute.id : "";
+    if (!cid || careerZeroSalaryIds.includes(cid)) {
+      return;
+    }
+    const salaryTable = lifeWorkLifeConfig.salaryByCareerRouteId || {};
+    let income = typeof salaryTable[cid] === "number" ? salaryTable[cid] : 8;
+    const locList = Array.isArray(lifeWorkLifeConfig.workLocations) ? lifeWorkLifeConfig.workLocations : [];
+    const loc = locList.find((x) => x && x.id === wl.workLocationId) || null;
+    const mult = loc && typeof loc.salaryMult === "number" ? loc.salaryMult : 1;
+    income = Math.max(0, Math.round(income * mult));
+    const livingBase =
+      typeof lifeWorkLifeConfig.annualLivingCostBase === "number" ? lifeWorkLifeConfig.annualLivingCostBase : 7;
+    let living = livingBase + (loc && typeof loc.livingCostAdd === "number" ? loc.livingCostAdd : 0);
+    if (gameState.flags.includes("housing_parents_roof") || gameState.flags.includes("living_at_parents_after_school")) {
+      const disc =
+        typeof lifeWorkLifeConfig.liveWithParentsLivingDiscount === "number"
+          ? lifeWorkLifeConfig.liveWithParentsLivingDiscount
+          : 0;
+      living = Math.max(2, living - disc);
+    }
+    const houseList = Array.isArray(lifeWorkLifeConfig.housingOptions) ? lifeWorkLifeConfig.housingOptions : [];
+    const house = houseList.find((x) => x && x.id === wl.housingId) || null;
+    const rent = house && typeof house.annualRent === "number" ? house.annualRent : 0;
+    const kids = getChildCount(gameState);
+    const childCost = kids > 0 ? kids * 3 : 0;
+    let net = income - living - rent - childCost;
+    const bonusP =
+      typeof lifeWorkLifeConfig.bonusProbabilityPerYear === "number" ? lifeWorkLifeConfig.bonusProbabilityPerYear : 0;
+    if (bonusP > 0 && Math.random() < bonusP) {
+      const br = lifeWorkLifeConfig.bonusMoneyRange;
+      const lo = Array.isArray(br) && typeof br[0] === "number" ? br[0] : 2;
+      const hi = Array.isArray(br) && typeof br[1] === "number" ? br[1] : 8;
+      const bump = Math.round(lo + Math.random() * (hi - lo));
+      net += bump;
+      addHistory("这一年你拿到一笔额外奖金/副业进账（约 " + bump + "）。");
+    }
+    const layP =
+      typeof lifeWorkLifeConfig.layoffProbabilityPerYear === "number" ? lifeWorkLifeConfig.layoffProbabilityPerYear : 0;
+    if (layP > 0 && Math.random() < layP && forAge >= 26) {
+      const drift = careerRouteMap.get("career_in_job_search");
+      if (drift) {
+        addHistory("这一年行业波动，你失去了原来的岗位，只能重新把自己放回求职市场里。");
+        applyRouteDefinition(drift);
+        removeGameFlags(["annual_economy_active", "employed_housing_settled", "pending_work_location_pick", "pending_housing_pick"]);
+        addGameFlags(["job_pipeline_active", "post_layoff_search"]);
+        ensureWorkLifeState();
+        gameState.workLife.workLocationId = "";
+        gameState.workLife.housingId = "";
+        adjustStat("stress", typeof lifeWorkLifeConfig.layoffStress === "number" ? lifeWorkLifeConfig.layoffStress : 12);
+        adjustStat("career", -4);
+        return;
+      }
+    }
+    adjustStat("money", net);
+    addHistory(
+      "年度收支（约 " +
+        forAge +
+        " 岁）：工作收入约 " +
+        income +
+        "，日常与居住支出约 " +
+        (living + rent + childCost) +
+        "，净变动约 " +
+        net +
+        "。"
+    );
+  }
+
+  function settleEconomyYearsAfterAgeJump(ageBefore, ageAfter) {
+    if (typeof ageBefore !== "number" || typeof ageAfter !== "number" || ageAfter <= ageBefore) {
+      return;
+    }
+    ensureEconomyLedger();
+    let start = gameState.economyLedger.lastSettledAge + 1;
+    const minStart = ageBefore + 1;
+    if (start < minStart) {
+      start = minStart;
+    }
+    for (let y = start; y <= ageAfter; y++) {
+      runSingleYearEconomyTick(y);
+      gameState.economyLedger.lastSettledAge = y;
+    }
+  }
+
+  function stampEconomyForCurrentAgeIfNeeded() {
+    ensureEconomyLedger();
+    const a = gameState.age;
+    if (gameState.economyLedger.lastSettledAge < a) {
+      runSingleYearEconomyTick(a);
+      gameState.economyLedger.lastSettledAge = a;
+    }
+  }
+
   function performCustomAction(actionName, payload) {
     const action = String(actionName || "").trim();
     const data = payload && typeof payload === "object" ? payload : {};
@@ -2755,6 +3045,9 @@
       if (!item) {
         return;
       }
+      if (!isShopItemUnlockedForState(item, gameState)) {
+        return;
+      }
       const price = typeof item.price === "number" ? item.price : 0;
       if ((gameState.stats.money || 0) < price) {
         return;
@@ -2839,10 +3132,16 @@
 
     if (action === "child_path_decision") {
       if (!gameState.children || typeof gameState.children !== "object") {
-        gameState.children = { count: 0, tags: [] };
+        gameState.children = { count: 0, tags: [], careMode: "", lastCareEventAge: null };
       }
       if (!Array.isArray(gameState.children.tags)) {
         gameState.children.tags = [];
+      }
+      if (typeof gameState.children.careMode !== "string") {
+        gameState.children.careMode = "";
+      }
+      if (typeof gameState.children.lastCareEventAge !== "number") {
+        gameState.children.lastCareEventAge = null;
       }
       const add = typeof data.addCount === "number" ? data.addCount : 0;
       gameState.children.count = Math.max(0, (gameState.children.count || 0) + add);
@@ -2852,12 +3151,117 @@
         }
       });
       if (add > 0) {
-        addGameFlags(["has_child", "parent_active"]);
+        addGameFlags(["has_child", "parent_active", "parenting_phase_newborn"]);
+        gameState.children.lastCareEventAge = gameState.age;
         adjustStat("stress", 5);
         adjustStat("money", -4);
         adjustStat("happiness", 2);
         addHistory("家里多了一个需要被接住的生命，你的时间表和钱包同时被改写。");
       }
+      return;
+    }
+
+    if (action === "job_application_roll") {
+      const targetId = typeof data.targetCareerRouteId === "string" ? data.targetCareerRouteId.trim() : "";
+      const route = targetId ? careerRouteMap.get(targetId) : null;
+      if (!route) {
+        addHistory("这条求职路径暂时无法解析，先换一个岗位方向试试。");
+        return;
+      }
+      if (!matchesConditions(route.conditions, gameState)) {
+        addHistory("你掂了掂门槛，发现自己这条履历还不够挨到那一类岗位——先换更现实的目标。");
+        ensureWorkLifeState();
+        gameState.workLife.jobApplicationsSent += 1;
+        adjustStat("stress", 3);
+        adjustStat("mental", -1);
+        return;
+      }
+      ensureWorkLifeState();
+      gameState.workLife.jobApplicationsSent += 1;
+      const p = computeJobAcceptProbability(data);
+      const roll = Math.random();
+      if (roll > p) {
+        addHistory(
+          "这一轮回音仍是拒绝：测评、面试或沉默的已读不回，把你推回「再改一版简历」的桌子前。（录取概率约 " +
+            Math.round(p * 100) +
+            "%，未命中）"
+        );
+        adjustStat("stress", 4);
+        adjustStat("mental", -2);
+        return;
+      }
+      addHistory(
+        "你拿到了一份可用的 offer——工资与强度未必完美，但至少把你从「求职者」暂时捞上岸。（本岗位估算录取概率约 " +
+          Math.round(p * 100) +
+          "%）"
+      );
+      removeGameFlags(["job_pipeline_active", "post_grad_job_hunt"]);
+      applyRouteDefinition(route);
+      addGameFlags(["pending_work_location_pick", "job_offer_received"]);
+      adjustStat("happiness", 3);
+      adjustStat("stress", -2);
+      return;
+    }
+
+    if (action === "apply_work_location") {
+      const locationId = typeof data.locationId === "string" ? data.locationId.trim() : "";
+      const list = Array.isArray(lifeWorkLifeConfig.workLocations) ? lifeWorkLifeConfig.workLocations : [];
+      const hit = list.find((x) => x && x.id === locationId) || null;
+      if (!hit || !gameState.flags.includes("pending_work_location_pick")) {
+        return;
+      }
+      const req = Array.isArray(hit.requiresFlags) ? hit.requiresFlags : [];
+      if (req.length && !req.every((f) => gameState.flags.includes(f))) {
+        addHistory("以你当前履历，这一工作地点选项暂不成立。");
+        return;
+      }
+      ensureWorkLifeState();
+      gameState.workLife.workLocationId = locationId;
+      removeGameFlags(["pending_work_location_pick"]);
+      addGameFlags(["pending_housing_pick", "work_location_chosen"]);
+      const st = hit.stats && typeof hit.stats === "object" ? hit.stats : {};
+      Object.keys(st).forEach((k) => {
+        const v = st[k];
+        if (typeof v === "number") {
+          adjustStat(k, v);
+        }
+      });
+      addHistory("你把工作半径落在：" + (hit.label || locationId) + "。");
+      return;
+    }
+
+    if (action === "apply_housing_choice") {
+      const housingId = typeof data.housingId === "string" ? data.housingId.trim() : "";
+      const hlist = Array.isArray(lifeWorkLifeConfig.housingOptions) ? lifeWorkLifeConfig.housingOptions : [];
+      const h = hlist.find((x) => x && x.id === housingId) || null;
+      if (!h || !gameState.flags.includes("pending_housing_pick")) {
+        return;
+      }
+      const inc = Array.isArray(h.incompatibleFlags) ? h.incompatibleFlags : [];
+      if (inc.length && inc.some((f) => gameState.flags.includes(f))) {
+        addHistory("以你当前状态，这个住房选项不太成立，换一项更现实的。");
+        return;
+      }
+      ensureWorkLifeState();
+      gameState.workLife.housingId = housingId;
+      removeGameFlags(["pending_housing_pick"]);
+      addGameFlags(["annual_economy_active", "employed_housing_settled"]);
+      normalizeStringArray(h.addFlags).forEach((f) => {
+        if (f && !gameState.flags.includes(f)) {
+          gameState.flags.push(f);
+        }
+      });
+      const hs = h.stats && typeof h.stats === "object" ? h.stats : {};
+      Object.keys(hs).forEach((k) => {
+        const v = hs[k];
+        if (typeof v === "number") {
+          adjustStat(k, v);
+        }
+      });
+      addHistory("你敲定了住房方案：" + (h.label || housingId) + "；之后的财富将按年结算工资、日常支出与房租。");
+      ensureEconomyLedger();
+      gameState.economyLedger.lastSettledAge = gameState.age - 1;
+      stampEconomyForCurrentAgeIfNeeded();
       return;
     }
 
@@ -3897,6 +4301,8 @@
     if (nextActiveId) {
       gameState.activeRelationshipId = nextActiveId;
     }
+
+    syncPartnerFamilyRevealFromIntimacy();
   }
 
   function applyMutationBlock(block, options) {
@@ -3977,6 +4383,8 @@
 
     autoRepayStudyLoan();
     runRelationshipGrowthHooks(ageBeforeMutation, gameState.age);
+    settleEconomyYearsAfterAgeJump(ageBeforeMutation, gameState.age);
+    syncPartnerFamilyRevealFromIntimacy();
   }
 
   function calculateEndingWeight(ending, state) {
@@ -4739,6 +5147,15 @@
     return event.choices
       .map((choice, index) => ({ ...choice, index }))
       .filter((choice) => choicePassesSpendGate(choice, gameState))
+      .filter((choice) => {
+        if (event.id === "life_shop_street" && choice.customAction === "shop_purchase") {
+          const payload = choice.customPayload && typeof choice.customPayload === "object" ? choice.customPayload : {};
+          const sid = typeof payload.itemId === "string" ? payload.itemId : "";
+          const row = shopItemMap.get(sid);
+          return Boolean(row && isShopItemUnlockedForState(row, gameState));
+        }
+        return true;
+      })
       .filter((choice) => matchesConditions(choice.conditions, gameState));
   }
 
@@ -4847,6 +5264,19 @@
   }
 
   function getRequiredMilestoneEvent() {
+    if (gameState.flags.includes("pending_work_location_pick")) {
+      const locEv = eventMap.get("work_location_pick_milestone") || null;
+      if (locEv && isEventEligible(locEv)) {
+        return locEv;
+      }
+    }
+    if (gameState.flags.includes("pending_housing_pick")) {
+      const hsEv = eventMap.get("housing_pick_milestone") || null;
+      if (hsEv && isEventEligible(hsEv)) {
+        return hsEv;
+      }
+    }
+
     const educationRouteMissing = !gameState.educationRoute;
     const careerRouteMissing = !gameState.careerRoute;
 
@@ -5059,11 +5489,7 @@
     return getState();
   }
 
-  /** 与 data/life-systems.js 中 life_shop_street 一致 */
-  const MANUAL_SHOP_MIN_AGE = 16;
-  const MANUAL_SHOP_MAX_AGE = 55;
-
-  /** 与 life_gift_moment 的 activeRelationshipStatuses 一致 */
+  /** 与 life_gift_moment 的 activeRelationshipStatuses 一致（16 岁及以上） */
   const MANUAL_GIFT_ALLOWED_STATUSES = [
     "ambiguous",
     "close",
@@ -5073,6 +5499,18 @@
     "mutual_crush",
     "long_distance_dating"
   ];
+
+  /** 低龄可互赠小礼物：同学 / 初识好感（与 UI 提示一致） */
+  const MANUAL_GIFT_YOUTH_STATUSES = ["acquaintance", "familiar", "crush", "mutual_crush", "close"];
+
+  function giftAllowedStatusesForAge(age) {
+    const a = typeof age === "number" ? age : 0;
+    if (a < 16) {
+      return MANUAL_GIFT_YOUTH_STATUSES;
+    }
+    const merged = new Set(MANUAL_GIFT_YOUTH_STATUSES.concat(MANUAL_GIFT_ALLOWED_STATUSES));
+    return Array.from(merged);
+  }
 
   function canPurchaseShopItem(itemId) {
     const id = typeof itemId === "string" ? itemId.trim() : "";
@@ -5088,6 +5526,9 @@
     }
     const item = shopItemMap.get(id);
     if (!item) {
+      return false;
+    }
+    if (!isShopItemUnlockedForState(item, gameState)) {
       return false;
     }
     const price = typeof item.price === "number" ? item.price : 0;
@@ -5113,7 +5554,7 @@
       !gameState.gameStarted ||
       gameState.gameOver ||
       gameState.setupStep ||
-      gameState.age < 16 ||
+      gameState.age < MANUAL_SHOP_MIN_AGE ||
       getInventoryItemCount(gameState, id) < 1
     ) {
       return false;
@@ -5123,7 +5564,8 @@
       return false;
     }
     const relationship = getRelationshipRecord(gameState, activeId);
-    if (!relationship || !MANUAL_GIFT_ALLOWED_STATUSES.includes(relationship.status)) {
+    const allowed = giftAllowedStatusesForAge(gameState.age);
+    if (!relationship || !allowed.includes(relationship.status)) {
       return false;
     }
     return Boolean(lifeGiftEffects[id]);
@@ -5149,6 +5591,39 @@
     return resolveRelationshipDynamicBio(rel, state);
   }
 
+  function getPartnerFamilyView(state, relationshipId) {
+    const rel = getRelationshipSnapshot(state, relationshipId);
+    if (!rel || !rel.met) {
+      return null;
+    }
+    const pack = partnerFamilyById[rel.id] || partnerFamilyById._default;
+    if (!pack || typeof pack !== "object") {
+      return null;
+    }
+    const score = computePartnerIntimacyScore(rel);
+    const th =
+      typeof lifeFamilyRevealConfig.minIntimacyScore === "number" ? lifeFamilyRevealConfig.minIntimacyScore : 80;
+    const revealed = Boolean(rel.partnerFamilyRevealed) || score >= th;
+    return {
+      vague: typeof pack.vague === "string" ? pack.vague : "",
+      revealed,
+      revealedTitle: typeof pack.revealedTitle === "string" ? pack.revealedTitle : "家庭背景",
+      revealedSummary: typeof pack.revealedSummary === "string" ? pack.revealedSummary : "",
+      revealedDetails: Array.isArray(pack.revealedDetails) ? pack.revealedDetails.slice() : [],
+      intimacyScore: score,
+      threshold: th
+    };
+  }
+
+  function isShopItemUnlockedNow(itemId) {
+    const id = typeof itemId === "string" ? itemId.trim() : "";
+    const item = shopItemMap.get(id);
+    if (!item) {
+      return false;
+    }
+    return isShopItemUnlockedForState(item, gameState);
+  }
+
   window.LifeGameEngine = {
     getState,
     getCurrentEvent,
@@ -5164,9 +5639,15 @@
     setActiveRelationship,
     clearActiveRelationship,
     canPurchaseShopItem,
+    isShopItemUnlockedNow,
     purchaseShopItem,
     canGiveGiftFromInventory,
     giveGiftFromInventory,
-    getRelationshipDynamicBio
+    getRelationshipDynamicBio,
+    getPartnerFamilyView,
+    computePartnerIntimacyScore: function (state, relationshipId) {
+      const rel = getRelationshipSnapshot(state, relationshipId);
+      return computePartnerIntimacyScore(rel);
+    }
   };
 })();
